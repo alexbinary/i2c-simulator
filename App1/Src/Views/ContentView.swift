@@ -6,6 +6,9 @@ import SwiftUI
 struct ContentView: View {
     
     
+    @State private var scene = RenderScene(lines: [])
+    
+    
     @State private var viewportTranslation: CGFloat = 0
     @State private var viewportScale: CGFloat = 1
     
@@ -45,7 +48,7 @@ struct ContentView: View {
                     viewportTranslation: viewportTranslation,
                     viewportScale: viewportScale
                 )
-                renderer.render()
+                renderer.render(scene)
             }
             
             MouseEventsArea(

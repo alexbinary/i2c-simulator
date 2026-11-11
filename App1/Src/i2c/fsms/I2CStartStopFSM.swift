@@ -6,8 +6,9 @@ import SwiftUI
 enum I2CStartStopFSMState {
     
     case preparingLines
+    case waitingBefore
     case assertingLines
-    case waiting
+    case waitingAfter
     case done
 }
 
@@ -26,6 +27,13 @@ class I2CStartStopFSM {
     func linesReady() {
         
         if currentState == .preparingLines {
+            currentState = .waitingBefore
+        }
+    }
+
+    func waitedBefore() {
+        
+        if currentState == .waitingBefore {
             currentState = .assertingLines
         }
     }
@@ -33,13 +41,13 @@ class I2CStartStopFSM {
     func linesAsserted() {
         
         if currentState == .assertingLines {
-            currentState = .waiting
+            currentState = .waitingAfter
         }
     }
 
-    func waited() {
+    func waitedAfter() {
         
-        if currentState == .waiting {
+        if currentState == .waitingAfter {
             currentState = .done
         }
     }

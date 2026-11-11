@@ -28,7 +28,10 @@ class I2CMasterController: I2CController {
 
     private var lastMicroStateActedOn: I2CBusFSMMicroState?
     
+    private let xWaitBeforeStart: CGFloat = 0
     private let xWaitAfterStart: CGFloat = 30
+    private let xWaitBeforeStop: CGFloat = 30
+    private let xWaitAfterStop: CGFloat = 0
     private let xWaitBeforeBitClockHigh: CGFloat = 30
     private let xWaitBitClockHigh: CGFloat = 100
     private let xWaitAfterBitClockHigh: CGFloat = 30
@@ -77,6 +80,19 @@ class I2CMasterController: I2CController {
                 if busFSM.currentMicroState == .idle_HH {
                     startStopFSM.linesReady()
                 }
+
+            case .waitingBefore:
+
+                if busFSM.currentMicroState != .idle_HH {
+                    abortTransmission()
+                }
+                if xRef == nil {
+                    xRef = x
+                }
+                if x - xRef! >= xWaitBeforeStart {
+                    startStopFSM.waitedBefore()
+                    xRef = nil
+                }
                 
             case .assertingLines:
                 
@@ -88,7 +104,7 @@ class I2CMasterController: I2CController {
                     abortTransmission()
                 }
 
-            case .waiting:
+            case .waitingAfter:
 
                 if busFSM.currentMicroState != .started {
                     abortTransmission()
@@ -97,7 +113,7 @@ class I2CMasterController: I2CController {
                     xRef = x
                 }
                 if x - xRef! >= xWaitAfterStart {
-                    startStopFSM.waited()
+                    startStopFSM.waitedAfter()
                     xRef = nil
                 }
                 
@@ -307,7 +323,56 @@ class I2CMasterController: I2CController {
             break
         
         case .sendingStop:
-            break
+            
+            switch startStopFSM.currentState {
+                
+            case .preparingLines:
+                
+                if busFSM.currentMicroState == .transmitting_LH {
+                    startStopFSM.linesReady()
+                }
+
+            case .waitingBefore:
+
+                if busFSM.currentMicroState != .transmitting_LH {
+                    abortTransmission()
+                }
+                if xRef == nil {
+                    xRef = x
+                }
+                if x - xRef! >= xWaitBeforeStop {
+                    startStopFSM.waitedBefore()
+                    xRef = nil
+                }
+                
+            case .assertingLines:
+                
+                if busFSM.currentMicroState == .idle_HH {
+                    startStopFSM.linesAsserted()
+                } else if busFSM.currentMicroState == lastMicroStateActedOn {
+                    // waiting for previous action to take effect
+                } else {
+                    abortTransmission()
+                }
+
+            case .waitingAfter:
+
+                if busFSM.currentMicroState != .idle_HH {
+                    abortTransmission()
+                }
+                if xRef == nil {
+                    xRef = x
+                }
+                if x - xRef! >= xWaitAfterStop {
+                    startStopFSM.waitedAfter()
+                    xRef = nil
+                }
+                
+            case .done:
+                
+                transmissionFSM.stopSent()
+                startStopFSM.reset()
+            }
         
         case .done:
 
@@ -340,10 +405,13 @@ class I2CMasterController: I2CController {
             case .preparingLines:
                 break
 
+            case .waitingBefore:
+                break
+
             case .assertingLines:
                 pullSDALow()
 
-            case .waiting:
+            case .waitingAfter:
                 pullSDALow()
 
             case .done:
@@ -416,7 +484,36 @@ class I2CMasterController: I2CController {
             break
             
         case .sendingStop:
-            break
+            
+            switch startStopFSM.currentState {
+                
+            case .preparingLines:
+
+                if busFSM.currentMicroState == .transmitting_HH {
+                    pullSCLLow()
+                } else if busFSM.currentMicroState == .transmitting_HL {
+                    pullSCLLow()
+                    pullSDALow()
+                } else if busFSM.currentMicroState == .transmitting_LL {
+                    pullSDALow()
+                } else if busFSM.currentMicroState == .transmitting_LH {
+                    // release everything => stop
+                }
+
+                // TODO wait between pulling SDA and releasing SCL
+
+            case .waitingBefore:
+                pullSDALow()
+
+            case .assertingLines:
+                break
+
+            case .waitingAfter:
+                break
+
+            case .done:
+                break
+            }
             
         case .done:
             break

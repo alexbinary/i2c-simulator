@@ -352,7 +352,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "334"
             endingLineNumber = "334"
-            landmarkName = "actOnTransmissionState(levelSCL:levelSDA:x:)"
+            landmarkName = "updateTransmissionState(levelSCL:levelSDA:x:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -368,7 +368,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "351"
             endingLineNumber = "351"
-            landmarkName = "actOnTransmissionState(levelSCL:levelSDA:x:)"
+            landmarkName = "updateTransmissionState(levelSCL:levelSDA:x:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -416,7 +416,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "340"
             endingLineNumber = "340"
-            landmarkName = "actOnTransmissionState(levelSCL:levelSDA:x:)"
+            landmarkName = "updateTransmissionState(levelSCL:levelSDA:x:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -432,7 +432,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "343"
             endingLineNumber = "343"
-            landmarkName = "actOnTransmissionState(levelSCL:levelSDA:x:)"
+            landmarkName = "updateTransmissionState(levelSCL:levelSDA:x:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -448,7 +448,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "337"
             endingLineNumber = "337"
-            landmarkName = "actOnTransmissionState(levelSCL:levelSDA:x:)"
+            landmarkName = "updateTransmissionState(levelSCL:levelSDA:x:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -464,7 +464,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "346"
             endingLineNumber = "346"
-            landmarkName = "actOnTransmissionState(levelSCL:levelSDA:x:)"
+            landmarkName = "updateTransmissionState(levelSCL:levelSDA:x:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>

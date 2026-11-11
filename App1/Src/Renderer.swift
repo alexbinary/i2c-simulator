@@ -20,13 +20,12 @@ struct LineRenderParams {
 
 class RenderLine {
     
+    let sceneLine: RenderSceneLine
     let slot: Int
     let color: Color
-    var path: Path
-    var currentLevel: LineLevel
-    let sceneLine: RenderSceneLine
     
-    private var pullers: Set<UUID> = []
+    var currentLevel: LineLevel
+    var path: Path
     
     init(
         sceneLine: RenderSceneLine,
@@ -36,23 +35,9 @@ class RenderLine {
         self.sceneLine = sceneLine
         self.slot = slot
         self.color = color
+        
+        self.currentLevel = sceneLine.initialLevel
         self.path = Path()
-        self.currentLevel = .high
-        updateLevel()
-    }
-    
-    func addPuller(_ id: UUID) {
-        pullers.insert(id)
-        updateLevel()
-    }
-    
-    func removePuller(_ id: UUID) {
-        pullers.remove(id)
-        updateLevel()
-    }
-    
-    private func updateLevel() {
-        currentLevel = pullers.count == 0 ? .high : .low
     }
 }
 
@@ -67,8 +52,6 @@ class Renderer {
     let viewportScale: CGFloat
     
     let margin: CGFloat = 24
-    
-    var currentX: CGFloat = 0
     
     let xStepDefaultSetup: CGFloat = 30
     let xStepBitClockHigh: CGFloat = 100
@@ -116,82 +99,38 @@ class Renderer {
     }
     
     
-    func move(_ line: RenderLine, toY y: CGFloat, atX x: CGFloat) {
+    func move(_ line: RenderLine, toY y: CGFloat, at x: CGFloat) {
         
-        let sp = toScreen(x)
+        let sx = toScreen(x)
         
-        if let currentPoint = line.path.currentPoint,
-           currentPoint.x < sp {
-            line.path.addLine(to: CGPoint(x: sp, y: currentPoint.y))
+        if let currentPoint = line.path.currentPoint, currentPoint.x < sx {
+            line.path.addLine(to: CGPoint(x: sx, y: currentPoint.y))
         }
         
-        line.path.addLine(to: CGPoint(x: sp, y: y))
+        line.path.addLine(to: CGPoint(x: sx, y: y))
     }
     
     
-    func bring(_ line: RenderLine, to level: LineLevel) {
+    func bring(_ line: RenderLine, to level: LineLevel, at x: CGFloat) {
         
         let params = params(forLineSlot: line.slot)
-        move(line, toY: params.y(for: level), atX: self.currentX)
+        let y = params.y(for: level)
+        
+        move(line, toY: y, at: x)
         line.currentLevel = level
     }
     
     
-    func transition(_ line: RenderLine) {
+    func transition(_ line: RenderLine, at x: CGFloat) {
         
-        bring(line, to: line.currentLevel.opposite)
+        bring(line, to: line.currentLevel.opposite, at: x)
     }
     
     
-    func advanceX(by step: CGFloat) {
+    func render(_ scene: RenderScene) {
         
-        if (step < 0) { fatalError("X must always go forward") }
-        
-        self.currentX += step
-    }
-    
-    
-    func advanceX(to x: CGFloat) {
-        
-        if (x < self.currentX) { fatalError("X must always go forward") }
-        
-        self.currentX = x
-    }
-    
-    
-    func render(_ sceneIn: RenderScene) {
-        
-        let sceneLineSCL = RenderSceneLine(initialLevel: .high)
-        let sceneLineSDA = RenderSceneLine(initialLevel: .high)
-        
-        let scene = RenderScene(lines: [sceneLineSCL, sceneLineSDA])
-        
-        
-        sceneLineSDA.addTransition(at: 300)
-        sceneLineSDA.addTransition(at: 200)
-        
-        //
-        
-        advanceX(by: 100)
-        
-        //        i2c_start()
-        //
-        //        i2c_sendBit(.zero)
-        //        i2c_sendBit(.one)
-        //        i2c_ack()
-        //
-        //        i2c_start()
-        //
-        //        i2c_sendBit(.zero)
-        //        i2c_sendBit(.one)
-        //        i2c_nack()
-        //
-        //        i2c_stop()
-        
-        //
-        
-        let renderLineSCL = RenderLine(sceneLine: sceneLineSCL, slot: 0, color: .orange)
-        let renderLineSDA = RenderLine(sceneLine: sceneLineSDA, slot: 1, color: .white)
+        let renderLineSCL = RenderLine(sceneLine: scene.lineSCL, slot: 0, color: .orange)
+        let renderLineSDA = RenderLine(sceneLine: scene.lineSDA, slot: 1, color: .white)
         
         let renderLines: [RenderLine] = [renderLineSCL, renderLineSDA]
         
@@ -201,136 +140,21 @@ class Renderer {
         let worldMinX: CGFloat = toWorld(screenMinX)
         let worldMaxX: CGFloat = toWorld(screenMaxX)
         
-        self.currentX = margin
-        
         for line in renderLines {
             
+            var currentX = margin
+            
             let params = params(forLineSlot: line.slot)
-            line.path.move(to: CGPoint(x: toScreen(min(self.currentX, worldMinX)), y: params.y(for: line.currentLevel)))
+            line.path.move(to: CGPoint(x: toScreen(min(currentX, worldMinX)), y: params.y(for: line.currentLevel)))
             
             for x in line.sceneLine.transitions {
-                self.advanceX(to: x)
-                self.transition(line)
+                self.transition(line, at: x)
+                currentX = x
             }
             
-            line.path.addLine(to: CGPoint(x: toScreen(max(self.currentX, worldMaxX)), y: params.y(for: line.currentLevel)))
+            line.path.addLine(to: CGPoint(x: toScreen(max(currentX, worldMaxX)), y: params.y(for: line.currentLevel)))
             context.stroke(line.path, with: .color(line.color), lineWidth: 1)
         }
     }
-    
-    
-//    func i2c_pullSDALow() {
-//        
-//        lineSDA.addPuller(self.pullerId)
-//        transition(lineSDA, to: lineSDA.currentLevel)
-//    }
-//    
-//    func i2c_pullSCLLow() {
-//        
-//        lineSCL.addPuller(self.pullerId)
-//        transition(lineSCL, to: lineSCL.currentLevel)
-//    }
-//    
-//    func i2c_releaseSDA() {
-//        
-//        lineSDA.removePuller(self.pullerId)
-//        transition(lineSDA, to: lineSDA.currentLevel)
-//    }
-//    
-//    func i2c_releaseSCL() {
-//        
-//        lineSCL.removePuller(self.pullerId)
-//        transition(lineSCL, to: lineSCL.currentLevel)
-//    }
-//    
-//    func i2c_SDAIsLow() -> Bool {
-//        
-//        return lineSDA.currentLevel == .low
-//    }
-//    
-//    func i2c_SDAIsHigh() -> Bool {
-//        
-//        return lineSDA.currentLevel == .high
-//    }
-//    
-//    func i2c_SCLIsLow() -> Bool {
-//        
-//        return lineSCL.currentLevel == .low
-//    }
-//    
-//    func i2c_SCLIsHigh() -> Bool {
-//        
-//        return lineSCL.currentLevel == .high
-//    }
-//    
-//    
-//    func i2c_start() {
-//        
-//        if i2c_SDAIsLow() {
-//            
-//            i2c_pullSCLLow()
-//            advanceX(by: xStepDefaultSetup)
-//            
-//            i2c_releaseSDA()
-//            advanceX(by: xStepDefaultSetup)
-//        }
-//        
-//        i2c_releaseSCL()
-//        advanceX(by: xStepDefaultSetup)
-//        
-//        i2c_pullSDALow()
-//        advanceX(by: xStepDefaultSetup)
-//    }
-//    
-//    
-//    func i2c_stop() {
-//        
-//        i2c_pullSCLLow()
-//        advanceX(by: xStepDefaultSetup)
-//        
-//        i2c_pullSDALow()
-//        advanceX(by: xStepDefaultSetup)
-//        
-//        i2c_releaseSCL()
-//        advanceX(by: xStepDefaultSetup)
-//        
-//        i2c_releaseSDA()
-//        advanceX(by: xStepDefaultSetup)
-//    }
-//    
-//    
-//    func i2c_sendBit(_ bit: Bit) {
-//        
-//        if i2c_SCLIsHigh() {
-//            
-//            i2c_pullSCLLow()
-//            advanceX(by: xStepDefaultSetup)
-//        }
-//        
-//        if bit == .zero {
-//            i2c_pullSDALow()
-//        } else {
-//            i2c_releaseSDA()
-//        }
-//        advanceX(by: xStepDefaultSetup)
-//        
-//        i2c_releaseSCL()
-//        advanceX(by: xStepBitClockHigh)
-//        
-//        i2c_pullSCLLow()
-//        advanceX(by: xStepDefaultSetup)
-//    }
-//    
-//    
-//    func i2c_ack() {
-//        
-//        i2c_sendBit(.zero)
-//    }
-//    
-//    
-//    func i2c_nack() {
-//        
-//        i2c_sendBit(.one)
-//    }
 }
 

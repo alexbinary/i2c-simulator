@@ -6,7 +6,7 @@ import SwiftUI
 struct ContentView: View {
     
     
-    @State private var scene = RenderScene(lines: [])
+    @State private var scene = RenderScene()
     
     
     @State private var viewportTranslation: CGFloat = 0

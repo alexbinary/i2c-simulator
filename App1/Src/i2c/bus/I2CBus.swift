@@ -12,7 +12,7 @@ class I2CBus {
     private var controllers: [I2CController] = []
     
     private var currentX: CGFloat = 0
-    private var minimumComputeX: CGFloat = 1
+    private var minimumComputeX: CGFloat = 10
     private var defaultIdleStepX: CGFloat = 10
     
     
@@ -59,7 +59,11 @@ class I2CBus {
         
         controllers.forEach { controller in
             
-            controller.compute(levelSCL: lineSCL.currentLevel, levelSDA: lineSDA.currentLevel, x: currentX)
+            controller.compute(
+                levelSCL: lineSCL.currentLevel,
+                levelSDA: lineSDA.currentLevel,
+                x: currentX
+            )
         }
         
         advanceX(by: minimumComputeX)

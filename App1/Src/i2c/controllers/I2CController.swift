@@ -12,6 +12,8 @@ class I2CController {
     private(set) var pullingSCLLow: Bool = false
     
     private var lastX: CGFloat = 0
+    
+    var busFSM = I2CBusFSM()
 
     
     init(
@@ -23,6 +25,7 @@ class I2CController {
     
     func compute(levelSCL: LineLevel, levelSDA: LineLevel, x: CGFloat) {
         
+        busFSM.update(levelSCL: levelSCL, levelSDA: levelSDA)
     }
     
     

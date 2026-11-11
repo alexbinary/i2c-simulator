@@ -7,17 +7,17 @@ enum I2CBusFSMMicroState {
     
     case undef
     
-    case idle_SDAH_SCLH
-    case idle_SDAH_SCLL
-    case idle_SDAL_SCLH
-    case idle_SDAL_SCLL
+    case idle_HH
+    case idle_HL
+    case idle_LH
+    case idle_LL
     
     case started
     
-    case started_SDAH_SCLH
-    case started_SDAH_SCLL
-    case started_SDAL_SCLH
-    case started_SDAL_SCLL
+    case transmitting_HH
+    case transmitting_HL
+    case transmitting_LH
+    case transmitting_LL
 }
 
 
@@ -43,31 +43,31 @@ class I2CBusFSM {
         case .undef:
             return .undef
             
-        case .idle_SDAH_SCLH:
+        case .idle_HH:
             return .idle
             
-        case .idle_SDAH_SCLL:
+        case .idle_HL:
             return .busy
             
-        case .idle_SDAL_SCLH:
+        case .idle_LH:
             return .busy
             
-        case .idle_SDAL_SCLL:
+        case .idle_LL:
             return .busy
             
         case .started:
             return .busy
             
-        case .started_SDAH_SCLH:
+        case .transmitting_HH:
             return .busy
         
-        case .started_SDAH_SCLL:
+        case .transmitting_HL:
             return .busy
         
-        case .started_SDAL_SCLH:
+        case .transmitting_LH:
             return .busy
         
-        case .started_SDAL_SCLL:
+        case .transmitting_LL:
             return .busy
         }
     }
@@ -88,19 +88,19 @@ class I2CBusFSM {
             switch (levelSCL, levelSDA) {
                 
             case (.high, .high):
-                return .idle_SDAH_SCLH
+                return .idle_HH
                 
             case (.high, .low):
-                return .idle_SDAH_SCLL
+                return .idle_HL
                 
             case (.low, .high):
-                return .idle_SDAL_SCLH
+                return .idle_LH
                 
             case (.low, .low):
-                return .idle_SDAL_SCLL
+                return .idle_LL
             }
             
-        case .idle_SDAH_SCLH:
+        case .idle_HH:
             
             if levelSDA == .low, levelSCL == .low {
                 return .undef
@@ -111,49 +111,49 @@ class I2CBusFSM {
             }
             
             if levelSCL == .low {
-                return .idle_SDAH_SCLL
+                return .idle_HL
             }
         
-        case .idle_SDAH_SCLL:
+        case .idle_HL:
             
             if levelSDA == .low, levelSCL == .high {
                 return .undef
             }
             
             if levelSDA == .low {
-                return .idle_SDAL_SCLL
+                return .idle_LL
             }
             
             if levelSCL == .high {
-                return .idle_SDAH_SCLH
+                return .idle_HH
             }
         
-        case .idle_SDAL_SCLH:
+        case .idle_LH:
             
             if levelSDA == .high, levelSCL == .low {
                 return .undef
             }
             
             if levelSDA == .high {
-                return .idle_SDAH_SCLH
+                return .idle_HH
             }
             
             if levelSCL == .low {
-                return .idle_SDAL_SCLL
+                return .idle_LL
             }
         
-        case .idle_SDAL_SCLL:
+        case .idle_LL:
             
             if levelSDA == .high, levelSCL == .high {
                 return .undef
             }
             
             if levelSDA == .high {
-                return .idle_SDAH_SCLL
+                return .idle_HL
             }
             
             if levelSCL == .high {
-                return .idle_SDAL_SCLH
+                return .idle_LH
             }
             
         case .started:
@@ -163,14 +163,14 @@ class I2CBusFSM {
             }
             
             if levelSDA == .high {
-                return .idle_SDAH_SCLL
+                return .idle_HL
             }
             
             if levelSCL == .low {
-                return .started_SDAL_SCLL
+                return .transmitting_LL
             }
             
-        case .started_SDAH_SCLH:
+        case .transmitting_HH:
             
             if levelSDA == .low, levelSCL == .low {
                 return .undef
@@ -181,49 +181,49 @@ class I2CBusFSM {
             }
             
             if levelSCL == .low {
-                return .started_SDAH_SCLL
+                return .transmitting_HL
             }
             
-        case .started_SDAH_SCLL:
+        case .transmitting_HL:
             
             if levelSDA == .low, levelSCL == .high {
                 return .undef
             }
             
             if levelSDA == .low {
-                return .started_SDAL_SCLL
+                return .transmitting_LL
             }
             
             if levelSCL == .high {
-                return .started_SDAH_SCLH
+                return .transmitting_HH
             }
         
-        case .started_SDAL_SCLH:
+        case .transmitting_LH:
             
             if levelSDA == .high, levelSCL == .low {
                 return .undef
             }
             
             if levelSDA == .high {
-                return .idle_SDAH_SCLH
+                return .idle_HH
             }
             
             if levelSCL == .low {
-                return .started_SDAL_SCLL
+                return .transmitting_LL
             }
         
-        case .started_SDAL_SCLL:
+        case .transmitting_LL:
             
             if levelSDA == .high, levelSCL == .high {
                 return .undef
             }
             
             if levelSDA == .high {
-                return .started_SDAH_SCLL
+                return .transmitting_HL
             }
             
             if levelSCL == .high {
-                return .started_SDAL_SCLH
+                return .transmitting_LH
             }
         }
         

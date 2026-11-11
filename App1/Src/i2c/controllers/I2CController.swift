@@ -26,6 +26,14 @@ class I2CController {
     func compute(levelSCL: LineLevel, levelSDA: LineLevel, x: CGFloat) {
         
         busFSM.update(levelSCL: levelSCL, levelSDA: levelSDA)
+
+        _compute(levelSCL: levelSCL, levelSDA: levelSDA, x: x)
+    }
+
+
+    func _compute(levelSCL: LineLevel, levelSDA: LineLevel, x: CGFloat) {
+        
+        
     }
     
     

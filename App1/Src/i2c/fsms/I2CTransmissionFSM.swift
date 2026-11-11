@@ -9,8 +9,8 @@ enum I2CTransmissionFSMState {
     case sendingAddressRW
     case readingAddressAck
     case readyData
-    case sendingByte
-    case readingByteAck
+    case transmittingByte
+    case transmittingByteAck
     case sendingStop
     case done
 }
@@ -45,17 +45,17 @@ class I2CTransmissionFSM {
         }
     }
     
-    func sendingByte() {
+    func transmittingByte() {
         
         if currentState == .readyData {
-            currentState = .sendingByte
+            currentState = .transmittingByte
         }
     }
     
     func byteSent() {
         
-        if currentState == .sendingByte {
-            currentState = .readingByteAck
+        if currentState == .transmittingByte {
+            currentState = .transmittingByteAck
         }
     }
     
@@ -64,7 +64,7 @@ class I2CTransmissionFSM {
         if currentState == .readingAddressAck {
             currentState = .readyData
         }
-        if currentState == .readingByteAck {
+        if currentState == .transmittingByteAck {
             currentState = .readyData
         }
     }
@@ -74,7 +74,7 @@ class I2CTransmissionFSM {
         if currentState == .readingAddressAck {
             currentState = .sendingStop
         }
-        if currentState == .readingByteAck {
+        if currentState == .transmittingByteAck {
             currentState = .sendingStop
         }
     }

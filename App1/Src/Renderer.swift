@@ -44,6 +44,11 @@ class Renderer {
         return viewportTranslation + (x)*viewportScale
     }
     
+    func toWorld(_ x: CGFloat) -> CGFloat {
+        
+        return (x - viewportTranslation)/viewportScale
+    }
+    
     
     func params(forLineSlot slot: Int) -> LineParams {
         
@@ -90,12 +95,11 @@ class Renderer {
     
     func render() {
         
-        let inverseTransform: CGAffineTransform =
-            .identity
-            .concatenating(.init(translationX: -viewportTranslation, y: 0))
-            .concatenating(.init(scaleX: 1/viewportScale, y: 1))
+        let screenMinX: CGFloat = 0
+        let screenMaxX: CGFloat = canvasSize.width
         
-        let worldVisibleBounds = CGRect(origin: .zero, size: canvasSize).applying(inverseTransform)
+        let worldMinX: CGFloat = toWorld(screenMinX)
+        let worldMaxX: CGFloat = toWorld(screenMaxX)
         
         //
         
@@ -103,7 +107,7 @@ class Renderer {
         
         for line in lines {
             let params = params(forLineSlot: line.slot)
-            line.path.move(to: CGPoint(x: toScreen(min(self.currentX, worldVisibleBounds.minX)), y: params.y(for: line.currentLevel)))
+            line.path.move(to: CGPoint(x: toScreen(min(self.currentX, worldMinX)), y: params.y(for: line.currentLevel)))
         }
         
         advanceX(by: 100)
@@ -124,7 +128,7 @@ class Renderer {
         
         for line in lines {
             let params = params(forLineSlot: line.slot)
-            line.path.addLine(to: CGPoint(x: toScreen(max(self.currentX, worldVisibleBounds.maxX)), y: params.y(for: line.currentLevel)))
+            line.path.addLine(to: CGPoint(x: toScreen(max(self.currentX, worldMaxX)), y: params.y(for: line.currentLevel)))
             context.stroke(line.path, with: .color(line.color), lineWidth: 1)
         }
     }

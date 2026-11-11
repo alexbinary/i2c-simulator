@@ -23,6 +23,7 @@ class RenderLine {
     let sceneLine: RenderSceneLine
     let slot: Int
     let color: Color
+    let lineWidth: CGFloat
     
     var currentLevel: LineLevel
     var path: Path
@@ -30,11 +31,13 @@ class RenderLine {
     init(
         sceneLine: RenderSceneLine,
         slot: Int,
-        color: Color
+        color: Color,
+        lineWidth: CGFloat
     ) {
         self.sceneLine = sceneLine
         self.slot = slot
         self.color = color
+        self.lineWidth = lineWidth
         
         self.currentLevel = sceneLine.initialLevel
         self.path = Path()
@@ -52,11 +55,6 @@ class Renderer {
     let viewportScale: CGFloat
     
     let margin: CGFloat = 24
-    
-    let xStepDefaultSetup: CGFloat = 30
-    let xStepBitClockHigh: CGFloat = 100
-    
-    let pullerId = UUID()
     
     
     init(
@@ -129,8 +127,10 @@ class Renderer {
     
     func render(_ scene: RenderScene) {
         
-        let renderLineSCL = RenderLine(sceneLine: scene.lineSCL, slot: 0, color: .orange)
-        let renderLineSDA = RenderLine(sceneLine: scene.lineSDA, slot: 1, color: .white)
+        let lineWidth = 2
+        
+        let renderLineSCL = RenderLine(sceneLine: scene.lineSCL, slot: 0, color: .orange, lineWidth: lineWidth)
+        let renderLineSDA = RenderLine(sceneLine: scene.lineSDA, slot: 1, color: .white, lineWidth: lineWidth)
         
         let renderLines: [RenderLine] = [renderLineSCL, renderLineSDA]
         
@@ -153,7 +153,7 @@ class Renderer {
             }
             
             line.path.addLine(to: CGPoint(x: toScreen(max(currentX, worldMaxX)), y: params.y(for: line.currentLevel)))
-            context.stroke(line.path, with: .color(line.color), lineWidth: 1)
+            context.stroke(line.path, with: .color(line.color), lineWidth: line.lineWidth)
         }
     }
 }

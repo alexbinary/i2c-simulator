@@ -3,7 +3,7 @@ import SwiftUI
 
 
 
-enum I2CWriteBitFSMState {
+enum I2CBitWriteFSMState {
     
     case preparingLines
     case waitingLowBefore
@@ -15,10 +15,10 @@ enum I2CWriteBitFSMState {
 }
 
 
-class I2CWriteBitFSM {
+class I2CBitWriteFSM {
     
     
-    var currentState: I2CWriteBitFSMState = .preparingLines
+    var currentState: I2CBitWriteFSMState = .preparingLines
     
 
     func reset() {

@@ -73,13 +73,29 @@ class I2CBusFSM {
     }
     
  
-    func update(levelSCL: LineLevel, levelSDA: LineLevel) {
-        
-        currentMicroState = getNextMicroState(levelSCL: levelSCL, levelSDA: levelSDA, currentMicroState: currentMicroState)
+    func update(
+        levelSCL: LineLevel, levelSDA: LineLevel,
+        SCLchanged: Bool, SDAchanged: Bool
+    ) {    
+        currentMicroState = getNextMicroState(
+            levelSCL: levelSCL, levelSDA: levelSDA,
+            SCLchanged: SCLchanged, SDAchanged: SDAchanged,
+            currentMicroState: currentMicroState
+        )
     }
     
     
-    private func getNextMicroState(levelSCL: LineLevel, levelSDA: LineLevel, currentMicroState: I2CBusFSMMicroState) -> I2CBusFSMMicroState {
+    private func getNextMicroState(
+    
+        levelSCL: LineLevel, levelSDA: LineLevel,
+        SCLchanged: Bool, SDAchanged: Bool,
+        currentMicroState: I2CBusFSMMicroState
+        
+    ) -> I2CBusFSMMicroState {
+
+        if SCLchanged, SDAchanged {
+            return .undef
+        }
         
         switch currentMicroState {
             
@@ -87,6 +103,8 @@ class I2CBusFSM {
             
             switch (levelSCL, levelSDA) {
                 
+            // TODO: undefined states HH, LL, HL, LH, look for START/STOP to get back on track
+
             case (.high, .high):
                 return .idle_HH
                 
@@ -102,126 +120,81 @@ class I2CBusFSM {
             
         case .idle_HH:
             
-            if levelSDA == .low, levelSCL == .low {
-                return .undef
-            }
-            
             if levelSDA == .low {
                 return .started
             }
-            
             if levelSCL == .low {
                 return .idle_HL
             }
         
         case .idle_HL:
             
-            if levelSDA == .low, levelSCL == .high {
-                return .undef
-            }
-            
             if levelSDA == .low {
                 return .idle_LL
             }
-            
             if levelSCL == .high {
                 return .idle_HH
             }
         
         case .idle_LH:
             
-            if levelSDA == .high, levelSCL == .low {
-                return .undef
-            }
-            
             if levelSDA == .high {
                 return .idle_HH
             }
-            
             if levelSCL == .low {
                 return .idle_LL
             }
         
         case .idle_LL:
             
-            if levelSDA == .high, levelSCL == .high {
-                return .undef
-            }
-            
             if levelSDA == .high {
                 return .idle_HL
             }
-            
             if levelSCL == .high {
                 return .idle_LH
             }
             
         case .started:
             
-            if levelSDA == .high, levelSCL == .low {
-                return .undef
-            }
-            
             if levelSDA == .high {
-                return .idle_HL
+                return .idle_HH
             }
-            
             if levelSCL == .low {
                 return .transmitting_LL
             }
             
         case .transmitting_HH:
             
-            if levelSDA == .low, levelSCL == .low {
-                return .undef
-            }
-            
             if levelSDA == .low {
                 return .started
             }
-            
             if levelSCL == .low {
                 return .transmitting_HL
             }
             
         case .transmitting_HL:
             
-            if levelSDA == .low, levelSCL == .high {
-                return .undef
-            }
-            
             if levelSDA == .low {
                 return .transmitting_LL
             }
-            
             if levelSCL == .high {
                 return .transmitting_HH
             }
         
         case .transmitting_LH:
             
-            if levelSDA == .high, levelSCL == .low {
-                return .undef
-            }
-            
             if levelSDA == .high {
                 return .idle_HH
             }
-            
             if levelSCL == .low {
                 return .transmitting_LL
             }
         
         case .transmitting_LL:
             
-            if levelSDA == .high, levelSCL == .high {
-                return .undef
-            }
-            
             if levelSDA == .high {
                 return .transmitting_HL
             }
-            
             if levelSCL == .high {
                 return .transmitting_LH
             }

@@ -19,9 +19,12 @@ class I2CMasterController: I2CController {
     
     private var transmissionFSM = I2CTransmissionFSM()
     private var startStopFSM = I2CStartStopFSM()
-    private var writeBitFSM = I2CWriteBitFSM()
+    private var bitWriteFSM = I2CBitWriteFSM()
+    private var bitReadFSM = I2CBitReadFSM()
 
-    private var transmittingAddressRWByte: Int = 0
+    private var transmittingAddressRWBit: Int = 0
+    private var currentTransmissionBit: Bit { Bit((Int(self.activeTransmission!.addressRW) >> (7-transmittingAddressRWBit)) & 1) }
+    private var lastReadBit: Bit!
 
     private var lastMicroStateActedOn: I2CBusFSMMicroState?
     
@@ -42,28 +45,26 @@ class I2CMasterController: I2CController {
     
     override func _compute(levelSCL: LineLevel, levelSDA: LineLevel, x: CGFloat) {
         
-        if self.activeTransmission == nil {
+        releaseSDA()
+        releaseSCL()
 
+        if self.activeTransmission == nil {
             activateNextTransmission(x: x)
         }
         
-        if let transmission = activeTransmission {
-            
-            updateState(levelSCL: levelSCL, levelSDA: levelSDA, x: x)
+        if self.activeTransmission != nil {
+            updateTransmissionState(levelSCL: levelSCL, levelSDA: levelSDA, x: x)
             
             if transmissionFSM.currentState == .done {
-                
                 clearCurrentTransmission()
-                
             } else {
-                
-                actOnState(levelSCL: levelSCL, levelSDA: levelSDA, x: x)
+                actOnTransmissionState(levelSCL: levelSCL, levelSDA: levelSDA, x: x)
             }
         }
     }
 
 
-    private func updateState(levelSCL: LineLevel, levelSDA: LineLevel, x: CGFloat) {
+    private func updateTransmissionState(levelSCL: LineLevel, levelSDA: LineLevel, x: CGFloat) {
 
         switch transmissionFSM.currentState {
                 
@@ -74,37 +75,28 @@ class I2CMasterController: I2CController {
             case .preparingLines:
                 
                 if busFSM.currentMicroState == .idle_HH {
-                    
                     startStopFSM.linesReady()
-
-                } else {
-
-                    // waiting for previous action to take effect
                 }
                 
             case .assertingLines:
                 
                 if busFSM.currentMicroState == .started {
-                    
                     startStopFSM.linesAsserted()
-
                 } else if busFSM.currentMicroState == lastMicroStateActedOn {
-
                     // waiting for previous action to take effect
-
                 } else {
-
-                    abortCurrentTransmission()
+                    abortTransmission()
                 }
 
             case .waiting:
-                
+
+                if busFSM.currentMicroState != .started {
+                    abortTransmission()
+                }
                 if xRef == nil {
                     xRef = x
                 }
-                
                 if x - xRef! >= xWaitAfterStart {
-                    
                     startStopFSM.waited()
                     xRef = nil
                 }
@@ -115,107 +107,195 @@ class I2CMasterController: I2CController {
                 startStopFSM.reset()
             }
             
-        case .sendingAddressRW:
+        case .writingAddressRW:
             
-            switch writeBitFSM.currentState {
+            switch bitWriteFSM.currentState {
                 
             case .preparingLines:
                 
-                if busFSM.currentMicroState == .transmitting_LL {
-                    
-                    writeBitFSM.linesReady()
-
+                let targetMicroState: I2CBusFSMMicroState = currentTransmissionBit == .zero ? .transmitting_LL : .transmitting_HL
+                if busFSM.currentMicroState == targetMicroState {
+                    bitWriteFSM.linesReady()
                 } else if busFSM.currentMicroState == lastMicroStateActedOn {
-
                     // waiting for previous action to take effect
-
                 } else {
-
-                    abortCurrentTransmission()
+                    abortTransmission()
                 }
 
             case .waitingLowBefore:
-                
+
+                let targetMicroState: I2CBusFSMMicroState = currentTransmissionBit == .zero ? .transmitting_LL : .transmitting_HL
+                if busFSM.currentMicroState != targetMicroState {
+                    abortTransmission()
+                }
                 if xRef == nil {
                     xRef = x
                 }
-                
                 if x - xRef! >= xWaitBeforeBitClockHigh {
-                    
-                    writeBitFSM.waitedLowBefore()
+                    bitWriteFSM.waitedLowBefore()
+                    xRef = nil
+                }
+                
+            case .clockingHigh:
+                
+                let targetMicroState: I2CBusFSMMicroState = currentTransmissionBit == .zero ? .transmitting_LH : .transmitting_HH
+                if busFSM.currentMicroState == targetMicroState {
+                    bitWriteFSM.gotClockHigh()
+                } else if busFSM.currentMicroState == lastMicroStateActedOn {
+                    // waiting for previous action to take effect
+                } else {
+                    abortTransmission()
+                }
+                
+            case .waitingHigh:
+
+                let targetMicroState: I2CBusFSMMicroState = currentTransmissionBit == .zero ? .transmitting_LH : .transmitting_HH
+                if busFSM.currentMicroState != targetMicroState {
+                    abortTransmission()
+                }
+                if xRef == nil {
+                    xRef = x
+                }
+                if x - xRef! >= xWaitBitClockHigh {
+                    bitWriteFSM.waitedHigh()
+                    xRef = nil
+                }
+                
+            case .clockingLow:
+
+                let targetMicroState: I2CBusFSMMicroState = currentTransmissionBit == .zero ? .transmitting_LL : .transmitting_HL
+                if busFSM.currentMicroState == targetMicroState {
+                    bitWriteFSM.gotClockLow()
+                } else if busFSM.currentMicroState == lastMicroStateActedOn {
+                    // waiting for previous action to take effect
+                } else {
+                    abortTransmission()
+                }
+                
+            case .waitingLowAfter:
+
+                let targetMicroState: I2CBusFSMMicroState = currentTransmissionBit == .zero ? .transmitting_LL : .transmitting_HL
+                if busFSM.currentMicroState != targetMicroState {
+                    abortTransmission()
+                }
+                if xRef == nil {
+                    xRef = x
+                }
+                if x - xRef! >= xWaitAfterBitClockHigh {
+                    bitWriteFSM.waitedLowAfter()
+                    xRef = nil
+                }
+                
+            case .done:
+                
+                if transmittingAddressRWBit == 7 {
+                    transmissionFSM.addressRWSent()
+                } else {
+                    transmittingAddressRWBit += 1
+                }
+                bitWriteFSM.reset()
+            }
+            
+        case .readingAddressAck:
+
+            switch bitReadFSM.currentState {
+                
+            case .waitingLowBefore:
+
+                if busFSM.currentMicroState == .transmitting_LL {
+                    // ok
+                } else if busFSM.currentMicroState == .transmitting_HL {
+                    // ok
+                } else {
+                    abortTransmission()
+                }
+                if xRef == nil {
+                    xRef = x
+                }
+                if x - xRef! >= xWaitBeforeBitClockHigh {
+                    bitReadFSM.waitedLowBefore()
                     xRef = nil
                 }
                 
             case .clockingHigh:
                 
                 if busFSM.currentMicroState == .transmitting_LH {
-                    
-                    writeBitFSM.gotClockHigh()
-
+                    bitReadFSM.gotClockHigh()
+                } else if busFSM.currentMicroState == .transmitting_HH {
+                    bitReadFSM.gotClockHigh()
                 } else if busFSM.currentMicroState == lastMicroStateActedOn {
-
                     // waiting for previous action to take effect
-
                 } else {
-
-                    abortCurrentTransmission()
+                    abortTransmission()
                 }
                 
             case .waitingHigh:
-                
+
+                if busFSM.currentMicroState == .transmitting_LH {
+                    // ok
+                } else if busFSM.currentMicroState == .transmitting_HH {
+                    // ok
+                } else {
+                    abortTransmission()
+                }
                 if xRef == nil {
                     xRef = x
                 }
-                
                 if x - xRef! >= xWaitBitClockHigh {
-                    
-                    writeBitFSM.waitedHigh()
+                    bitReadFSM.waitedHigh()
                     xRef = nil
+                }
+
+            case .reading:
+
+                if busFSM.currentMicroState == .transmitting_LH {
+                    lastReadBit = .zero
+                    bitReadFSM.readBit()
+                } else if busFSM.currentMicroState == .transmitting_HH {
+                    lastReadBit = .one
+                    bitReadFSM.readBit()
+                } else {
+                    abortTransmission()
                 }
                 
             case .clockingLow:
-                
+
                 if busFSM.currentMicroState == .transmitting_LL {
-                    
-                    writeBitFSM.gotClockLow()
-
+                    bitReadFSM.gotClockLow()
+                } else if busFSM.currentMicroState == .transmitting_HL {
+                    bitReadFSM.gotClockLow()
                 } else if busFSM.currentMicroState == lastMicroStateActedOn {
-
                     // waiting for previous action to take effect
-
                 } else {
-
-                    abortCurrentTransmission()
+                    abortTransmission()
                 }
                 
             case .waitingLowAfter:
-                
+
+                if busFSM.currentMicroState == .transmitting_LL {
+                    // ok
+                } else if busFSM.currentMicroState == .transmitting_HL {
+                    // ok
+                } else {
+                    abortTransmission()
+                }
                 if xRef == nil {
                     xRef = x
                 }
-                
                 if x - xRef! >= xWaitAfterBitClockHigh {
-                    
-                    writeBitFSM.waitedLowAfter()
+                    bitReadFSM.waitedLowAfter()
                     xRef = nil
                 }
                 
             case .done:
                 
-                if transmittingAddressRWByte == 7 {
-
-                    transmissionFSM.addressRWSent()
-
+                if lastReadBit == .one {
+                    transmissionFSM.nack()
                 } else {
-
-                    transmittingAddressRWByte += 1
+                    transmissionFSM.ack()
                 }
-
-                writeBitFSM.reset()
+                bitReadFSM.reset()
             }
-            
-        case .readingAddressAck:
-            break
         
         case .readyData:
             break
@@ -232,7 +312,7 @@ class I2CMasterController: I2CController {
         case .done:
 
             transmissionFSM.reset()
-            transmittingAddressRWByte = 0
+            transmittingAddressRWBit = 0
 
             break
         }
@@ -243,11 +323,13 @@ class I2CMasterController: I2CController {
         print("transmission: \(activeTransmission)")
         print("transmission state: \(transmissionFSM.currentState)")
         print("start/stop state: \(startStopFSM.currentState)")
-        print("bit state: \(writeBitFSM.currentState)")
+        print("bit write state: \(bitWriteFSM.currentState)")
+        print("bit read state: \(bitReadFSM.currentState)")
+        print("transmittingAddressRWBit: \(transmittingAddressRWBit)")
     }
 
 
-    private func actOnState(levelSCL: LineLevel, levelSDA: LineLevel, x: CGFloat) {
+    private func actOnTransmissionState(levelSCL: LineLevel, levelSDA: LineLevel, x: CGFloat) {
 
         switch transmissionFSM.currentState {
                     
@@ -256,66 +338,73 @@ class I2CMasterController: I2CController {
             switch startStopFSM.currentState {
                 
             case .preparingLines:
-                
-                releaseSCL()
-                releaseSDA()
-                
+                break
+
             case .assertingLines:
-                
-                releaseSCL()
                 pullSDALow()
 
             case .waiting:
-                
-                releaseSCL()
-                pullSDALow()
-                
-            case .done:
-                
-                break
-            }
-            
-        case .sendingAddressRW:
-            
-            switch writeBitFSM.currentState {
-                
-            case .preparingLines:
-                
-                pullSCLLow()
                 pullSDALow()
 
-            case .waitingLowBefore:
-                
-                pullSCLLow()
+            case .done:
                 pullSDALow()
+            }
+            
+        case .writingAddressRW:
+
+            if currentTransmissionBit == .zero {
+                pullSDALow()
+            }
+
+            switch bitWriteFSM.currentState {
                 
-            case .clockingHigh:
-                
+            case .preparingLines:
                 pullSCLLow()
-                releaseSCL()
+
+            case .waitingLowBefore:
+                pullSCLLow()
+        
+            case .clockingHigh:
+                break
                 
             case .waitingHigh:
-                
-                pullSCLLow()
-                releaseSCL()
+                break
                 
             case .clockingLow:
-                
                 pullSCLLow()
-                pullSDALow()
                 
             case .waitingLowAfter:
-                
                 pullSCLLow()
-                pullSDALow()
                 
             case .done:
-                
-                break
+                pullSCLLow()
             }
             
         case .readingAddressAck:
-            break
+            
+            switch bitReadFSM.currentState {
+                
+            case .waitingLowBefore:
+                pullSCLLow()
+        
+            case .clockingHigh:
+                break
+                
+            case .waitingHigh:
+                break
+
+            case .reading:
+                break
+                
+            case .clockingLow:
+                pullSCLLow()
+                
+            case .waitingLowAfter:
+                pullSCLLow()
+                
+            case .done:
+                pullSCLLow()
+            }
             
         case .readyData:
             break
@@ -337,14 +426,11 @@ class I2CMasterController: I2CController {
     }
     
     
-    private func abortCurrentTransmission() {
+    private func abortTransmission() {
+        
+        transmissionFSM.abort()
         
         print("!! TRANSMISSION ABORTED !!\n")
-
-        releaseSCL()
-        releaseSDA()
-
-        clearCurrentTransmission()
     }
     
     
@@ -358,7 +444,7 @@ class I2CMasterController: I2CController {
         
         if let entry = self.scheduledTransmissions.first, entry.x <= x {
             
-            _ = self.scheduledTransmissions.dropFirst()
+            _ = self.scheduledTransmissions.removeFirst()
             self.activeTransmission = entry.transmission
         }
     }

@@ -19,6 +19,15 @@ enum LineLevel {
 enum Bit {
     
     case zero, one
+
+    init(_ value: Int) {
+
+        if value == 0 {
+            self = .zero
+        } else {
+            self = .one
+        }
+    }
     
     var lineLevel: LineLevel {
         switch self {

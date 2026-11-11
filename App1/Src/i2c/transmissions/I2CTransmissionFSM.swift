@@ -6,7 +6,7 @@ import SwiftUI
 enum I2CTransmissionFSMState {
     
     case sendingStart
-    case sendingAddressRW
+    case writingAddressRW
     case readingAddressAck
     case readyData
     case transmittingByte
@@ -37,13 +37,13 @@ class I2CTransmissionFSM {
     func startSent() {
         
         if currentState == .sendingStart {
-            currentState = .sendingAddressRW
+            currentState = .writingAddressRW
         }
     }
     
     func addressRWSent() {
         
-        if currentState == .sendingAddressRW {
+        if currentState == .writingAddressRW {
             currentState = .readingAddressAck
         }
     }
@@ -94,5 +94,10 @@ class I2CTransmissionFSM {
         if currentState == .sendingStop {
             currentState = .done
         }
+    }
+
+    func abort() {
+        
+        currentState = .done
     }
 }

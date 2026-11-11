@@ -14,8 +14,7 @@ class RenderSceneLine {
 class RenderScene {
     
     
-    let busLineSCL = I2CBusLine()
-    let busLineSDA = I2CBusLine()
+    var i2cBus = I2CBus()
     
     var currentX: CGFloat = 0
     
@@ -56,15 +55,16 @@ class RenderScene {
     
     func updateLinesX() {
      
-        busLineSCL.advanceX(to: currentX)
-        busLineSDA.advanceX(to: currentX)
+        i2cBus.advanceX(to: currentX)
     }
     
     
     func run() {
         
-        lineSCL.initialLevel = busLineSCL.currentLevel
-        lineSDA.initialLevel = busLineSDA.currentLevel
+        lineSCL.initialLevel = i2cBus.lineSCL.currentLevel
+        lineSDA.initialLevel = i2cBus.lineSDA.currentLevel
+        
+        //
         
         advanceX(by: 100)
         
@@ -82,50 +82,51 @@ class RenderScene {
 
         i2c_stop()
         
+        //
         
-        lineSCL.transitions = busLineSCL.transitions
-        lineSDA.transitions = busLineSDA.transitions
+        lineSCL.transitions = i2cBus.lineSCL.transitions
+        lineSDA.transitions = i2cBus.lineSDA.transitions
     }
     
     
     func i2c_pullSDALow() {
 
-        busLineSDA.addPuller(self.pullerId)
+        i2cBus.pullSDALow(self.pullerId)
     }
 
     func i2c_pullSCLLow() {
 
-        busLineSCL.addPuller(self.pullerId)
+        i2cBus.pullSCLLow(self.pullerId)
     }
 
     func i2c_releaseSDA() {
 
-        busLineSDA.removePuller(self.pullerId)
+        i2cBus.releaseSDA(self.pullerId)
     }
 
     func i2c_releaseSCL() {
         
-        busLineSCL.removePuller(self.pullerId)
+        i2cBus.releaseSCL(self.pullerId)
     }
 
     func i2c_SDAIsLow() -> Bool {
 
-        return busLineSDA.isLow
+        return i2cBus.SDAIsLow()
     }
 
     func i2c_SDAIsHigh() -> Bool {
 
-        return busLineSDA.isHigh
+        return i2cBus.SDAIsHigh()
     }
 
     func i2c_SCLIsLow() -> Bool {
 
-        return busLineSCL.isLow
+        return i2cBus.SCLIsLow()
     }
 
     func i2c_SCLIsHigh() -> Bool {
 
-        return busLineSCL.isHigh
+        return i2cBus.SCLIsHigh()
     }
     
     

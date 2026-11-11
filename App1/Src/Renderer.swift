@@ -127,7 +127,7 @@ class Renderer {
     
     func render(_ scene: RenderScene) {
         
-        let lineWidth = 2
+        let lineWidth: CGFloat = 2
         
         let renderLineSCL = RenderLine(sceneLine: scene.lineSCL, slot: 0, color: .orange, lineWidth: lineWidth)
         let renderLineSDA = RenderLine(sceneLine: scene.lineSDA, slot: 1, color: .white, lineWidth: lineWidth)

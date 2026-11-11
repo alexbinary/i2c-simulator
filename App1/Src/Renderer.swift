@@ -6,8 +6,10 @@ import SwiftUI
 class Renderer {
     
     
-    let context: GraphicsContext
+    var context: GraphicsContext
     let canvasSize: CGSize
+    let viewportTranslation: CGFloat
+    let viewportScale: CGFloat
     
     let margin: CGFloat = 24
     
@@ -26,10 +28,14 @@ class Renderer {
     
     init(
         context: GraphicsContext,
-        canvasSize: CGSize
+        canvasSize: CGSize,
+        viewportTranslation: CGFloat,
+        viewportScale: CGFloat
     ) {
         self.context = context
         self.canvasSize = canvasSize
+        self.viewportTranslation = viewportTranslation
+        self.viewportScale = viewportScale
     }
     
     
@@ -76,11 +82,23 @@ class Renderer {
     
     func render() {
         
+        var inverseTransform: CGAffineTransform =
+            .identity
+            .concatenating(.init(translationX: -viewportTranslation, y: 0))
+            .concatenating(.init(scaleX: 1/viewportScale, y: 1))
+        
+        let worldVisibleBounds = CGRect(origin: .zero, size: canvasSize).applying(inverseTransform)
+        
+        context.translateBy(x: viewportTranslation, y: 0)
+        context.scaleBy(x: viewportScale, y: 1)
+        
+        //
+        
         self.currentX = margin
         
         for line in lines {
             let params = params(forLineSlot: line.slot)
-            line.path.move(to: CGPoint(x: self.currentX, y: params.y(for: line.currentLevel)))
+            line.path.move(to: CGPoint(x: min(self.currentX, worldVisibleBounds.minX), y: params.y(for: line.currentLevel)))
         }
         
         advanceX(by: 100)
@@ -101,7 +119,7 @@ class Renderer {
         
         for line in lines {
             let params = params(forLineSlot: line.slot)
-            line.path.addLine(to: CGPoint(x: canvasSize.width-margin, y: params.y(for: line.currentLevel)))
+            line.path.addLine(to: CGPoint(x: max(self.currentX, worldVisibleBounds.maxX), y: params.y(for: line.currentLevel)))
             context.stroke(line.path, with: .color(line.color), lineWidth: 1)
         }
     }

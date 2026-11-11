@@ -6,9 +6,13 @@ import SwiftUI
 class I2CController {
     
     
-    var bus: I2CBus! = nil
+    let id = UUID()
     
-    let pullerId = UUID()
+    var pullingSDALow: Bool = false
+    var pullingSCLLow: Bool = false
+    
+    let xStepDefaultSetup: CGFloat = 30
+    let xStepBitClockHigh: CGFloat = 100
     
     
     init(
@@ -18,49 +22,29 @@ class I2CController {
     }
     
     
-    func connect(to bus: I2CBus) {
-        
-        self.bus = bus
-    }
-    
-    
     func pullSDALow() {
         
-        bus.pullSDALow(self.pullerId)
-    }
-    
-    func pullSCLLow() {
-        
-        bus.pullSCLLow(self.pullerId)
+        pullingSDALow = true
     }
     
     func releaseSDA() {
         
-        bus.releaseSDA(self.pullerId)
+        pullingSDALow = false
+    }
+    
+    func pullSCLLow() {
+        
+        pullingSCLLow = true
     }
     
     func releaseSCL() {
         
-        bus.releaseSCL(self.pullerId)
+        pullingSCLLow = false
     }
     
-    func SDAIsLow() -> Bool {
-        
-        return bus.SDAIsLow()
-    }
     
-    func SDAIsHigh() -> Bool {
+    func simulateStep(levelSCL: LineLevel, levelSDA: LineLevel, x: CGFloat) {
         
-        return bus.SDAIsHigh()
-    }
-    
-    func SCLIsLow() -> Bool {
-        
-        return bus.SCLIsLow()
-    }
-    
-    func SCLIsHigh() -> Bool {
-        
-        return bus.SCLIsHigh()
+        pullingSDALow = true
     }
 }

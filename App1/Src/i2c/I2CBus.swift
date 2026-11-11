@@ -9,9 +9,9 @@ class I2CBus {
     let lineSCL = I2CBusLine()
     let lineSDA = I2CBusLine()
     
-    var controllers: [I2CController] = []
+    private var controllers: [I2CController] = []
     
-    var currentX: CGFloat = 0
+    private var currentX: CGFloat = 0
     
     
     func connect(_ controller: I2CController) {

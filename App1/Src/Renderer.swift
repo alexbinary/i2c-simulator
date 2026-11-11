@@ -49,12 +49,12 @@ class RenderLine {
 class Renderer {
     
     
-    var context: GraphicsContext
-    let canvasSize: CGSize
-    let viewportTranslation: CGFloat
-    let viewportScale: CGFloat
+    private var context: GraphicsContext
+    private let canvasSize: CGSize
+    private let viewportTranslation: CGFloat
+    private let viewportScale: CGFloat
     
-    let margin: CGFloat = 24
+    private let margin: CGFloat = 24
     
     
     init(

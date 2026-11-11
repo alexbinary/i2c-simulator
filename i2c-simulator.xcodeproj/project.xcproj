@@ -11,20 +11,20 @@
     ],
   },
   "files": [
-    { "kind": "folder", "path": "i2c-simulator", "target-membership": [ "i2c-simulator" ] },
+    { "kind": "folder", "path": "App1", "target-membership": [ "App1" ] },
     {
       "kind": "group",
       "name": "Products",
       "children": [
-        { "path": "<PRODUCTS>/i2c-simulator.app", "id": "000000000000000000000120", "type": "wrapper.application", "index": false },
+        { "path": "<PRODUCTS>/App1.app", "id": "000000000000000000000120", "type": "wrapper.application", "index": false },
       ],
     },
   ],
   "targets": [
     {
-      "name": "i2c-simulator",
+      "name": "App1",
       "id": "000000000000000100000000",
-      "product": "Products/i2c-simulator.app",
+      "product": "Products/App1.app",
       "product-type": "application",
       "build-phases": [
         "compile-sources",
@@ -137,6 +137,6 @@
     "WATCHOS_DEPLOYMENT_TARGET": "27.2",
     "XROS_DEPLOYMENT_TARGET": "27.2",
   },
-  "last-upgrade": "27.0",
+  "last-upgrade": "27.2",
   "last-swift-update": "27.0",
 }

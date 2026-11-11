@@ -3,104 +3,8 @@ import SwiftUI
 
 
 
-struct ContentView: View {
-    
-    
-    var body: some View {
-
-        Canvas { context, canvasSize in
-            
-            context.scaleBy(x: 1, y: -1)
-            context.translateBy(x: 0, y: -canvasSize.height)
-            
-            let renderer = Renderer(
-                context: context,
-                canvasSize: canvasSize
-            )
-            renderer.render()
-        }
-        .frame(minWidth: 1600, minHeight: 800)
-    }
-}
-
-#Preview {
-    ContentView()
-}
-
-
-
-struct LineParams {
-    
-    let yLow: CGFloat
-    let yHigh: CGFloat
-    
-    func y(for level: LineLevel) -> CGFloat {
-        switch level {
-        case .high: return yHigh
-        case .low: return yLow
-        }
-    }
-}
-
-
-enum LineLevel {
-    
-    case high, low
-}
-
-
-enum Bit {
-    
-    case zero, one
-    
-    var lineLevel: LineLevel {
-        switch self {
-        case .zero: return .low
-        case .one: return .high
-        }
-    }
-}
-
-
-class Line {
-    
-    let slot: Int
-    let color: Color
-    var path: Path
-    var currentLevel: LineLevel
-    
-    private var pullers: Set<UUID> = []
-    
-    init(
-        slot: Int,
-        color: Color
-    ) {
-        self.slot = slot
-        self.color = color
-        self.path = Path()
-        self.currentLevel = .high
-        updateLevel()
-    }
-    
-    func addPuller(_ id: UUID) {
-        pullers.insert(id)
-        updateLevel()
-    }
-    
-    func removePuller(_ id: UUID) {
-        pullers.remove(id)
-        updateLevel()
-    }
-    
-    private func updateLevel() {
-        currentLevel = pullers.count == 0 ? .high : .low
-    }
-}
-
-
-
 class Renderer {
- 
+    
     
     let context: GraphicsContext
     let canvasSize: CGSize
@@ -130,7 +34,7 @@ class Renderer {
     
     
     func params(forLineSlot slot: Int) -> LineParams {
-     
+        
         let numberOfLines = 2
         
         let totalMargin = margin*CGFloat(numberOfLines+1)
@@ -165,7 +69,7 @@ class Renderer {
     
     
     func advanceX(by step: CGFloat) {
-     
+        
         self.currentX += step
     }
     
@@ -180,7 +84,7 @@ class Renderer {
         }
         
         advanceX(by: 100)
-                
+        
         i2c_start()
         
         i2c_sendBit(.zero)
@@ -317,3 +221,4 @@ class Renderer {
         i2c_sendBit(.one)
     }
 }
+

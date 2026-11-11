@@ -21,8 +21,11 @@ class I2CTransmissionFSM {
     
     var currentState: I2CTransmissionFSMState = .sendingStart
     
-    var remainingBytes: Int?
     
+    func reset() {
+        
+        currentState = .sendingStart
+    }
     
     func sendingStart() {
         

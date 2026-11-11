@@ -42,7 +42,7 @@ class RenderScene {
         
         i2cMaster.schedule(I2CTransmission(bytes: [0x01]), at: 100)
         
-        i2cBus.simulate(from: 0, to: 1000)
+        i2cBus.simulate(from: 0, to: 10000)
         
         //
         

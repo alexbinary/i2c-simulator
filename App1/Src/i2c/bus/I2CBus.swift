@@ -12,8 +12,7 @@ class I2CBus {
     private var controllers: [I2CController] = []
     
     private var currentX: CGFloat = 0
-    private var minimumComputeX: CGFloat = 10
-    private var defaultIdleStepX: CGFloat = 10
+    private var minimumComputeX: CGFloat = 1
     
     
     func connect(_ controller: I2CController) {
@@ -42,20 +41,14 @@ class I2CBus {
         
         advanceX(to: startX)
         
-        while true {
+        while currentX < endX {
             
-            let linesChanged = controllersCompute()
-            
-            let delay = linesChanged ? 0 : defaultIdleStepX
-            let nextX = currentX + delay
-            
-            if nextX > endX { break }
-            currentX = nextX
+            controllersCompute()
         }
     }
     
     
-    func controllersCompute() -> Bool {
+    @discardableResult func controllersCompute() -> Bool {
         
         controllers.forEach { controller in
             

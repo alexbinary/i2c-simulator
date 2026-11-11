@@ -6,10 +6,11 @@ import SwiftUI
 enum I2CWriteBitFSMState {
     
     case preparingLines
+    case waitingLowBefore
     case clockingHigh
     case waitingHigh
     case clockingLow
-    case waitingLow
+    case waitingLowAfter
     case done
 }
 
@@ -19,10 +20,22 @@ class I2CWriteBitFSM {
     
     var currentState: I2CWriteBitFSMState = .preparingLines
     
+
+    func reset() {
+
+        currentState = .preparingLines
+    }
     
     func linesReady() {
         
         if currentState == .preparingLines {
+            currentState = .waitingLowBefore
+        }
+    }
+
+    func waitedLowBefore() {
+        
+        if currentState == .waitingLowBefore {
             currentState = .clockingHigh
         }
     }
@@ -44,13 +57,13 @@ class I2CWriteBitFSM {
     func gotClockLow() {
         
         if currentState == .clockingLow {
-            currentState = .waitingLow
+            currentState = .waitingLowAfter
         }
     }
     
-    func waitedLow() {
+    func waitedLowAfter() {
         
-        if currentState == .waitingLow {
+        if currentState == .waitingLowAfter {
             currentState = .done
         }
     }

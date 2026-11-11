@@ -21,10 +21,14 @@ class I2CMasterController: I2CController {
     private var startStopFSM = I2CStartStopFSM()
     private var writeBitFSM = I2CWriteBitFSM()
 
+    private var transmittingAddressRWByte: Int = 0
+
     private var lastMicroStateActedOn: I2CBusFSMMicroState?
     
-    private let xStepAfterStart: CGFloat = 30
-    private let xStepBitClockHigh: CGFloat = 100
+    private let xWaitAfterStart: CGFloat = 30
+    private let xWaitBeforeBitClockHigh: CGFloat = 30
+    private let xWaitBitClockHigh: CGFloat = 100
+    private let xWaitAfterBitClockHigh: CGFloat = 30
     private let xStepDefault: CGFloat = 30
     
     private var xRef: CGFloat?
@@ -72,17 +76,21 @@ class I2CMasterController: I2CController {
                 if busFSM.currentMicroState == .idle_HH {
                     
                     startStopFSM.linesReady()
+
+                } else {
+
+                    // waiting for previous action to take effect
                 }
                 
             case .assertingLines:
                 
-                if busFSM.currentMicroState == lastMicroStateActedOn {
-
-                    // waiting action to take effect
-
-                } else if busFSM.currentMicroState == .started {
+                if busFSM.currentMicroState == .started {
                     
                     startStopFSM.linesAsserted()
+
+                } else if busFSM.currentMicroState == lastMicroStateActedOn {
+
+                    // waiting for previous action to take effect
 
                 } else {
 
@@ -95,7 +103,7 @@ class I2CMasterController: I2CController {
                     xRef = x
                 }
                 
-                if x - xRef! >= xStepAfterStart {
+                if x - xRef! >= xWaitAfterStart {
                     
                     startStopFSM.waited()
                     xRef = nil
@@ -113,28 +121,40 @@ class I2CMasterController: I2CController {
                 
             case .preparingLines:
                 
-                if busFSM.currentMicroState == lastMicroStateActedOn {
-
-                    // waiting action to take effect
-
-                } else if busFSM.currentMicroState == .transmitting_LL {
+                if busFSM.currentMicroState == .transmitting_LL {
                     
                     writeBitFSM.linesReady()
+
+                } else if busFSM.currentMicroState == lastMicroStateActedOn {
+
+                    // waiting for previous action to take effect
 
                 } else {
 
                     abortCurrentTransmission()
                 }
+
+            case .waitingLowBefore:
+                
+                if xRef == nil {
+                    xRef = x
+                }
+                
+                if x - xRef! >= xWaitBeforeBitClockHigh {
+                    
+                    writeBitFSM.waitedLowBefore()
+                    xRef = nil
+                }
                 
             case .clockingHigh:
                 
-                if busFSM.currentMicroState == lastMicroStateActedOn {
-
-                    // waiting action to take effect
-
-                } else if busFSM.currentMicroState == .transmitting_LH {
+                if busFSM.currentMicroState == .transmitting_LH {
                     
                     writeBitFSM.gotClockHigh()
+
+                } else if busFSM.currentMicroState == lastMicroStateActedOn {
+
+                    // waiting for previous action to take effect
 
                 } else {
 
@@ -147,7 +167,7 @@ class I2CMasterController: I2CController {
                     xRef = x
                 }
                 
-                if x - xRef! >= xStepBitClockHigh {
+                if x - xRef! >= xWaitBitClockHigh {
                     
                     writeBitFSM.waitedHigh()
                     xRef = nil
@@ -155,34 +175,43 @@ class I2CMasterController: I2CController {
                 
             case .clockingLow:
                 
-                if busFSM.currentMicroState == lastMicroStateActedOn {
-
-                    // waiting action to take effect
-
-                } else if busFSM.currentMicroState == .transmitting_LL {
+                if busFSM.currentMicroState == .transmitting_LL {
                     
-                    writeBitFSM.gotClockHigh()
+                    writeBitFSM.gotClockLow()
+
+                } else if busFSM.currentMicroState == lastMicroStateActedOn {
+
+                    // waiting for previous action to take effect
 
                 } else {
 
                     abortCurrentTransmission()
                 }
                 
-            case .waitingLow:
+            case .waitingLowAfter:
                 
                 if xRef == nil {
                     xRef = x
                 }
                 
-                if x - xRef! >= xStepDefault {
+                if x - xRef! >= xWaitAfterBitClockHigh {
                     
-                    writeBitFSM.waitedLow()
+                    writeBitFSM.waitedLowAfter()
                     xRef = nil
                 }
                 
             case .done:
                 
-                transmissionFSM.addressRWSent()
+                if transmittingAddressRWByte == 7 {
+
+                    transmissionFSM.addressRWSent()
+
+                } else {
+
+                    transmittingAddressRWByte += 1
+                }
+
+                writeBitFSM.reset()
             }
             
         case .readingAddressAck:
@@ -201,8 +230,20 @@ class I2CMasterController: I2CController {
             break
         
         case .done:
+
+            transmissionFSM.reset()
+            transmittingAddressRWByte = 0
+
             break
         }
+
+        print("")
+        print("-- UPDATED STATE --")
+        print("bus state: \(busFSM.currentMicroState)")
+        print("transmission: \(activeTransmission)")
+        print("transmission state: \(transmissionFSM.currentState)")
+        print("start/stop state: \(startStopFSM.currentState)")
+        print("bit state: \(writeBitFSM.currentState)")
     }
 
 
@@ -242,6 +283,11 @@ class I2CMasterController: I2CController {
                 
                 pullSCLLow()
                 pullSDALow()
+
+            case .waitingLowBefore:
+                
+                pullSCLLow()
+                pullSDALow()
                 
             case .clockingHigh:
                 
@@ -258,7 +304,7 @@ class I2CMasterController: I2CController {
                 pullSCLLow()
                 pullSDALow()
                 
-            case .waitingLow:
+            case .waitingLowAfter:
                 
                 pullSCLLow()
                 pullSDALow()
@@ -293,6 +339,8 @@ class I2CMasterController: I2CController {
     
     private func abortCurrentTransmission() {
         
+        print("!! TRANSMISSION ABORTED !!\n")
+
         releaseSCL()
         releaseSDA()
 

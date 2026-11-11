@@ -18,6 +18,11 @@ class I2CStartStopFSM {
     var currentState: I2CStartStopFSMState = .preparingLines
     
     
+    func reset() {
+        
+        currentState = .preparingLines
+    }
+    
     func linesReady() {
         
         if currentState == .preparingLines {
@@ -37,10 +42,5 @@ class I2CStartStopFSM {
         if currentState == .waiting {
             currentState = .done
         }
-    }
-
-    func reset() {
-        
-        currentState = .preparingLines
     }
 }

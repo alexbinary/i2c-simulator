@@ -14,14 +14,15 @@ class RenderSceneLine {
 class RenderScene {
     
     
-    var i2cBus = I2CBus()
+    let i2cBus = I2CBus()
+    let i2cMaster = I2CController()
+    
+    //
     
     var currentX: CGFloat = 0
     
     let lineSCL = RenderSceneLine()
     let lineSDA = RenderSceneLine()
-    
-    let pullerId = UUID()
     
     let xStepDefaultSetup: CGFloat = 30
     let xStepBitClockHigh: CGFloat = 100
@@ -66,21 +67,22 @@ class RenderScene {
         
         //
         
+        i2cMaster.connect(to: i2cBus)
+        
         advanceX(by: 100)
         
-        i2c_start()
+        i2c_master_start()
 
-        i2c_sendBit(.zero)
-        i2c_sendBit(.one)
-        i2c_ack()
+        i2c_master_sendBit(.zero)
+        i2c_master_sendBit(.one)
+        i2c_master_ack()
 
-        i2c_start()
+        i2c_master_start()
+        i2c_master_sendBit(.zero)
+        i2c_master_sendBit(.one)
+        i2c_master_nack()
 
-        i2c_sendBit(.zero)
-        i2c_sendBit(.one)
-        i2c_nack()
-
-        i2c_stop()
+        i2c_master_stop()
         
         //
         
@@ -89,113 +91,72 @@ class RenderScene {
     }
     
     
-    func i2c_pullSDALow() {
-
-        i2cBus.pullSDALow(self.pullerId)
-    }
-
-    func i2c_pullSCLLow() {
-
-        i2cBus.pullSCLLow(self.pullerId)
-    }
-
-    func i2c_releaseSDA() {
-
-        i2cBus.releaseSDA(self.pullerId)
-    }
-
-    func i2c_releaseSCL() {
+    func i2c_master_start() {
         
-        i2cBus.releaseSCL(self.pullerId)
-    }
-
-    func i2c_SDAIsLow() -> Bool {
-
-        return i2cBus.SDAIsLow()
-    }
-
-    func i2c_SDAIsHigh() -> Bool {
-
-        return i2cBus.SDAIsHigh()
-    }
-
-    func i2c_SCLIsLow() -> Bool {
-
-        return i2cBus.SCLIsLow()
-    }
-
-    func i2c_SCLIsHigh() -> Bool {
-
-        return i2cBus.SCLIsHigh()
-    }
-    
-    
-    func i2c_start() {
-
-        if i2c_SDAIsLow() {
-
-            i2c_pullSCLLow()
+        if i2cBus.SDAIsLow() {
+            
+            i2cMaster.pullSCLLow()
             advanceX(by: xStepDefaultSetup)
-
-            i2c_releaseSDA()
+            
+            i2cMaster.releaseSDA()
             advanceX(by: xStepDefaultSetup)
         }
-
-        i2c_releaseSCL()
+        
+        i2cMaster.releaseSCL()
         advanceX(by: xStepDefaultSetup)
-
-        i2c_pullSDALow()
+        
+        i2cMaster.pullSDALow()
         advanceX(by: xStepDefaultSetup)
     }
     
     
-    func i2c_stop() {
-
-        i2c_pullSCLLow()
+    func i2c_master_stop() {
+        
+        i2cMaster.pullSCLLow()
         advanceX(by: xStepDefaultSetup)
-
-        i2c_pullSDALow()
+        
+        i2cMaster.pullSDALow()
         advanceX(by: xStepDefaultSetup)
-
-        i2c_releaseSCL()
+        
+        i2cMaster.releaseSCL()
         advanceX(by: xStepDefaultSetup)
-
-        i2c_releaseSDA()
+        
+        i2cMaster.releaseSDA()
         advanceX(by: xStepDefaultSetup)
     }
-
-
-    func i2c_sendBit(_ bit: Bit) {
-
-        if i2c_SCLIsHigh() {
-
-            i2c_pullSCLLow()
+    
+    
+    func i2c_master_sendBit(_ bit: Bit) {
+        
+        if i2cBus.SCLIsHigh() {
+            
+            i2cMaster.pullSCLLow()
             advanceX(by: xStepDefaultSetup)
         }
-
+        
         if bit == .zero {
-            i2c_pullSDALow()
+            i2cMaster.pullSDALow()
         } else {
-            i2c_releaseSDA()
+            i2cMaster.releaseSDA()
         }
         advanceX(by: xStepDefaultSetup)
-
-        i2c_releaseSCL()
+        
+        i2cMaster.releaseSCL()
         advanceX(by: xStepBitClockHigh)
-
-        i2c_pullSCLLow()
+        
+        i2cMaster.pullSCLLow()
         advanceX(by: xStepDefaultSetup)
     }
-
-
-    func i2c_ack() {
-
-        i2c_sendBit(.zero)
+    
+    
+    func i2c_master_ack() {
+        
+        i2c_master_sendBit(.zero)
     }
-
-
-    func i2c_nack() {
-
-        i2c_sendBit(.one)
+    
+    
+    func i2c_master_nack() {
+        
+        i2c_master_sendBit(.one)
     }
 }

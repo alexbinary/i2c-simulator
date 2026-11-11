@@ -12,6 +12,8 @@ class I2CBus {
     private var controllers: [I2CController] = []
     
     private var currentX: CGFloat = 0
+    private var minimumComputeX: CGFloat = 1
+    private var defaultIdleStepX: CGFloat = 10
     
     
     func connect(_ controller: I2CController) {
@@ -36,28 +38,33 @@ class I2CBus {
     }
     
     
-    func simulate(from startX: CGFloat, to endX: CGFloat, by stepX: CGFloat) {
+    func simulate(from startX: CGFloat, to endX: CGFloat) {
         
         advanceX(to: startX)
         
-        while (currentX + stepX) < endX {
+        while true {
             
-            simulateStep()
+            let linesChanged = controllersCompute()
             
-            advanceX(by: stepX)
+            let delay = linesChanged ? 0 : defaultIdleStepX
+            let nextX = currentX + delay
+            
+            if nextX > endX { break }
+            currentX = nextX
         }
-        
-        advanceX(to:endX)
-        
-        simulateStep()
     }
     
     
-    func simulateStep() {
+    func controllersCompute() -> Bool {
         
         controllers.forEach { controller in
             
-            controller.simulateStep(levelSCL: lineSCL.currentLevel, levelSDA: lineSDA.currentLevel, x: currentX)
+            controller.compute(levelSCL: lineSCL.currentLevel, levelSDA: lineSDA.currentLevel, x: currentX)
+        }
+        
+        advanceX(by: minimumComputeX)
+        
+        controllers.forEach { controller in
             
             if controller.pullingSCLLow {
                 lineSCL.addPuller(controller)
@@ -71,12 +78,18 @@ class I2CBus {
             }
         }
         
+        var linesChanged = false
+        
         for line in [lineSCL, lineSDA] {
             
-            let changed = line.updateLevel()
-            if changed {
+            let lineChanged = line.updateLevel()
+            if lineChanged {
+                
                 line.registerTransition(at: currentX)
+                linesChanged = true
             }
         }
+        
+        return linesChanged
     }
 }

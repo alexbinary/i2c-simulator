@@ -18,8 +18,9 @@ class RenderScene {
     let lineSDA = RenderSceneLine()
     
     private let i2cBus = I2CBus()
-    private let i2cMaster = I2CController()
-    private let i2cSlave1 = I2CController()
+    private let i2cMaster = I2CMasterController()
+    private let i2cSlave1 = I2CSlaveController()
+    private let i2cSlave2 = I2CSlaveController()
 
 
     init() {
@@ -37,10 +38,11 @@ class RenderScene {
         
         i2cBus.connect(i2cMaster)
         i2cBus.connect(i2cSlave1)
+        i2cBus.connect(i2cSlave2)
         
         i2cMaster.schedule(I2CTransmission(bytes: [0x01]), at: 100)
         
-        i2cBus.simulate(from: 0, to: 1000, by: 1)
+        i2cBus.simulate(from: 0, to: 1000)
         
         //
         

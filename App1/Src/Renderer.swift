@@ -39,6 +39,12 @@ class Renderer {
     }
     
     
+    func toScreen(_ x: CGFloat) -> CGFloat {
+        
+        return viewportTranslation + (x)*viewportScale
+    }
+    
+    
     func params(forLineSlot slot: Int) -> LineParams {
         
         let numberOfLines = 2
@@ -57,12 +63,14 @@ class Renderer {
     
     func transitionLine(_ line: Line, toY y: CGFloat, atX x: CGFloat) {
         
+        let sp = toScreen(x)
+        
         if let currentPoint = line.path.currentPoint,
-           currentPoint.x < x {
-            line.path.addLine(to: CGPoint(x: x, y: currentPoint.y))
+           currentPoint.x < sp {
+            line.path.addLine(to: CGPoint(x: sp, y: currentPoint.y))
         }
         
-        line.path.addLine(to: CGPoint(x: x, y: y))
+        line.path.addLine(to: CGPoint(x: sp, y: y))
     }
     
     
@@ -82,15 +90,12 @@ class Renderer {
     
     func render() {
         
-        var inverseTransform: CGAffineTransform =
+        let inverseTransform: CGAffineTransform =
             .identity
             .concatenating(.init(translationX: -viewportTranslation, y: 0))
             .concatenating(.init(scaleX: 1/viewportScale, y: 1))
         
         let worldVisibleBounds = CGRect(origin: .zero, size: canvasSize).applying(inverseTransform)
-        
-        context.translateBy(x: viewportTranslation, y: 0)
-        context.scaleBy(x: viewportScale, y: 1)
         
         //
         
@@ -98,7 +103,7 @@ class Renderer {
         
         for line in lines {
             let params = params(forLineSlot: line.slot)
-            line.path.move(to: CGPoint(x: min(self.currentX, worldVisibleBounds.minX), y: params.y(for: line.currentLevel)))
+            line.path.move(to: CGPoint(x: toScreen(min(self.currentX, worldVisibleBounds.minX)), y: params.y(for: line.currentLevel)))
         }
         
         advanceX(by: 100)
@@ -119,7 +124,7 @@ class Renderer {
         
         for line in lines {
             let params = params(forLineSlot: line.slot)
-            line.path.addLine(to: CGPoint(x: max(self.currentX, worldVisibleBounds.maxX), y: params.y(for: line.currentLevel)))
+            line.path.addLine(to: CGPoint(x: toScreen(max(self.currentX, worldVisibleBounds.maxX)), y: params.y(for: line.currentLevel)))
             context.stroke(line.path, with: .color(line.color), lineWidth: 1)
         }
     }

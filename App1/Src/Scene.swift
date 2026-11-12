@@ -40,9 +40,9 @@ class RenderScene {
         i2cBus.connect(i2cSlave1)
         i2cBus.connect(i2cSlave2)
         
-        i2cMaster.schedule(I2CTransmission(addressRW: 0x2a<<1, bytes: [0x01, 0x02]), at: 100)
+        i2cMaster.scheduleTransmission(at: 100, I2CTransmission(addressRW: 0x2a<<1+1, bytes: [0x01, 0x02]))
         
-        i2cBus.simulate(from: 0, to: 10000)
+        i2cBus.simulate(from: 0, to: 2000)
         
         //
         

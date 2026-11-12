@@ -3,66 +3,50 @@ import SwiftUI
 
 
 
+enum I2CControllerLineActionEnum {
+
+    case pullLow
+    case release
+}
+
+struct I2CControllerLineAction {
+
+    let type: I2CControllerLineActionEnum
+    let target: I2CBusLineEnum
+
+    static let pullSDALow = I2CControllerLineAction(type: .pullLow, target: .SDA)
+    static let pullSCLLow = I2CControllerLineAction(type: .pullLow, target: .SCL)
+    static let releaseSDA = I2CControllerLineAction(type: .release, target: .SDA)
+    static let releaseSCL = I2CControllerLineAction(type: .release, target: .SCL)
+}
+
+
+
 class I2CController {
     
     
     let id = UUID()
-    
     var busFSM = I2CBusFSM()
     
-    private var lastLevelSCL: LineLevel?
-    private var lastLevelSDA: LineLevel?
     
-    private(set) var pullingSDALow: Bool = false
-    private(set) var pullingSCLLow: Bool = false
-    
-    private var lastX: CGFloat = 0
-    
+    func initCompute(x: CGFloat, levelSCL: LineLevel, levelSDA: LineLevel) {
 
-    init(
-        
-    ) {
-        
+        busFSM.reset(levelSCL: levelSCL, levelSDA: levelSDA)
     }
     
     
-    func compute(levelSCL: LineLevel, levelSDA: LineLevel, x: CGFloat) {
+    func updateCompute(x: CGFloat, changedLine: I2CBusLineEnum?) -> I2CControllerLineAction? {
         
-        busFSM.update(
-            levelSCL: levelSCL, levelSDA: levelSDA,
-            SCLchanged: levelSCL != lastLevelSCL, SDAchanged: levelSDA != lastLevelSDA
-        )
+        if let line = changedLine {
+            busFSM.update(changedLine: line)
+        }
 
-        _compute(levelSCL: levelSCL, levelSDA: levelSDA, x: x)
-
-        lastLevelSCL = levelSCL
-        lastLevelSDA = levelSDA
+        return _updateCompute(x: x)
     }
 
 
-    func _compute(levelSCL: LineLevel, levelSDA: LineLevel, x: CGFloat) {
+    func _updateCompute(x: CGFloat) -> I2CControllerLineAction? {
         
-        
-    }
-    
-    
-    func pullSDALow() {
-        
-        pullingSDALow = true
-    }
-    
-    func releaseSDA() {
-        
-        pullingSDALow = false
-    }
-    
-    func pullSCLLow() {
-        
-        pullingSCLLow = true
-    }
-    
-    func releaseSCL() {
-        
-        pullingSCLLow = false
+        return nil
     }
 }

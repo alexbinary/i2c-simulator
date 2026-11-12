@@ -3,12 +3,23 @@ import SwiftUI
 
 
 
+enum I2CBusLineEnum {
+    case SCL, SDA
+}
+
+
 class I2CBusLine {
     
+    let identity: I2CBusLineEnum
     var currentLevel: LineLevel = .high
     
     private(set) var pullers: Set<UUID> = []
     private(set) var transitions: [CGFloat] = []
+
+
+    init(_ identity: I2CBusLineEnum) {
+        self.identity = identity
+    }
     
     
     func addPuller(_ controller: I2CController) {
@@ -21,7 +32,12 @@ class I2CBusLine {
         pullers.remove(controller.id)
     }
 
-    func updateLevel() -> Bool {
+    func removeAllPullers() {
+
+        pullers.removeAll()
+    }
+
+    @discardableResult func updateLevel() -> Bool {
 
         let updatedLevel: LineLevel = pullers.count == 0 ? .high : .low
         if updatedLevel != currentLevel {

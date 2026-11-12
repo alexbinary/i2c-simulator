@@ -5,7 +5,8 @@ import SwiftUI
 
 enum I2CBitWriteFSMState {
     
-    case preparingLines
+    case pullingSCLLow
+    case assertingSDA
     case waitingLowBefore
     case clockingHigh
     case waitingHigh
@@ -18,17 +19,24 @@ enum I2CBitWriteFSMState {
 class I2CBitWriteFSM {
     
     
-    var currentState: I2CBitWriteFSMState = .preparingLines
+    var currentState: I2CBitWriteFSMState = .pullingSCLLow
     
 
     func reset() {
 
-        currentState = .preparingLines
+        currentState = .pullingSCLLow
     }
     
-    func linesReady() {
+    func SCLReady() {
         
-        if currentState == .preparingLines {
+        if currentState == .pullingSCLLow {
+            currentState = .assertingSDA
+        }
+    }
+
+    func SDAAsserted() {
+        
+        if currentState == .assertingSDA {
             currentState = .waitingLowBefore
         }
     }

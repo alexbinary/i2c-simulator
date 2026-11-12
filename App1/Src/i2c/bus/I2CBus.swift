@@ -6,13 +6,22 @@ import SwiftUI
 class I2CBus {
     
     
-    let lineSCL = I2CBusLine()
-    let lineSDA = I2CBusLine()
+    let lineSCL = I2CBusLine(.SCL)
+    let lineSDA = I2CBusLine(.SDA)
     
     private var controllers: [I2CController] = []
     
     private var currentX: CGFloat = 0
     private var minimumComputeX: CGFloat = 1
+
+
+    func line(_ identity: I2CBusLineEnum) -> I2CBusLine {
+
+        switch identity {
+        case .SCL: return lineSCL
+        case .SDA: return lineSDA
+        }
+    }
     
     
     func connect(_ controller: I2CController) {
@@ -39,54 +48,52 @@ class I2CBus {
     
     func simulate(from startX: CGFloat, to endX: CGFloat) {
         
+        for line in [lineSCL, lineSDA] {
+            line.removeAllPullers()
+            line.updateLevel()
+        }
+
         advanceX(to: startX)
+
+        for controller in controllers {
+            controller.initCompute(x: currentX, levelSCL: lineSCL.currentLevel, levelSDA: lineSDA.currentLevel)
+        }
+
+        var changedLines: [I2CBusLineEnum] = []
         
         while currentX < endX {
-            
-            controllersCompute()
-        }
-    }
-    
-    
-    @discardableResult func controllersCompute() -> Bool {
-        
-        controllers.forEach { controller in
-            
-            controller.compute(
-                levelSCL: lineSCL.currentLevel,
-                levelSDA: lineSDA.currentLevel,
-                x: currentX
-            )
-        }
-        
-        advanceX(by: minimumComputeX)
-        
-        controllers.forEach { controller in
-            
-            if controller.pullingSCLLow {
-                lineSCL.addPuller(controller)
-            } else {
-                lineSCL.removePuller(controller)
+
+            let changedLineCalls: [I2CBusLineEnum?] = changedLines.count > 0 ? changedLines.shuffled() : [nil]
+            for changedLine in changedLineCalls {
+
+                print("")
+                if let changedLine = changedLine {    
+                    print("-- TRANSITION: \(changedLine) \(line(changedLine).currentLevel) --")
+                } else {
+                    print("-- CLOCK TICK: \(currentX) --")
+                }
+
+                for controller in controllers.shuffled() {
+                    if let action = controller.updateCompute(x: currentX, changedLine: changedLine) {
+                        let line = line(action.target)
+                        switch action.type {
+                        case .pullLow: line.addPuller(controller)
+                        case .release: line.removePuller(controller)
+                        }
+                    }
+                }
             }
-            if controller.pullingSDALow {
-                lineSDA.addPuller(controller)
-            } else {
-                lineSDA.removePuller(controller)
-            }
-        }
-        
-        var linesChanged = false
-        
-        for line in [lineSCL, lineSDA] {
+
+            advanceX(by: minimumComputeX)
             
-            let lineChanged = line.updateLevel()
-            if lineChanged {
-                
-                line.registerTransition(at: currentX)
-                linesChanged = true
+            changedLines.removeAll()
+            for line in [lineSCL, lineSDA] {
+                let lineHasChanged = line.updateLevel()
+                if lineHasChanged {
+                    line.registerTransition(at: currentX)
+                    changedLines.append(line.identity)
+                }
             }
         }
-        
-        return linesChanged
     }
 }

@@ -6,7 +6,7 @@ import SwiftUI
 enum I2CBitWriteFSMState {
     
     case ready
-    case starting
+    case activated
     case pullingSCL
     case pullingSDA
     case releasingSDA
@@ -42,7 +42,7 @@ class I2CBitWriteFSM {
 
     func activate(sending bit: Bit) {
 
-        currentState = .pullingSCL
+        currentState = .activated
         sendingBit = bit
     }
     
@@ -54,7 +54,7 @@ class I2CBitWriteFSM {
         case .ready:
             break
 
-        case .starting:
+        case .activated:
 
             if updatedBusState == .started_LH {
                 currentState = .pullingSCL

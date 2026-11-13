@@ -77,7 +77,7 @@ class I2CBus {
                     if let action = controller.updateCompute(x: currentX, changedLine: changedLine) {
                         let line = line(action.target)
                         switch action.type {
-                        case .pullLow: line.addPuller(controller)
+                        case .pull: line.addPuller(controller)
                         case .release: line.removePuller(controller)
                         }
                     }

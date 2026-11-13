@@ -5,7 +5,7 @@ import SwiftUI
 
 enum I2CControllerLineActionEnum {
 
-    case pullLow
+    case pull
     case release
 }
 
@@ -14,8 +14,8 @@ struct I2CControllerLineAction {
     let type: I2CControllerLineActionEnum
     let target: I2CBusLineEnum
 
-    static let pullSDALow = I2CControllerLineAction(type: .pullLow, target: .SDA)
-    static let pullSCLLow = I2CControllerLineAction(type: .pullLow, target: .SCL)
+    static let pullSDA = I2CControllerLineAction(type: .pull, target: .SDA)
+    static let pullSCL = I2CControllerLineAction(type: .pull, target: .SCL)
     static let releaseSDA = I2CControllerLineAction(type: .release, target: .SDA)
     static let releaseSCL = I2CControllerLineAction(type: .release, target: .SCL)
 }
@@ -28,14 +28,16 @@ class I2CController {
     let id = UUID()
 
     var busFSM = I2CBusFSM()
-    var startStopFSM = I2CStartStopFSM()
+    var startFSM = I2CStartFSM()
+    var stopFSM = I2CStopFSM()
     var bitWriteFSM = I2CBitWriteFSM()
     
     
     func initCompute(x: CGFloat, levelSCL: LineLevel, levelSDA: LineLevel) {
 
         busFSM.reset(levelSCL: levelSCL, levelSDA: levelSDA)
-        startStopFSM.reset()
+        startFSM.reset()
+        stopFSM.reset()
         bitWriteFSM.reset()
     }
     
@@ -45,7 +47,8 @@ class I2CController {
         if let line = changedLine {
             busFSM.update(changedLine: line)
         }
-        startStopFSM.update(x: x, updatedBusState: busFSM.currentState)
+        startFSM.update(x: x, updatedBusState: busFSM.currentState)
+        stopFSM.update(x: x, updatedBusState: busFSM.currentState)
         bitWriteFSM.update(x: x, updatedBusState: busFSM.currentState)
 
         return _updateCompute(x: x)

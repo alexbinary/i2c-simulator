@@ -24,8 +24,6 @@ class I2CMasterController: I2CController {
     private var currentTransmissionBit: Bit { Bit((Int(self.activeTransmission!.addressRW) >> (7-transmittingAddressRWBit)) & 1) }
     private var lastReadBit: Bit!
     
-    private let xWaitBeforeStop: CGFloat = 30
-    private let xWaitAfterStop: CGFloat = 0
     private let xStepDefault: CGFloat = 30
     
     private var xRef: CGFloat?
@@ -44,7 +42,8 @@ class I2CMasterController: I2CController {
         print("bus state: \(busFSM.currentState)")
         print("transmission: \(activeTransmission)")
         print("transmission state: \(transmissionFSM.currentState)")
-        print("start/stop state: \(startStopFSM.currentState)")
+        print("start state: \(startFSM.currentState)")
+        print("stop state: \(stopFSM.currentState)")
         print("bit write state: \(bitWriteFSM.currentState)")
         print("transmittingAddressRWBit: \(transmittingAddressRWBit)")
         print("bit read state: \(bitReadFSM.currentState)")
@@ -84,21 +83,21 @@ class I2CMasterController: I2CController {
             switch transmissionFSM.currentState {
             case .sendingStart:
                 
-                switch startStopFSM.currentState {
+                switch startFSM.currentState {
                 case .ready:
-                    startStopFSM.activate()
+                    startFSM.activate()
 
                 case .pullingSDA:
-                    return .pullSDALow
+                    return .pullSDA
 
                 case .done:
                     transmissionFSM.startSent()
-                    startStopFSM.reset()
+                    startFSM.reset()
                     continue
 
                 case .error:
                     abortTransmission()
-                    startStopFSM.reset()
+                    startFSM.reset()
 
                 default:
                     break
@@ -111,10 +110,10 @@ class I2CMasterController: I2CController {
                     bitWriteFSM.activate(sending: currentTransmissionBit)
 
                 case .pullingSCL, .clockingLow:
-                    return .pullSCLLow
+                    return .pullSCL
 
                 case .pullingSDA:
-                    return .pullSDALow
+                    return .pullSDA
 
                 case .releasingSDA:
                     return .releaseSDA
@@ -250,57 +249,32 @@ class I2CMasterController: I2CController {
             // case .transmittingByteAck:
             //     break
             
-            // case .sendingStop:
+            case .sendingStop:
                 
-            //     switch startStopFSM.currentState {
-                    
-            //     case .preparingLines:
-                    
-            //         if busFSM.currentState == .transmitting_LH {
-            //             startStopFSM.linesReady()
-            //         }
+                switch stopFSM.currentState {
+                case .ready:
+                    stopFSM.activate()
 
-            //     case .waitingBefore:
+                case .pullingSDA:
+                    return .pullSDA
 
-            //         if busFSM.currentState != .transmitting_LH {
-            //             abortTransmission()
-            //         }
-            //         if xRef == nil {
-            //             xRef = x
-            //         }
-            //         if x - xRef! >= xWaitBeforeStop {
-            //             startStopFSM.waitedBefore()
-            //             xRef = nil
-            //         }
-                    
-            //     case .assertingLines:
-                    
-            //         if busFSM.currentState == .idle_HH {
-            //             startStopFSM.linesAsserted()
-            //         } else if busFSM.currentState == lastMicroStateActedOn {
-            //             // waiting for previous action to take effect
-            //         } else {
-            //             abortTransmission()
-            //         }
+                case .releasingSCL:
+                    return .releaseSCL
 
-            //     case .waitingAfter:
+                case .releasingSDA:
+                    return .releaseSDA
+                    
+                case .done:
+                    transmissionFSM.stopSent()
+                    stopFSM.reset()
 
-            //         if busFSM.currentState != .idle_HH {
-            //             abortTransmission()
-            //         }
-            //         if xRef == nil {
-            //             xRef = x
-            //         }
-            //         if x - xRef! >= xWaitAfterStop {
-            //             startStopFSM.waitedAfter()
-            //             xRef = nil
-            //         }
-                    
-            //     case .done:
-                    
-            //         transmissionFSM.stopSent()
-            //         startStopFSM.reset()
-            //     }
+                case .error:
+                    abortTransmission()
+                    stopFSM.reset()
+
+                default:
+                    break
+                }
             
             case .done:
                 break
@@ -320,7 +294,7 @@ class I2CMasterController: I2CController {
                     
     //     case .sendingStart:
             
-    //         switch startStopFSM.currentState {
+    //         switch startFSM.currentState {
                 
     //         case .preparingLines:
     //             break
@@ -329,19 +303,19 @@ class I2CMasterController: I2CController {
     //             break
 
     //         case .assertingLines:
-    //             pullSDALow()
+    //             pullSDA()
 
     //         case .waitingAfter:
-    //             pullSDALow()
+    //             pullSDA()
 
     //         case .done:
-    //             pullSDALow()
+    //             pullSDA()
     //         }
             
     //     case .writingAddressRW:
 
     //         if currentTransmissionBit == .zero {
-    //             pullSDALow()
+    //             pullSDA()
     //         }
 
     //         switch bitWriteFSM.currentState {
@@ -405,7 +379,7 @@ class I2CMasterController: I2CController {
             
     //     case .sendingStop:
             
-    //         switch startStopFSM.currentState {
+    //         switch startFSM.currentState {
                 
     //         case .preparingLines:
 
@@ -413,9 +387,9 @@ class I2CMasterController: I2CController {
     //                 pullSCLLow()
     //             } else if busFSM.currentState == .transmitting_HL {
     //                 pullSCLLow()
-    //                 pullSDALow()
+    //                 pullSDA()
     //             } else if busFSM.currentState == .transmitting_LL {
-    //                 pullSDALow()
+    //                 pullSDA()
     //             } else if busFSM.currentState == .transmitting_LH {
     //                 // release everything => stop
     //             }
@@ -423,7 +397,7 @@ class I2CMasterController: I2CController {
     //             // TODO wait between pulling SDA and releasing SCL
 
     //         case .waitingBefore:
-    //             pullSDALow()
+    //             pullSDA()
 
     //         case .assertingLines:
     //             break

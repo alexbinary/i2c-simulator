@@ -5,50 +5,79 @@ import SwiftUI
 
 enum I2CStartStopFSMState {
     
-    case preparingLines
-    case waitingBefore
-    case assertingLines
+    case ready
+    case waitingIdle
+    case pullingSDA
     case waitingAfter
     case done
+    case error
 }
 
 
 class I2CStartStopFSM {
     
     
-    var currentState: I2CStartStopFSMState = .preparingLines
+    private(set) var currentState: I2CStartStopFSMState = .ready
     
-    
+    private let xWaitAfterStart: CGFloat = 30
+    private var xRef: CGFloat?
+
+
     func reset() {
         
-        currentState = .preparingLines
-    }
-    
-    func linesReady() {
-        
-        if currentState == .preparingLines {
-            currentState = .waitingBefore
-        }
+        currentState = .ready
     }
 
-    func waitedBefore() {
-        
-        if currentState == .waitingBefore {
-            currentState = .assertingLines
-        }
-    }
-    
-    func linesAsserted() {
-        
-        if currentState == .assertingLines {
-            currentState = .waitingAfter
-        }
+
+    func activate() {
+
+        currentState = .waitingIdle
     }
 
-    func waitedAfter() {
-        
-        if currentState == .waitingAfter {
-            currentState = .done
+
+    func update(x: CGFloat, updatedBusState: I2CBusFSMState) {
+
+        switch currentState {
+
+        case .ready:
+
+            break
+
+        case .waitingIdle:
+
+            if updatedBusState == .idle_HH {
+                currentState = .pullingSDA
+            }
+
+        case .pullingSDA:
+
+            if updatedBusState == .started_LH {
+                currentState = .waitingAfter
+            } else if updatedBusState != .idle_HH {
+                currentState = .error
+            }
+
+        case .waitingAfter:
+
+            if updatedBusState != .started_LH {
+                currentState = .error
+            } else {
+                if xRef == nil {
+                    xRef = x
+                }
+                if x - xRef! >= xWaitAfterStart {
+                    currentState = .done
+                    xRef = nil
+                }
+            }
+
+        case .done:
+
+            break
+
+        case .error:
+
+            break
         }
     }
 }

@@ -26,12 +26,15 @@ class I2CController {
     
     
     let id = UUID()
+
     var busFSM = I2CBusFSM()
+    var startStopFSM = I2CStartStopFSM()
     
     
     func initCompute(x: CGFloat, levelSCL: LineLevel, levelSDA: LineLevel) {
 
         busFSM.reset(levelSCL: levelSCL, levelSDA: levelSDA)
+        startStopFSM.reset()
     }
     
     
@@ -40,6 +43,7 @@ class I2CController {
         if let line = changedLine {
             busFSM.update(changedLine: line)
         }
+        startStopFSM.update(x: x, updatedBusState: busFSM.currentState)
 
         return _updateCompute(x: x)
     }

@@ -37,7 +37,7 @@ class I2CTransmissionFSM {
     func startSent() {
         
         if currentState == .sendingStart {
-            currentState = .writingAddressRW
+            currentState = .done//.writingAddressRW
         }
     }
     

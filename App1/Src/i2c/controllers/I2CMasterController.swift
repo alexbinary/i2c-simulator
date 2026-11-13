@@ -18,18 +18,13 @@ class I2CMasterController: I2CController {
     private var activeTransmission: I2CTransmission? = nil
     
     private var transmissionFSM = I2CTransmissionFSM()
-    private var startStopFSM = I2CStartStopFSM()
     private var bitWriteFSM = I2CBitWriteFSM()
     private var bitReadFSM = I2CBitReadFSM()
 
     private var transmittingAddressRWBit: Int = 0
     private var currentTransmissionBit: Bit { Bit((Int(self.activeTransmission!.addressRW) >> (7-transmittingAddressRWBit)) & 1) }
     private var lastReadBit: Bit!
-
-    private var lastMicroStateActedOn: I2CBusFSMMicroState?
     
-    private let xWaitBeforeStart: CGFloat = 0
-    private let xWaitAfterStart: CGFloat = 30
     private let xWaitBeforeStop: CGFloat = 30
     private let xWaitAfterStop: CGFloat = 0
     private let xWaitBeforeBitClockHigh: CGFloat = 30
@@ -50,7 +45,7 @@ class I2CMasterController: I2CController {
 
         print("")
         print("-- MASTER UPDATED STATE --")
-        print("bus state: \(busFSM.currentMicroState)")
+        print("bus state: \(busFSM.currentState)")
         print("transmission: \(activeTransmission)")
         print("transmission state: \(transmissionFSM.currentState)")
         print("start/stop state: \(startStopFSM.currentState)")
@@ -94,59 +89,23 @@ class I2CMasterController: I2CController {
             case .sendingStart:
                 
                 switch startStopFSM.currentState {
-                case .preparingLines:
-                    
-                    if busFSM.currentMicroState == .idle_HH {
-                        startStopFSM.linesReady()
-                        continue
-                    }
-                    return nil
+                case .ready:
+                    startStopFSM.activate()
 
-                case .waitingBefore:
+                case .pullingSDA:
+                    return .pullSDALow
 
-                    if busFSM.currentMicroState != .idle_HH {
-                        abortTransmission()
-                    }
-                    if xRef == nil {
-                        xRef = x
-                    }
-                    if x - xRef! >= xWaitBeforeStart {
-                        startStopFSM.waitedBefore()
-                        xRef = nil
-                    }
-                    return nil
-                    
-                case .assertingLines:
-                    
-                    if busFSM.currentMicroState == .idle_HH {
-                        return .pullSDALow
-                    }
-                    if busFSM.currentMicroState == .started_LH {
-                        startStopFSM.linesAsserted()
-                        continue
-                    }
-                    abortTransmission()
-                    return nil
-
-                case .waitingAfter:
-
-                    if busFSM.currentMicroState != .started_LH {
-                        abortTransmission()
-                    }
-                    if xRef == nil {
-                        xRef = x
-                    }
-                    if x - xRef! >= xWaitAfterStart {
-                        startStopFSM.waitedAfter()
-                        xRef = nil
-                    }
-                    return nil
-                    
                 case .done:
-                    
                     transmissionFSM.startSent()
                     startStopFSM.reset()
                     continue
+
+                case .error:
+                    abortTransmission()
+                    startStopFSM.reset()
+
+                default:
+                    break
                 }
                 
             case .writingAddressRW:
@@ -154,10 +113,10 @@ class I2CMasterController: I2CController {
                 switch bitWriteFSM.currentState {
                 case .pullingSCLLow:
                     
-                    if busFSM.currentMicroState == .started_LH || busFSM.currentMicroState == .transmitting_LH  || busFSM.currentMicroState == .transmitting_HH {
+                    if busFSM.currentState == .started_LH || busFSM.currentState == .transmitting_LH  || busFSM.currentState == .transmitting_HH {
                         return .pullSCLLow
                     }
-                    if busFSM.currentMicroState == .transmitting_LL || busFSM.currentMicroState == .transmitting_HL {
+                    if busFSM.currentState == .transmitting_LL || busFSM.currentState == .transmitting_HL {
                         bitWriteFSM.SCLReady()
                         continue
                     }
@@ -169,10 +128,10 @@ class I2CMasterController: I2CController {
                     switch currentTransmissionBit {
                     case .zero:
 
-                        if busFSM.currentMicroState == .transmitting_HL {
+                        if busFSM.currentState == .transmitting_HL {
                             return .pullSDALow
                         }
-                        if busFSM.currentMicroState == .transmitting_LL {
+                        if busFSM.currentState == .transmitting_LL {
                             bitWriteFSM.SDAAsserted()
                             continue
                         }
@@ -181,10 +140,10 @@ class I2CMasterController: I2CController {
 
                     case .one:
 
-                        if busFSM.currentMicroState == .transmitting_LL {
+                        if busFSM.currentState == .transmitting_LL {
                             return .releaseSDA
                         }
-                        if busFSM.currentMicroState == .transmitting_HL {
+                        if busFSM.currentState == .transmitting_HL {
                             bitWriteFSM.SDAAsserted()
                             continue
                         }
@@ -197,14 +156,14 @@ class I2CMasterController: I2CController {
                     switch currentTransmissionBit {
                     case .zero:
 
-                        if busFSM.currentMicroState != .transmitting_LL {
+                        if busFSM.currentState != .transmitting_LL {
                             abortTransmission()
                             return nil
                         }
 
                     case .one:
 
-                        if busFSM.currentMicroState != .transmitting_HL {
+                        if busFSM.currentState != .transmitting_HL {
                             abortTransmission()
                             return nil
                         }
@@ -223,10 +182,10 @@ class I2CMasterController: I2CController {
                     switch currentTransmissionBit {
                     case .zero:
 
-                        if busFSM.currentMicroState == .transmitting_LL {
+                        if busFSM.currentState == .transmitting_LL {
                             return .releaseSCL
                         }
-                        if busFSM.currentMicroState == .transmitting_LH {
+                        if busFSM.currentState == .transmitting_LH {
                             bitWriteFSM.gotClockHigh()
                             continue
                         }
@@ -235,10 +194,10 @@ class I2CMasterController: I2CController {
 
                     case .one:
 
-                        if busFSM.currentMicroState == .transmitting_HL {
+                        if busFSM.currentState == .transmitting_HL {
                             return .releaseSCL
                         }
-                        if busFSM.currentMicroState == .transmitting_HH {
+                        if busFSM.currentState == .transmitting_HH {
                             bitWriteFSM.gotClockHigh()
                             continue
                         }
@@ -251,14 +210,14 @@ class I2CMasterController: I2CController {
                     switch currentTransmissionBit {
                     case .zero:
 
-                        if busFSM.currentMicroState != .transmitting_LH {
+                        if busFSM.currentState != .transmitting_LH {
                             abortTransmission()
                             return nil
                         }
 
                     case .one:
 
-                        if busFSM.currentMicroState != .transmitting_HH {
+                        if busFSM.currentState != .transmitting_HH {
                             abortTransmission()
                             return nil
                         }
@@ -277,10 +236,10 @@ class I2CMasterController: I2CController {
                     switch currentTransmissionBit {
                     case .zero:
 
-                        if busFSM.currentMicroState == .transmitting_LH {
+                        if busFSM.currentState == .transmitting_LH {
                             return .pullSCLLow
                         }
-                        if busFSM.currentMicroState == .transmitting_LL {
+                        if busFSM.currentState == .transmitting_LL {
                             bitWriteFSM.gotClockLow()
                             continue
                         }
@@ -289,10 +248,10 @@ class I2CMasterController: I2CController {
 
                     case .one:
 
-                        if busFSM.currentMicroState == .transmitting_HH {
+                        if busFSM.currentState == .transmitting_HH {
                             return .pullSCLLow
                         }
-                        if busFSM.currentMicroState == .transmitting_HL {
+                        if busFSM.currentState == .transmitting_HL {
                             bitWriteFSM.gotClockLow()
                             continue
                         }
@@ -305,14 +264,14 @@ class I2CMasterController: I2CController {
                     switch currentTransmissionBit {
                     case .zero:
 
-                        if busFSM.currentMicroState != .transmitting_LL {
+                        if busFSM.currentState != .transmitting_LL {
                             abortTransmission()
                             return nil
                         }
 
                     case .one:
 
-                        if busFSM.currentMicroState != .transmitting_HL {
+                        if busFSM.currentState != .transmitting_HL {
                             abortTransmission()
                             return nil
                         }
@@ -343,9 +302,9 @@ class I2CMasterController: I2CController {
                     
             //     case .waitingLowBefore:
 
-            //         if busFSM.currentMicroState == .transmitting_LL {
+            //         if busFSM.currentState == .transmitting_LL {
             //             // ok
-            //         } else if busFSM.currentMicroState == .transmitting_HL {
+            //         } else if busFSM.currentState == .transmitting_HL {
             //             // ok
             //         } else {
             //             abortTransmission()
@@ -360,11 +319,11 @@ class I2CMasterController: I2CController {
                     
             //     case .clockingHigh:
                     
-            //         if busFSM.currentMicroState == .transmitting_LH {
+            //         if busFSM.currentState == .transmitting_LH {
             //             bitReadFSM.gotClockHigh()
-            //         } else if busFSM.currentMicroState == .transmitting_HH {
+            //         } else if busFSM.currentState == .transmitting_HH {
             //             bitReadFSM.gotClockHigh()
-            //         } else if busFSM.currentMicroState == lastMicroStateActedOn {
+            //         } else if busFSM.currentState == lastMicroStateActedOn {
             //             // waiting for previous action to take effect
             //         } else {
             //             abortTransmission()
@@ -372,9 +331,9 @@ class I2CMasterController: I2CController {
                     
             //     case .waitingHigh:
 
-            //         if busFSM.currentMicroState == .transmitting_LH {
+            //         if busFSM.currentState == .transmitting_LH {
             //             // ok
-            //         } else if busFSM.currentMicroState == .transmitting_HH {
+            //         } else if busFSM.currentState == .transmitting_HH {
             //             // ok
             //         } else {
             //             abortTransmission()
@@ -389,10 +348,10 @@ class I2CMasterController: I2CController {
 
             //     case .reading:
 
-            //         if busFSM.currentMicroState == .transmitting_LH {
+            //         if busFSM.currentState == .transmitting_LH {
             //             lastReadBit = .zero
             //             bitReadFSM.readBit()
-            //         } else if busFSM.currentMicroState == .transmitting_HH {
+            //         } else if busFSM.currentState == .transmitting_HH {
             //             lastReadBit = .one
             //             bitReadFSM.readBit()
             //         } else {
@@ -401,11 +360,11 @@ class I2CMasterController: I2CController {
                     
             //     case .clockingLow:
 
-            //         if busFSM.currentMicroState == .transmitting_LL {
+            //         if busFSM.currentState == .transmitting_LL {
             //             bitReadFSM.gotClockLow()
-            //         } else if busFSM.currentMicroState == .transmitting_HL {
+            //         } else if busFSM.currentState == .transmitting_HL {
             //             bitReadFSM.gotClockLow()
-            //         } else if busFSM.currentMicroState == lastMicroStateActedOn {
+            //         } else if busFSM.currentState == lastMicroStateActedOn {
             //             // waiting for previous action to take effect
             //         } else {
             //             abortTransmission()
@@ -413,9 +372,9 @@ class I2CMasterController: I2CController {
                     
             //     case .waitingLowAfter:
 
-            //         if busFSM.currentMicroState == .transmitting_LL {
+            //         if busFSM.currentState == .transmitting_LL {
             //             // ok
-            //         } else if busFSM.currentMicroState == .transmitting_HL {
+            //         } else if busFSM.currentState == .transmitting_HL {
             //             // ok
             //         } else {
             //             abortTransmission()
@@ -453,13 +412,13 @@ class I2CMasterController: I2CController {
                     
             //     case .preparingLines:
                     
-            //         if busFSM.currentMicroState == .transmitting_LH {
+            //         if busFSM.currentState == .transmitting_LH {
             //             startStopFSM.linesReady()
             //         }
 
             //     case .waitingBefore:
 
-            //         if busFSM.currentMicroState != .transmitting_LH {
+            //         if busFSM.currentState != .transmitting_LH {
             //             abortTransmission()
             //         }
             //         if xRef == nil {
@@ -472,9 +431,9 @@ class I2CMasterController: I2CController {
                     
             //     case .assertingLines:
                     
-            //         if busFSM.currentMicroState == .idle_HH {
+            //         if busFSM.currentState == .idle_HH {
             //             startStopFSM.linesAsserted()
-            //         } else if busFSM.currentMicroState == lastMicroStateActedOn {
+            //         } else if busFSM.currentState == lastMicroStateActedOn {
             //             // waiting for previous action to take effect
             //         } else {
             //             abortTransmission()
@@ -482,7 +441,7 @@ class I2CMasterController: I2CController {
 
             //     case .waitingAfter:
 
-            //         if busFSM.currentMicroState != .idle_HH {
+            //         if busFSM.currentState != .idle_HH {
             //             abortTransmission()
             //         }
             //         if xRef == nil {
@@ -606,14 +565,14 @@ class I2CMasterController: I2CController {
                 
     //         case .preparingLines:
 
-    //             if busFSM.currentMicroState == .transmitting_HH {
+    //             if busFSM.currentState == .transmitting_HH {
     //                 pullSCLLow()
-    //             } else if busFSM.currentMicroState == .transmitting_HL {
+    //             } else if busFSM.currentState == .transmitting_HL {
     //                 pullSCLLow()
     //                 pullSDALow()
-    //             } else if busFSM.currentMicroState == .transmitting_LL {
+    //             } else if busFSM.currentState == .transmitting_LL {
     //                 pullSDALow()
-    //             } else if busFSM.currentMicroState == .transmitting_LH {
+    //             } else if busFSM.currentState == .transmitting_LH {
     //                 // release everything => stop
     //             }
 
@@ -636,7 +595,7 @@ class I2CMasterController: I2CController {
     //         break
     //     }
 
-    //     lastMicroStateActedOn = busFSM.currentMicroState
+    //     lastMicroStateActedOn = busFSM.currentState
     // }
     
     

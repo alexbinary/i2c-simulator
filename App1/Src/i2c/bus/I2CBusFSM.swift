@@ -3,7 +3,7 @@ import SwiftUI
 
 
 
-enum I2CBusFSMMicroState {
+enum I2CBusFSMState {
     
     case idle_HH
     case idle_HL
@@ -20,102 +20,89 @@ enum I2CBusFSMMicroState {
 
 
 
-enum I2CBusFSMMacroState {
-    
-    case idle
-    case busy
-}
-
-
 class I2CBusFSM {
     
     
-    var currentMicroState: I2CBusFSMMicroState = .idle_HH
-    var currentMacroState: I2CBusFSMMacroState { currentMicroState == .idle_HH ? .idle : .busy }
+    var currentState: I2CBusFSMState = .idle_HH
+    var isIdle: Bool { currentState == .idle_HH }
 
 
     func reset(levelSCL: LineLevel, levelSDA: LineLevel) {
 
         switch (levelSDA, levelSCL) {
-        case (.high, .high): currentMicroState = .idle_HH
-        case (.high, .low): currentMicroState = .idle_HL
-        case (.low, .high): currentMicroState = .idle_LH
-        case (.low, .low): currentMicroState = .idle_LL
+        case (.high, .high): currentState = .idle_HH
+        case (.high, .low): currentState = .idle_HL
+        case (.low, .high): currentState = .idle_LH
+        case (.low, .low): currentState = .idle_LL
         }
     }
     
  
     func update(changedLine: I2CBusLineEnum) {
 
-        currentMicroState = updatedMicroState(afterChangeOf: changedLine)
-    }
-
-
-    private func updatedMicroState(afterChangeOf changedLine: I2CBusLineEnum) -> I2CBusFSMMicroState {
-
-        switch currentMicroState {
+        switch currentState {
             
         case .idle_HH:
 
             switch changedLine {
-            case .SCL: return .idle_HL
-            case .SDA: return .started_LH
+            case .SCL: currentState = .idle_HL
+            case .SDA: currentState = .started_LH
             }
             
         case .idle_HL:
             
             switch changedLine {
-            case .SCL: return .idle_HH
-            case .SDA: return .idle_LL
+            case .SCL: currentState = .idle_HH
+            case .SDA: currentState = .idle_LL
             }
 
         case .idle_LH:
 
             switch changedLine {
-            case .SCL: return .idle_LL
-            case .SDA: return .idle_HH
+            case .SCL: currentState = .idle_LL
+            case .SDA: currentState = .idle_HH
             }
             
         case .idle_LL:
 
             switch changedLine {
-            case .SCL: return .idle_LH
-            case .SDA: return .idle_HL
+            case .SCL: currentState = .idle_LH
+            case .SDA: currentState = .idle_HL
             }
             
         case .started_LH:
 
             switch changedLine {
-            case .SCL: return .transmitting_LL
-            case .SDA: return .idle_HH
+            case .SCL: currentState = .transmitting_LL
+            case .SDA: currentState = .idle_HH
             }
             
         case .transmitting_HH:
             
             switch changedLine {
-            case .SCL: return .transmitting_HL
-            case .SDA: return .started_LH
+            case .SCL: currentState = .transmitting_HL
+            case .SDA: currentState = .started_LH
             }
             
         case .transmitting_HL:
             
             switch changedLine {
-            case .SCL: return .transmitting_HH
-            case .SDA: return .transmitting_LL
+            case .SCL: currentState = .transmitting_HH
+            case .SDA: currentState = .transmitting_LL
             }
             
         case .transmitting_LH:
             
             switch changedLine {
-            case .SCL: return .transmitting_LL
-            case .SDA: return .idle_HH
+            case .SCL: currentState = .transmitting_LL
+            case .SDA: currentState = .idle_HH
             }
             
         case .transmitting_LL:
             
             switch changedLine {
-            case .SCL: return .transmitting_LH
-            case .SDA: return .transmitting_HL
+            case .SCL: currentState = .transmitting_LH
+            case .SDA: currentState = .transmitting_HL
             }
         }
     }

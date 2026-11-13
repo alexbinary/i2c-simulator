@@ -5,74 +5,174 @@ import SwiftUI
 
 enum I2CBitWriteFSMState {
     
-    case pullingSCLLow
-    case assertingSDA
+    case ready
+    case starting
+    case pullingSCL
+    case pullingSDA
+    case releasingSDA
     case waitingLowBefore
     case clockingHigh
     case waitingHigh
     case clockingLow
     case waitingLowAfter
     case done
+    case error
 }
 
 
 class I2CBitWriteFSM {
     
     
-    var currentState: I2CBitWriteFSMState = .pullingSCLLow
+    var currentState: I2CBitWriteFSMState = .ready
+
+    private var sendingBit: Bit = .zero
+
+    private let xWaitBeforeBitClockHigh: CGFloat = 30
+    private let xWaitBitClockHigh: CGFloat = 100
+    private let xWaitAfterBitClockHigh: CGFloat = 30
     
+    private var xRef: CGFloat?
+
 
     func reset() {
-
-        currentState = .pullingSCLLow
-    }
-    
-    func SCLReady() {
         
-        if currentState == .pullingSCLLow {
-            currentState = .assertingSDA
-        }
+        currentState = .ready
     }
 
-    func SDAAsserted() {
-        
-        if currentState == .assertingSDA {
-            currentState = .waitingLowBefore
-        }
-    }
 
-    func waitedLowBefore() {
-        
-        if currentState == .waitingLowBefore {
-            currentState = .clockingHigh
-        }
+    func activate(sending bit: Bit) {
+
+        currentState = .pullingSCL
+        sendingBit = bit
     }
     
-    func gotClockHigh() {
-        
-        if currentState == .clockingHigh {
-            currentState = .waitingHigh
-        }
-    }
-    
-    func waitedHigh() {
-        
-        if currentState == .waitingHigh {
-            currentState = .clockingLow
-        }
-    }
-    
-    func gotClockLow() {
-        
-        if currentState == .clockingLow {
-            currentState = .waitingLowAfter
-        }
-    }
-    
-    func waitedLowAfter() {
-        
-        if currentState == .waitingLowAfter {
-            currentState = .done
+
+    func update(x: CGFloat, updatedBusState: I2CBusFSMState) {
+
+        switch currentState {
+
+        case .ready:
+            break
+
+        case .starting:
+
+            if updatedBusState == .started_LH {
+                currentState = .pullingSCL
+            } else if sendingBit == .zero && updatedBusState == .transmitting_HL {
+                currentState = .pullingSDA
+            } else if sendingBit == .one && updatedBusState == .transmitting_LL {
+                currentState = .releasingSDA
+            } else {
+                currentState = .error
+            }
+
+        case .pullingSCL:
+
+            if sendingBit == .zero && updatedBusState == .transmitting_LL {
+                currentState = .waitingLowBefore
+            } else if sendingBit == .one && updatedBusState == .transmitting_HL {
+                currentState = .waitingLowBefore
+            } else if sendingBit == .zero && updatedBusState == .transmitting_HL {
+                currentState = .pullingSDA
+            } else if sendingBit == .one && updatedBusState == .transmitting_LL {
+                currentState = .releasingSDA
+            } else if updatedBusState != .started_LH {
+                currentState = .error
+            }
+
+        case .pullingSDA:
+
+            if updatedBusState == .transmitting_LL {
+                currentState = .waitingLowBefore
+            } else if updatedBusState != .transmitting_HL {
+                currentState = .error
+            }
+
+        case .releasingSDA:
+
+            if updatedBusState == .transmitting_HL {
+                currentState = .waitingLowBefore
+            } else if updatedBusState != .transmitting_LL {
+                currentState = .error
+            }
+
+        case .waitingLowBefore:
+
+            if sendingBit == .zero && updatedBusState != .transmitting_LL {
+                currentState = .error
+            } else if sendingBit == .one && updatedBusState != .transmitting_HL {
+                currentState = .error
+            } else {
+                if xRef == nil {
+                    xRef = x
+                }
+                if x - xRef! >= xWaitBeforeBitClockHigh {
+                    currentState = .clockingHigh
+                    xRef = nil
+                }
+            }
+
+        case .clockingHigh:
+
+            if sendingBit == .zero && updatedBusState == .transmitting_LH {
+                currentState = .waitingHigh
+            } else if sendingBit == .one && updatedBusState == .transmitting_HH {
+                currentState = .waitingHigh
+            } else if sendingBit == .zero && updatedBusState != .transmitting_LL {
+                currentState = .error
+            } else if sendingBit == .one && updatedBusState != .transmitting_HL {
+                currentState = .error
+            }
+
+        case .waitingHigh:
+
+            if sendingBit == .zero && updatedBusState != .transmitting_LH {
+                currentState = .error
+            } else if sendingBit == .one && updatedBusState != .transmitting_HH {
+                currentState = .error
+            } else {
+                if xRef == nil {
+                    xRef = x
+                }
+                if x - xRef! >= xWaitBitClockHigh {
+                    currentState = .clockingLow
+                    xRef = nil
+                }
+            }
+
+        case .clockingLow:
+
+            if sendingBit == .zero && updatedBusState == .transmitting_LL {
+                currentState = .waitingLowAfter
+            } else if sendingBit == .one && updatedBusState == .transmitting_HL {
+                currentState = .waitingLowAfter
+            } else if sendingBit == .zero && updatedBusState != .transmitting_LH {
+                currentState = .error
+            } else if sendingBit == .one && updatedBusState != .transmitting_HH {
+                currentState = .error
+            }
+
+        case .waitingLowAfter:
+
+            if sendingBit == .zero && updatedBusState != .transmitting_LL {
+                currentState = .error
+            } else if sendingBit == .one && updatedBusState != .transmitting_HL {
+                currentState = .error
+            } else {
+                if xRef == nil {
+                    xRef = x
+                }
+                if x - xRef! >= xWaitBeforeBitClockHigh {
+                    currentState = .done
+                    xRef = nil
+                }
+            }
+
+        case .done:
+            break
+
+        case .error:
+            break
         }
     }
 }

@@ -40,7 +40,6 @@ class I2CStartStopFSM {
         switch currentState {
 
         case .ready:
-
             break
 
         case .waitingIdle:
@@ -72,11 +71,9 @@ class I2CStartStopFSM {
             }
 
         case .done:
-
             break
 
         case .error:
-
             break
         }
     }

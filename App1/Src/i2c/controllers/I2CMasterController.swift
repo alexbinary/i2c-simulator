@@ -18,7 +18,6 @@ class I2CMasterController: I2CController {
     private var activeTransmission: I2CTransmission? = nil
     
     private var transmissionFSM = I2CTransmissionFSM()
-    private var bitWriteFSM = I2CBitWriteFSM()
     private var bitReadFSM = I2CBitReadFSM()
 
     private var transmittingAddressRWBit: Int = 0
@@ -27,9 +26,6 @@ class I2CMasterController: I2CController {
     
     private let xWaitBeforeStop: CGFloat = 30
     private let xWaitAfterStop: CGFloat = 0
-    private let xWaitBeforeBitClockHigh: CGFloat = 30
-    private let xWaitBitClockHigh: CGFloat = 100
-    private let xWaitAfterBitClockHigh: CGFloat = 30
     private let xStepDefault: CGFloat = 30
     
     private var xRef: CGFloat?
@@ -85,7 +81,7 @@ class I2CMasterController: I2CController {
 
         while true {
 
-            switch transmissionFSM.currentState {  
+            switch transmissionFSM.currentState {
             case .sendingStart:
                 
                 switch startStopFSM.currentState {
@@ -111,179 +107,20 @@ class I2CMasterController: I2CController {
             case .writingAddressRW:
 
                 switch bitWriteFSM.currentState {
-                case .pullingSCLLow:
-                    
-                    if busFSM.currentState == .started_LH || busFSM.currentState == .transmitting_LH  || busFSM.currentState == .transmitting_HH {
-                        return .pullSCLLow
-                    }
-                    if busFSM.currentState == .transmitting_LL || busFSM.currentState == .transmitting_HL {
-                        bitWriteFSM.SCLReady()
-                        continue
-                    }
-                    abortTransmission()
-                    return nil
+                case .ready:
+                    bitWriteFSM.activate(sending: currentTransmissionBit)
 
-                case .assertingSDA:
+                case .pullingSCL, .clockingLow:
+                    return .pullSCLLow
 
-                    switch currentTransmissionBit {
-                    case .zero:
+                case .pullingSDA:
+                    return .pullSDALow
 
-                        if busFSM.currentState == .transmitting_HL {
-                            return .pullSDALow
-                        }
-                        if busFSM.currentState == .transmitting_LL {
-                            bitWriteFSM.SDAAsserted()
-                            continue
-                        }
-                        abortTransmission()
-                        return nil
+                case .releasingSDA:
+                    return .releaseSDA
 
-                    case .one:
-
-                        if busFSM.currentState == .transmitting_LL {
-                            return .releaseSDA
-                        }
-                        if busFSM.currentState == .transmitting_HL {
-                            bitWriteFSM.SDAAsserted()
-                            continue
-                        }
-                        abortTransmission()
-                        return nil
-                    }
-
-                case .waitingLowBefore:
-
-                    switch currentTransmissionBit {
-                    case .zero:
-
-                        if busFSM.currentState != .transmitting_LL {
-                            abortTransmission()
-                            return nil
-                        }
-
-                    case .one:
-
-                        if busFSM.currentState != .transmitting_HL {
-                            abortTransmission()
-                            return nil
-                        }
-                    }
-                    if xRef == nil {
-                        xRef = x
-                    }
-                    if x - xRef! >= xWaitBeforeBitClockHigh {
-                        bitWriteFSM.waitedLowBefore()
-                        xRef = nil
-                    }
-                    return nil
-                    
                 case .clockingHigh:
-
-                    switch currentTransmissionBit {
-                    case .zero:
-
-                        if busFSM.currentState == .transmitting_LL {
-                            return .releaseSCL
-                        }
-                        if busFSM.currentState == .transmitting_LH {
-                            bitWriteFSM.gotClockHigh()
-                            continue
-                        }
-                        abortTransmission()
-                        return nil
-
-                    case .one:
-
-                        if busFSM.currentState == .transmitting_HL {
-                            return .releaseSCL
-                        }
-                        if busFSM.currentState == .transmitting_HH {
-                            bitWriteFSM.gotClockHigh()
-                            continue
-                        }
-                        abortTransmission()
-                        return nil
-                    }
-                    
-                case .waitingHigh:
-
-                    switch currentTransmissionBit {
-                    case .zero:
-
-                        if busFSM.currentState != .transmitting_LH {
-                            abortTransmission()
-                            return nil
-                        }
-
-                    case .one:
-
-                        if busFSM.currentState != .transmitting_HH {
-                            abortTransmission()
-                            return nil
-                        }
-                    }
-                    if xRef == nil {
-                        xRef = x
-                    }
-                    if x - xRef! >= xWaitBitClockHigh {
-                        bitWriteFSM.waitedHigh()
-                        xRef = nil
-                    }
-                    return nil
-                    
-                case .clockingLow:
-
-                    switch currentTransmissionBit {
-                    case .zero:
-
-                        if busFSM.currentState == .transmitting_LH {
-                            return .pullSCLLow
-                        }
-                        if busFSM.currentState == .transmitting_LL {
-                            bitWriteFSM.gotClockLow()
-                            continue
-                        }
-                        abortTransmission()
-                        return nil
-
-                    case .one:
-
-                        if busFSM.currentState == .transmitting_HH {
-                            return .pullSCLLow
-                        }
-                        if busFSM.currentState == .transmitting_HL {
-                            bitWriteFSM.gotClockLow()
-                            continue
-                        }
-                        abortTransmission()
-                        return nil
-                    }
-
-                case .waitingLowAfter:
-
-                    switch currentTransmissionBit {
-                    case .zero:
-
-                        if busFSM.currentState != .transmitting_LL {
-                            abortTransmission()
-                            return nil
-                        }
-
-                    case .one:
-
-                        if busFSM.currentState != .transmitting_HL {
-                            abortTransmission()
-                            return nil
-                        }
-                    }
-                    if xRef == nil {
-                        xRef = x
-                    }
-                    if x - xRef! >= xWaitAfterBitClockHigh {
-                        bitWriteFSM.waitedLowAfter()
-                        xRef = nil
-                    }
-                    return nil
+                    return .releaseSCL
                     
                 case .done:
                     
@@ -294,6 +131,13 @@ class I2CMasterController: I2CController {
                     }
                     bitWriteFSM.reset()
                     continue
+
+                case .error:
+                    abortTransmission()
+                    bitWriteFSM.reset()
+
+                default:
+                    break
                 }
                 
             // case .readingAddressAck:

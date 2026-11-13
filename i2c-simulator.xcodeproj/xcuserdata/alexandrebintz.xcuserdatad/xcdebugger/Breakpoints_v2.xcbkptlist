@@ -128,8 +128,8 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "83"
             endingLineNumber = "83"
-            landmarkName = "I2CMasterController"
-            landmarkType = "3">
+            landmarkName = "updateTransmissionState(x:)"
+            landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -352,8 +352,8 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "334"
             endingLineNumber = "334"
-            landmarkName = "updateTransmissionState(x:)"
-            landmarkType = "7">
+            landmarkName = "I2CMasterController"
+            landmarkType = "3">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -368,8 +368,8 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "351"
             endingLineNumber = "351"
-            landmarkName = "updateTransmissionState(x:)"
-            landmarkType = "7">
+            landmarkName = "I2CMasterController"
+            landmarkType = "3">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -384,8 +384,8 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "397"
             endingLineNumber = "397"
-            landmarkName = "updateTransmissionState(x:)"
-            landmarkType = "7">
+            landmarkName = "I2CMasterController"
+            landmarkType = "3">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -400,8 +400,8 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "78"
             endingLineNumber = "78"
-            landmarkName = "_updateCompute(x:)"
-            landmarkType = "7">
+            landmarkName = "I2CMasterController"
+            landmarkType = "3">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -416,8 +416,8 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "340"
             endingLineNumber = "340"
-            landmarkName = "updateTransmissionState(x:)"
-            landmarkType = "7">
+            landmarkName = "I2CMasterController"
+            landmarkType = "3">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -432,8 +432,8 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "343"
             endingLineNumber = "343"
-            landmarkName = "updateTransmissionState(x:)"
-            landmarkType = "7">
+            landmarkName = "I2CMasterController"
+            landmarkType = "3">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -448,8 +448,8 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "337"
             endingLineNumber = "337"
-            landmarkName = "updateTransmissionState(x:)"
-            landmarkType = "7">
+            landmarkName = "I2CMasterController"
+            landmarkType = "3">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -464,8 +464,8 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "346"
             endingLineNumber = "346"
-            landmarkName = "updateTransmissionState(x:)"
-            landmarkType = "7">
+            landmarkName = "I2CMasterController"
+            landmarkType = "3">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy

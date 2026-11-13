@@ -31,6 +31,7 @@ class I2CController {
     var startFSM = I2CStartFSM()
     var stopFSM = I2CStopFSM()
     var bitWriteFSM = I2CBitWriteFSM()
+    var bitReadFSM = I2CBitReadFSM()
     
     
     func initCompute(x: CGFloat, levelSCL: LineLevel, levelSDA: LineLevel) {
@@ -39,6 +40,7 @@ class I2CController {
         startFSM.reset()
         stopFSM.reset()
         bitWriteFSM.reset()
+        bitReadFSM.reset()
     }
     
     
@@ -50,6 +52,7 @@ class I2CController {
         startFSM.update(x: x, updatedBusState: busFSM.currentState)
         stopFSM.update(x: x, updatedBusState: busFSM.currentState)
         bitWriteFSM.update(x: x, updatedBusState: busFSM.currentState)
+        bitReadFSM.update(x: x, updatedBusState: busFSM.currentState)
 
         return _updateCompute(x: x)
     }

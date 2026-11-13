@@ -13,6 +13,7 @@ enum I2CTransmissionFSMState {
     case transmittingByteAck
     case sendingStop
     case done
+    case aborted
 }
 
 
@@ -44,7 +45,7 @@ class I2CTransmissionFSM {
     func addressRWSent() {
         
         if currentState == .writingAddressRW {
-            currentState = .sendingStop//.readingAddressAck
+            currentState = .readingAddressAck
         }
     }
     
@@ -98,6 +99,6 @@ class I2CTransmissionFSM {
 
     func abort() {
         
-        currentState = .done
+        currentState = .aborted
     }
 }

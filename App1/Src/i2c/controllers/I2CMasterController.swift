@@ -18,7 +18,6 @@ class I2CMasterController: I2CController {
     private var activeTransmission: I2CTransmission? = nil
     
     private var transmissionFSM = I2CTransmissionFSM()
-    private var bitReadFSM = I2CBitReadFSM()
 
     private var transmittingAddressRWBit: Int = 0
     private var currentTransmissionBit: Bit { Bit((Int(self.activeTransmission!.addressRW) >> (7-transmittingAddressRWBit)) & 1) }
@@ -139,106 +138,43 @@ class I2CMasterController: I2CController {
                     break
                 }
                 
-            // case .readingAddressAck:
+            case .readingAddressAck:
 
-            //     switch bitReadFSM.currentState {
+                switch bitReadFSM.currentState {
                     
-            //     case .waitingLowBefore:
+                case .ready:
+                    bitReadFSM.activate()
 
-            //         if busFSM.currentState == .transmitting_LL {
-            //             // ok
-            //         } else if busFSM.currentState == .transmitting_HL {
-            //             // ok
-            //         } else {
-            //             abortTransmission()
-            //         }
-            //         if xRef == nil {
-            //             xRef = x
-            //         }
-            //         if x - xRef! >= xWaitBeforeBitClockHigh {
-            //             bitReadFSM.waitedLowBefore()
-            //             xRef = nil
-            //         }
-                    
-            //     case .clockingHigh:
-                    
-            //         if busFSM.currentState == .transmitting_LH {
-            //             bitReadFSM.gotClockHigh()
-            //         } else if busFSM.currentState == .transmitting_HH {
-            //             bitReadFSM.gotClockHigh()
-            //         } else if busFSM.currentState == lastMicroStateActedOn {
-            //             // waiting for previous action to take effect
-            //         } else {
-            //             abortTransmission()
-            //         }
-                    
-            //     case .waitingHigh:
+                case .pullingSCL, .clockingLow:
+                    return .pullSCL
 
-            //         if busFSM.currentState == .transmitting_LH {
-            //             // ok
-            //         } else if busFSM.currentState == .transmitting_HH {
-            //             // ok
-            //         } else {
-            //             abortTransmission()
-            //         }
-            //         if xRef == nil {
-            //             xRef = x
-            //         }
-            //         if x - xRef! >= xWaitBitClockHigh {
-            //             bitReadFSM.waitedHigh()
-            //             xRef = nil
-            //         }
+                case .clockingHigh:
+                    return .releaseSCL
 
-            //     case .reading:
+                case .reading:
+            
+                    if busFSM.currentState == .transmitting_HH {
+                        lastReadBit = .one
+                    } else if busFSM.currentState == .transmitting_LH {
+                        lastReadBit = .zero
+                    }
 
-            //         if busFSM.currentState == .transmitting_LH {
-            //             lastReadBit = .zero
-            //             bitReadFSM.readBit()
-            //         } else if busFSM.currentState == .transmitting_HH {
-            //             lastReadBit = .one
-            //             bitReadFSM.readBit()
-            //         } else {
-            //             abortTransmission()
-            //         }
+                case .done:
                     
-            //     case .clockingLow:
+                    if lastReadBit == .one {
+                        transmissionFSM.nack()
+                    } else {
+                        transmissionFSM.ack()
+                    }
+                    bitReadFSM.reset()
 
-            //         if busFSM.currentState == .transmitting_LL {
-            //             bitReadFSM.gotClockLow()
-            //         } else if busFSM.currentState == .transmitting_HL {
-            //             bitReadFSM.gotClockLow()
-            //         } else if busFSM.currentState == lastMicroStateActedOn {
-            //             // waiting for previous action to take effect
-            //         } else {
-            //             abortTransmission()
-            //         }
-                    
-            //     case .waitingLowAfter:
+                case .error:
+                    abortTransmission()
+                    bitReadFSM.reset()
 
-            //         if busFSM.currentState == .transmitting_LL {
-            //             // ok
-            //         } else if busFSM.currentState == .transmitting_HL {
-            //             // ok
-            //         } else {
-            //             abortTransmission()
-            //         }
-            //         if xRef == nil {
-            //             xRef = x
-            //         }
-            //         if x - xRef! >= xWaitAfterBitClockHigh {
-            //             bitReadFSM.waitedLowAfter()
-            //             xRef = nil
-            //         }
-                    
-            //     case .done:
-                    
-            //         if lastReadBit == .one {
-            //             transmissionFSM.nack()
-            //         } else {
-            //             transmissionFSM.ack()
-            //         }
-            //         bitReadFSM.reset()
-            //     }
+                default:
+                    break
+                }
             
             // case .readyData:
             //     break
@@ -286,135 +222,6 @@ class I2CMasterController: I2CController {
             return nil
         }
     }
-
-
-    // private func actOnTransmissionState(levelSCL: LineLevel, levelSDA: LineLevel, x: CGFloat) {
-
-    //     switch transmissionFSM.currentState {
-                    
-    //     case .sendingStart:
-            
-    //         switch startFSM.currentState {
-                
-    //         case .preparingLines:
-    //             break
-
-    //         case .waitingBefore:
-    //             break
-
-    //         case .assertingLines:
-    //             pullSDA()
-
-    //         case .waitingAfter:
-    //             pullSDA()
-
-    //         case .done:
-    //             pullSDA()
-    //         }
-            
-    //     case .writingAddressRW:
-
-    //         if currentTransmissionBit == .zero {
-    //             pullSDA()
-    //         }
-
-    //         switch bitWriteFSM.currentState {
-                
-    //         case .preparingLines:
-    //             pullSCLLow()
-
-    //         case .waitingLowBefore:
-    //             pullSCLLow()
-        
-    //         case .clockingHigh:
-    //             break
-                
-    //         case .waitingHigh:
-    //             break
-                
-    //         case .clockingLow:
-    //             pullSCLLow()
-                
-    //         case .waitingLowAfter:
-    //             pullSCLLow()
-                
-    //         case .done:
-    //             pullSCLLow()
-    //         }
-            
-    //     case .readingAddressAck:
-            
-    //         switch bitReadFSM.currentState {
-                
-    //         case .waitingLowBefore:
-    //             pullSCLLow()
-        
-    //         case .clockingHigh:
-    //             break
-                
-    //         case .waitingHigh:
-    //             break
-
-    //         case .reading:
-    //             break
-                
-    //         case .clockingLow:
-    //             pullSCLLow()
-                
-    //         case .waitingLowAfter:
-    //             pullSCLLow()
-                
-    //         case .done:
-    //             pullSCLLow()
-    //         }
-            
-    //     case .readyData:
-    //         break
-            
-    //     case .transmittingByte:
-    //         break
-            
-    //     case .transmittingByteAck:
-    //         break
-            
-    //     case .sendingStop:
-            
-    //         switch startFSM.currentState {
-                
-    //         case .preparingLines:
-
-    //             if busFSM.currentState == .transmitting_HH {
-    //                 pullSCLLow()
-    //             } else if busFSM.currentState == .transmitting_HL {
-    //                 pullSCLLow()
-    //                 pullSDA()
-    //             } else if busFSM.currentState == .transmitting_LL {
-    //                 pullSDA()
-    //             } else if busFSM.currentState == .transmitting_LH {
-    //                 // release everything => stop
-    //             }
-
-    //             // TODO wait between pulling SDA and releasing SCL
-
-    //         case .waitingBefore:
-    //             pullSDA()
-
-    //         case .assertingLines:
-    //             break
-
-    //         case .waitingAfter:
-    //             break
-
-    //         case .done:
-    //             break
-    //         }
-            
-    //     case .done:
-    //         break
-    //     }
-
-    //     lastMicroStateActedOn = busFSM.currentState
-    // }
     
     
     private func abortTransmission() {

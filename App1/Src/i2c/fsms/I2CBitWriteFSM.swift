@@ -162,7 +162,7 @@ class I2CBitWriteFSM {
                 if xRef == nil {
                     xRef = x
                 }
-                if x - xRef! >= xWaitBeforeBitClockHigh {
+                if x - xRef! >= xWaitAfterBitClockHigh {
                     currentState = .done
                     xRef = nil
                 }

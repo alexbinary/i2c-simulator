@@ -5,6 +5,7 @@ import SwiftUI
 
 class I2CTransmission {
     
+    let id = UUID()
     let addressRW: UInt8
     let bytes: [UInt8]
     

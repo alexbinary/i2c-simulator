@@ -15,17 +15,13 @@ class I2CMasterController: I2CController {
     
     
     private var scheduledTransmissions: [ScheduledTransmission] = []
-    private var activeTransmission: I2CTransmission? = nil
-    
-    private var transmissionFSM = I2CTransmissionFSM()
-
-    private var transmittingAddressRWBit: Int = 0
-    private var currentTransmissionBit: Bit { Bit((Int(self.activeTransmission!.addressRW) >> (7-transmittingAddressRWBit)) & 1) }
+    private var transmissionFSM: I2CMasterTransmissionFSM?
     
     
     func scheduleTransmission(at x: CGFloat, _ transmission: I2CTransmission) {
         
         self.scheduledTransmissions.append(ScheduledTransmission(transmission: transmission, x: x))
+        loadNextTransmission()
     }
 
 
@@ -34,206 +30,38 @@ class I2CMasterController: I2CController {
         print("")
         print("-- MASTER UPDATED STATE --")
         print("bus state: \(busFSM.currentState)")
-        print("transmission: \(activeTransmission)")
-        print("transmission state: \(transmissionFSM.currentState)")
-        print("transmission result: \(transmissionFSM.result)")
-        print("start state: \(startFSM.currentState)")
-        print("stop state: \(stopFSM.currentState)")
-        print("bit write state: \(bitWriteFSM.currentState)")
-        print("transmittingAddressRWBit: \(transmittingAddressRWBit)")
-        print("bit read state: \(bitReadFSM.currentState)")
+        print("transmission state: \(transmissionFSM?.currentState)")
+        print("transmittingAddressRWBit: \(transmissionFSM?.transmittingAddressRWBit)")
+        print("transmission result: \(transmissionFSM?.result)")
+        print("start state: \(transmissionFSM?.startFSM.currentState)")
+        print("stop state: \(transmissionFSM?.stopFSM.currentState)")
+        print("bit write state: \(transmissionFSM?.bitWriteFSM.currentState)")
+        print("bit read state: \(transmissionFSM?.bitReadFSM.currentState)")
     }
     
     
     override func _updateCompute(x: CGFloat) -> I2CControllerLineAction? {
 
-        if transmissionFSM.currentState == .done {
-            clearCurrentTransmission()
-            transmissionFSM.reset()
-            transmittingAddressRWBit = 0
-            printState()
-        }
+        if let transmissionFSM = transmissionFSM {
 
-        if self.activeTransmission == nil {
-            activateNextTransmission(x: x)
+            transmissionFSM.update(x: x, updatedBusFSM: busFSM)
             printState()
-        }
 
-        if self.activeTransmission != nil {
-            let action = updateTransmissionState(x: x)
-            printState()
-            if let action = action {
-                return action
-            }
+            return transmissionFSM.currentAction
         }
 
         return nil
     }
-
-
-    private func updateTransmissionState(x: CGFloat) -> I2CControllerLineAction? {
-
-        while true {
-
-            switch transmissionFSM.currentState {
-            case .sendingStart:
-                
-                switch startFSM.currentState {
-                case .ready:
-                    startFSM.activate()
-
-                case .pullingSDA:
-                    return .pullSDA
-
-                case .done:
-                    transmissionFSM.startSent()
-                    startFSM.reset()
-                    continue
-
-                case .error:
-                    abortTransmission()
-                    startFSM.reset()
-
-                default:
-                    break
-                }
-                
-            case .writingAddressRW:
-
-                switch bitWriteFSM.currentState {
-                case .ready:
-                    bitWriteFSM.activate(sending: currentTransmissionBit)
-
-                case .pullingSCL, .clockingLow:
-                    return .pullSCL
-
-                case .pullingSDA:
-                    return .pullSDA
-
-                case .releasingSDA:
-                    return .releaseSDA
-
-                case .clockingHigh:
-                    return .releaseSCL
-                    
-                case .done:
-                    
-                    if transmittingAddressRWBit == 7 {
-                        transmissionFSM.addressRWSent()
-                    } else {
-                        transmittingAddressRWBit += 1
-                    }
-                    bitWriteFSM.reset()
-                    continue
-
-                case .error:
-                    abortTransmission()
-                    bitWriteFSM.reset()
-
-                default:
-                    break
-                }
-                
-            case .readingAddressAck:
-
-                switch bitReadFSM.currentState {
-                    
-                case .ready:
-                    bitReadFSM.activate()
-
-                case .pullingSCL, .clockingLow:
-                    return .pullSCL
-
-                case .clockingHigh:
-                    return .releaseSCL
-
-                case .done:
-                    
-                    if bitReadFSM.readBit == .one {
-                        transmissionFSM.nack()
-                    } else {
-                        transmissionFSM.ack()
-                    }
-                    bitReadFSM.reset()
-
-                case .error:
-                    abortTransmission()
-                    bitReadFSM.reset()
-
-                default:
-                    break
-                }
-            
-            // case .readyData:
-            //     break
-            
-            // case .transmittingByte:
-            //     break
-            
-            // case .transmittingByteAck:
-            //     break
-            
-            case .sendingStop:
-                
-                switch stopFSM.currentState {
-                case .ready:
-                    stopFSM.activate()
-
-                case .pullingSDA:
-                    return .pullSDA
-
-                case .releasingSCL:
-                    return .releaseSCL
-
-                case .releasingSDA:
-                    return .releaseSDA
-                    
-                case .done:
-                    transmissionFSM.stopSent()
-                    stopFSM.reset()
-
-                case .error:
-                    abortTransmission()
-                    stopFSM.reset()
-
-                default:
-                    break
-                }
-            
-            case .done:
-                break
-
-            default:
-                break
-            }
-
-            return nil
-        }
-    }
     
     
-    private func abortTransmission() {
+    private func loadNextTransmission() {
         
-        transmissionFSM.abort()
+        transmissionFSM = nil
         
-        print("-- !! TRANSMISSION ABORTED !! -- \n")
-    }
-    
-    
-    private func clearCurrentTransmission() {
-        
-        activeTransmission = nil
+        if let entry = scheduledTransmissions.sorted(by: { a, b in a.x < b.x }).first {
 
-        print("-- TRANSMISSION COMPLETED -- \n")
-    }
-    
-    
-    private func activateNextTransmission(x: CGFloat) {
-        
-        if let entry = self.scheduledTransmissions.first, entry.x <= x {
-            
-            _ = self.scheduledTransmissions.removeFirst()
-            self.activeTransmission = entry.transmission
+            scheduledTransmissions.removeAll(where: { $0.transmission.id == entry.transmission.id })
+            transmissionFSM = I2CMasterTransmissionFSM(transmission: entry.transmission, xStart: entry.x)
         }
     }
 }

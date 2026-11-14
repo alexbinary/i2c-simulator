@@ -23,7 +23,7 @@ enum I2CBitWriteFSMState {
 class I2CBitWriteFSM {
     
     
-    var currentState: I2CBitWriteFSMState = .ready
+    private(set) var currentState: I2CBitWriteFSMState = .ready
 
     private var sendingBit: Bit = .zero
 

@@ -22,13 +22,15 @@ enum I2CBitReadFSMState {
 class I2CBitReadFSM {
     
     
-    var currentState: I2CBitReadFSMState = .ready
+    private(set) var currentState: I2CBitReadFSMState = .ready
+    private(set) var readBit: Bit!
 
     private let xWaitBeforeBitClockHigh: CGFloat = 30
     private let xWaitBitClockHigh: CGFloat = 100
     private let xWaitAfterBitClockHigh: CGFloat = 30
     
     private var xRef: CGFloat?
+    
     
 
     func reset() {
@@ -43,104 +45,120 @@ class I2CBitReadFSM {
     }
     
 
-    func update(x: CGFloat, updatedBusState: I2CBusFSMState) {
+    func update(x: CGFloat, updatedBusFSM: I2CBusFSM) {
 
-        switch currentState {
+        while true {
 
-        case .ready:
-            break
+            var nextState = currentState
 
-        case .activated:
+            switch currentState {
 
-            if updatedBusState == .started_LH {
-                currentState = .pullingSCL
-            } else if updatedBusState == .transmitting_HL {
-                currentState = .waitingLowBefore
-            } else if updatedBusState == .transmitting_LL {
-                currentState = .waitingLowBefore
+            case .ready:
+                break
+
+            case .activated:
+
+                if updatedBusFSM.currentState == .started_LH {
+                    nextState = .pullingSCL
+                } else if updatedBusFSM.currentState == .transmitting_HL {
+                    nextState = .waitingLowBefore
+                } else if updatedBusFSM.currentState == .transmitting_LL {
+                    nextState = .waitingLowBefore
+                } else {
+                    nextState = .error
+                }
+            
+            case .pullingSCL:
+
+                if updatedBusFSM.currentState == .transmitting_LL || updatedBusFSM.currentState == .transmitting_HL {
+                    nextState = .waitingLowBefore
+                } else if updatedBusFSM.currentState != .started_LH {
+                    nextState = .error
+                }
+            
+            case .waitingLowBefore:
+
+                if updatedBusFSM.currentState != .transmitting_LL && updatedBusFSM.currentState != .transmitting_HL {
+                    nextState = .error
+                } else {
+                    if xRef == nil {
+                        xRef = x
+                    }
+                    if x - xRef! >= xWaitBeforeBitClockHigh {
+                        nextState = .clockingHigh
+                        xRef = nil
+                    }
+                }
+            
+            case .clockingHigh:
+
+                if updatedBusFSM.currentState == .transmitting_LH || updatedBusFSM.currentState == .transmitting_HH {
+                    nextState = .waitingHigh
+                } else if updatedBusFSM.currentState != .transmitting_LL && updatedBusFSM.currentState != .transmitting_HL {
+                    nextState = .error
+                }
+            
+            case .waitingHigh:
+
+                if updatedBusFSM.currentState != .transmitting_LH && updatedBusFSM.currentState != .transmitting_HH {
+                    nextState = .error
+                } else {
+                    if xRef == nil {
+                        xRef = x
+                    }
+                    if x - xRef! >= xWaitBitClockHigh {
+                        nextState = .reading
+                        xRef = nil
+                    }
+                }
+            
+            case .reading:
+
+                if updatedBusFSM.currentState == .transmitting_LH {
+                    nextState = .clockingLow
+                    readBit = .zero
+                } else if updatedBusFSM.currentState == .transmitting_HH {
+                    nextState = .clockingLow
+                    readBit = .one
+                } else {
+                    nextState = .error
+                }
+            
+            case .clockingLow:
+
+                if updatedBusFSM.currentState == .transmitting_LL || updatedBusFSM.currentState == .transmitting_HL {
+                    nextState = .waitingLowAfter
+                } else if updatedBusFSM.currentState != .transmitting_LH && updatedBusFSM.currentState != .transmitting_HH {
+                    nextState = .error
+                }
+            
+            case .waitingLowAfter:
+
+                if updatedBusFSM.currentState != .transmitting_LL && updatedBusFSM.currentState != .transmitting_HL {
+                    nextState = .error
+                } else {
+                    if xRef == nil {
+                        xRef = x
+                    }
+                    if x - xRef! >= xWaitAfterBitClockHigh {
+                        nextState = .done
+                        xRef = nil
+                    }
+                }
+            
+            case .done:
+                break
+            
+            case .error:
+                break
+            }
+
+            if nextState != currentState {
+                currentState = nextState
+                continue
             } else {
-                currentState = .error
+                break
             }
-        
-        case .pullingSCL:
-
-            if updatedBusState == .transmitting_LL || updatedBusState == .transmitting_HL {
-                currentState = .waitingLowBefore
-            } else if updatedBusState != .started_LH {
-                currentState = .error
-            }
-        
-        case .waitingLowBefore:
-
-            if updatedBusState != .transmitting_LL && updatedBusState != .transmitting_HL {
-                currentState = .error
-            } else {
-                if xRef == nil {
-                    xRef = x
-                }
-                if x - xRef! >= xWaitBeforeBitClockHigh {
-                    currentState = .clockingHigh
-                    xRef = nil
-                }
-            }
-        
-        case .clockingHigh:
-
-            if updatedBusState == .transmitting_LH || updatedBusState == .transmitting_HH {
-                currentState = .waitingHigh
-            } else if updatedBusState != .transmitting_LL && updatedBusState != .transmitting_HL {
-                currentState = .error
-            }
-        
-        case .waitingHigh:
-
-            if updatedBusState != .transmitting_LH && updatedBusState != .transmitting_HH {
-                currentState = .error
-            } else {
-                if xRef == nil {
-                    xRef = x
-                }
-                if x - xRef! >= xWaitBitClockHigh {
-                    currentState = .reading
-                    xRef = nil
-                }
-            }
-        
-        case .reading:
-
-            if updatedBusState == .transmitting_LH || updatedBusState == .transmitting_HH {
-                currentState = .clockingLow
-            } else {
-                currentState = .error
-            }
-        
-        case .clockingLow:
-
-            if updatedBusState == .transmitting_LL || updatedBusState == .transmitting_HL {
-                currentState = .waitingLowAfter
-            } else if updatedBusState != .transmitting_LH && updatedBusState != .transmitting_HH {
-                currentState = .error
-            }
-        
-        case .waitingLowAfter:
-
-            if updatedBusState != .transmitting_LL && updatedBusState != .transmitting_HL {
-                currentState = .error
-            } else {
-                if xRef == nil {
-                    xRef = x
-                }
-                if x - xRef! >= xWaitAfterBitClockHigh {
-                    currentState = .done
-                    xRef = nil
-                }
-            }
-        
-        case .done:
-            break
-        
-        case .error:
-            break
         }
     }
 }

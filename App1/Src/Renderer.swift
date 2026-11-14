@@ -159,8 +159,7 @@ class Renderer {
             context.stroke(line.path, with: .color(line.color), lineWidth: line.lineWidth)
         }
         
-        if let screenMouseX = screenMouseX {
-            let x = toWorld(screenMouseX)
+        if let x = screenMouseX {
             var path = Path()
             path.move(to: CGPoint(x: x, y: 0))
             path.addLine(to: CGPoint(x: x, y: canvasSize.height))

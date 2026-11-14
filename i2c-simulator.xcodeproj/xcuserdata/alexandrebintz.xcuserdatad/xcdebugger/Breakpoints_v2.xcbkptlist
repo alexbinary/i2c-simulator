@@ -8,14 +8,14 @@
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
             uuid = "0D9803D0-ACCA-4F53-BF8F-67055BD3F11A"
-            shouldBeEnabled = "Yes"
+            shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "App1/Src/i2c/controllers/I2CMasterController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "172"
-            endingLineNumber = "172"
+            startingLineNumber = "160"
+            endingLineNumber = "160"
             landmarkName = "updateTransmissionState(x:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -24,15 +24,15 @@
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
             uuid = "66571009-9969-4CA4-A29A-93991B25B0B4"
-            shouldBeEnabled = "Yes"
+            shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "App1/Src/i2c/fsms/I2CBitReadFSM.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "62"
-            endingLineNumber = "62"
-            landmarkName = "update(x:updatedBusState:)"
+            startingLineNumber = "64"
+            endingLineNumber = "64"
+            landmarkName = "update(x:updatedBusFSM:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -46,42 +46,132 @@
             filePath = "App1/Src/i2c/fsms/I2CBitReadFSM.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "70"
-            endingLineNumber = "70"
-            landmarkName = "update(x:updatedBusState:)"
+            startingLineNumber = "72"
+            endingLineNumber = "72"
+            landmarkName = "update(x:updatedBusFSM:)"
             landmarkType = "7">
+            <Locations>
+               <Location
+                  uuid = "624709D9-9B49-47A6-B21C-957238D9FDBA - 7307348a61def597"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "App1.I2CBitReadFSM.update(x: CoreGraphics.CGFloat, updatedBusFSM: App1.I2CBusFSM) -&gt; ()"
+                  moduleName = "App1.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/alexandrebintz/Documents/electronique/i2c-simulator/i2c-simulator/App1/Src/i2c/fsms/I2CBitReadFSM.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "72"
+                  endingLineNumber = "72">
+               </Location>
+               <Location
+                  uuid = "624709D9-9B49-47A6-B21C-957238D9FDBA - 7307348a61def578"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "App1.I2CBitReadFSM.update(x: CoreGraphics.CGFloat, updatedBusFSM: App1.I2CBusFSM) -&gt; ()"
+                  moduleName = "App1.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/alexandrebintz/Documents/electronique/i2c-simulator/i2c-simulator/App1/Src/i2c/fsms/I2CBitReadFSM.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "73"
+                  endingLineNumber = "73">
+               </Location>
+            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
             uuid = "08D2190D-C906-443F-A0F9-3000F76E1203"
-            shouldBeEnabled = "Yes"
+            shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "App1/Src/i2c/fsms/I2CBitReadFSM.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "76"
-            endingLineNumber = "76"
-            landmarkName = "update(x:updatedBusState:)"
+            startingLineNumber = "78"
+            endingLineNumber = "78"
+            landmarkName = "update(x:updatedBusFSM:)"
             landmarkType = "7">
+            <Locations>
+               <Location
+                  uuid = "08D2190D-C906-443F-A0F9-3000F76E1203 - 7307348a61deeadd"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "App1.I2CBitReadFSM.update(x: CoreGraphics.CGFloat, updatedBusFSM: App1.I2CBusFSM) -&gt; ()"
+                  moduleName = "App1.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/alexandrebintz/Documents/electronique/i2c-simulator/i2c-simulator/App1/Src/i2c/fsms/I2CBitReadFSM.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "78"
+                  endingLineNumber = "78">
+               </Location>
+               <Location
+                  uuid = "08D2190D-C906-443F-A0F9-3000F76E1203 - 7307348a61deea40"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "App1.I2CBitReadFSM.update(x: CoreGraphics.CGFloat, updatedBusFSM: App1.I2CBusFSM) -&gt; ()"
+                  moduleName = "App1.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/alexandrebintz/Documents/electronique/i2c-simulator/i2c-simulator/App1/Src/i2c/fsms/I2CBitReadFSM.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "81"
+                  endingLineNumber = "81">
+               </Location>
+            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
             uuid = "30813A1A-2F91-448F-925F-CA71DB81FE26"
-            shouldBeEnabled = "Yes"
+            shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "App1/Src/i2c/fsms/I2CBitReadFSM.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "92"
-            endingLineNumber = "92"
-            landmarkName = "update(x:updatedBusState:)"
+            startingLineNumber = "94"
+            endingLineNumber = "94"
+            landmarkName = "update(x:updatedBusFSM:)"
             landmarkType = "7">
+            <Locations>
+               <Location
+                  uuid = "30813A1A-2F91-448F-925F-CA71DB81FE26 - 7307348a61dee8ad"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "App1.I2CBitReadFSM.update(x: CoreGraphics.CGFloat, updatedBusFSM: App1.I2CBusFSM) -&gt; ()"
+                  moduleName = "App1.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/alexandrebintz/Documents/electronique/i2c-simulator/i2c-simulator/App1/Src/i2c/fsms/I2CBitReadFSM.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "94"
+                  endingLineNumber = "94">
+               </Location>
+               <Location
+                  uuid = "30813A1A-2F91-448F-925F-CA71DB81FE26 - 7307348a61dee88e"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "App1.I2CBitReadFSM.update(x: CoreGraphics.CGFloat, updatedBusFSM: App1.I2CBusFSM) -&gt; ()"
+                  moduleName = "App1.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/alexandrebintz/Documents/electronique/i2c-simulator/i2c-simulator/App1/Src/i2c/fsms/I2CBitReadFSM.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "95"
+                  endingLineNumber = "95">
+               </Location>
+            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -94,9 +184,9 @@
             filePath = "App1/Src/i2c/fsms/I2CBitReadFSM.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "114"
-            endingLineNumber = "114"
-            landmarkName = "update(x:updatedBusState:)"
+            startingLineNumber = "120"
+            endingLineNumber = "120"
+            landmarkName = "update(x:updatedBusFSM:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -104,23 +194,7 @@
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
             uuid = "6FFC2257-CA85-429F-A0A3-1C0283172350"
-            shouldBeEnabled = "Yes"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "App1/Src/i2c/fsms/I2CBitReadFSM.swift"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "122"
-            endingLineNumber = "122"
-            landmarkName = "update(x:updatedBusState:)"
-            landmarkType = "7">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            uuid = "44699447-78B5-4F73-8449-934A36DF30E3"
-            shouldBeEnabled = "Yes"
+            shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "App1/Src/i2c/fsms/I2CBitReadFSM.swift"
@@ -128,23 +202,161 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "128"
             endingLineNumber = "128"
-            landmarkName = "update(x:updatedBusState:)"
+            landmarkName = "update(x:updatedBusFSM:)"
             landmarkType = "7">
+            <Locations>
+               <Location
+                  uuid = "6FFC2257-CA85-429F-A0A3-1C0283172350 - 7307348a61deec4f"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "App1.I2CBitReadFSM.update(x: CoreGraphics.CGFloat, updatedBusFSM: App1.I2CBusFSM) -&gt; ()"
+                  moduleName = "App1.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/alexandrebintz/Documents/electronique/i2c-simulator/i2c-simulator/App1/Src/i2c/fsms/I2CBitReadFSM.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "128"
+                  endingLineNumber = "128">
+               </Location>
+               <Location
+                  uuid = "6FFC2257-CA85-429F-A0A3-1C0283172350 - 7307348a61deec30"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "App1.I2CBitReadFSM.update(x: CoreGraphics.CGFloat, updatedBusFSM: App1.I2CBusFSM) -&gt; ()"
+                  moduleName = "App1.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/alexandrebintz/Documents/electronique/i2c-simulator/i2c-simulator/App1/Src/i2c/fsms/I2CBitReadFSM.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "129"
+                  endingLineNumber = "129">
+               </Location>
+            </Locations>
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "44699447-78B5-4F73-8449-934A36DF30E3"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "App1/Src/i2c/fsms/I2CBitReadFSM.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "134"
+            endingLineNumber = "134"
+            landmarkName = "update(x:updatedBusFSM:)"
+            landmarkType = "7">
+            <Locations>
+               <Location
+                  uuid = "44699447-78B5-4F73-8449-934A36DF30E3 - 7307348a61deed95"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "App1.I2CBitReadFSM.update(x: CoreGraphics.CGFloat, updatedBusFSM: App1.I2CBusFSM) -&gt; ()"
+                  moduleName = "App1.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/alexandrebintz/Documents/electronique/i2c-simulator/i2c-simulator/App1/Src/i2c/fsms/I2CBitReadFSM.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "134"
+                  endingLineNumber = "134">
+               </Location>
+               <Location
+                  uuid = "44699447-78B5-4F73-8449-934A36DF30E3 - 7307348a61deed38"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "App1.I2CBitReadFSM.update(x: CoreGraphics.CGFloat, updatedBusFSM: App1.I2CBusFSM) -&gt; ()"
+                  moduleName = "App1.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/alexandrebintz/Documents/electronique/i2c-simulator/i2c-simulator/App1/Src/i2c/fsms/I2CBitReadFSM.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "137"
+                  endingLineNumber = "137">
+               </Location>
+            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
             uuid = "824EB607-913A-4E31-94ED-350A85615D08"
-            shouldBeEnabled = "Yes"
+            shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "App1/Src/i2c/fsms/I2CBitReadFSM.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "98"
-            endingLineNumber = "98"
-            landmarkName = "update(x:updatedBusState:)"
+            startingLineNumber = "100"
+            endingLineNumber = "100"
+            landmarkName = "update(x:updatedBusFSM:)"
+            landmarkType = "7">
+            <Locations>
+               <Location
+                  uuid = "824EB607-913A-4E31-94ED-350A85615D08 - 7307348a61dee9f3"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "App1.I2CBitReadFSM.update(x: CoreGraphics.CGFloat, updatedBusFSM: App1.I2CBusFSM) -&gt; ()"
+                  moduleName = "App1.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/alexandrebintz/Documents/electronique/i2c-simulator/i2c-simulator/App1/Src/i2c/fsms/I2CBitReadFSM.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "100"
+                  endingLineNumber = "100">
+               </Location>
+               <Location
+                  uuid = "824EB607-913A-4E31-94ED-350A85615D08 - 7307348a61dee996"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "App1.I2CBitReadFSM.update(x: CoreGraphics.CGFloat, updatedBusFSM: App1.I2CBusFSM) -&gt; ()"
+                  moduleName = "App1.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/alexandrebintz/Documents/electronique/i2c-simulator/i2c-simulator/App1/Src/i2c/fsms/I2CBitReadFSM.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "103"
+                  endingLineNumber = "103">
+               </Location>
+            </Locations>
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "809BEE95-F85E-4209-8E58-8666E7BF3123"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "App1/Src/i2c/controllers/I2CMasterController.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "153"
+            endingLineNumber = "153"
+            landmarkName = "updateTransmissionState(x:)"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "B7470D6E-D909-4ED6-A851-42187255C1FA"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "App1/Src/i2c/controllers/I2CMasterController.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "155"
+            endingLineNumber = "155"
+            landmarkName = "updateTransmissionState(x:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>

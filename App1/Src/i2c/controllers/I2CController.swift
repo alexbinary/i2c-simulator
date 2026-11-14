@@ -28,8 +28,8 @@ class I2CController {
     let id = UUID()
 
     var busFSM = I2CBusFSM()
-    var startFSM = I2CStartFSM()
-    var stopFSM = I2CStopFSM()
+    var startFSM = I2CSendStartFSM()
+    var stopFSM = I2CSendStopFSM()
     var bitWriteFSM = I2CBitWriteFSM()
     var bitReadFSM = I2CBitReadFSM()
     
@@ -49,10 +49,10 @@ class I2CController {
         if let line = changedLine {
             busFSM.update(changedLine: line)
         }
-        startFSM.update(x: x, updatedBusState: busFSM.currentState)
-        stopFSM.update(x: x, updatedBusState: busFSM.currentState)
-        bitWriteFSM.update(x: x, updatedBusState: busFSM.currentState)
-        bitReadFSM.update(x: x, updatedBusState: busFSM.currentState)
+        startFSM.update(x: x, updatedBusFSM: busFSM)
+        stopFSM.update(x: x, updatedBusFSM: busFSM)
+        bitWriteFSM.update(x: x, updatedBusFSM: busFSM)
+        bitReadFSM.update(x: x, updatedBusFSM: busFSM)
 
         return _updateCompute(x: x)
     }

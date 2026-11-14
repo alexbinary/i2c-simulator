@@ -17,15 +17,23 @@ enum I2CTransmissionFSMState {
 }
 
 
+enum I2CTransmissionResultEnum {
+    case success
+    case addressNack
+}
+
+
 class I2CTransmissionFSM {
     
     
     var currentState: I2CTransmissionFSMState = .sendingStart
+    var result: I2CTransmissionResultEnum = .success
     
     
     func reset() {
         
         currentState = .sendingStart
+        result = .success
     }
     
     func sendingStart() {
@@ -77,6 +85,7 @@ class I2CTransmissionFSM {
         
         if currentState == .readingAddressAck {
             currentState = .sendingStop
+            result = .addressNack
         }
         if currentState == .transmittingByteAck {
             currentState = .sendingStop

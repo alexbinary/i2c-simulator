@@ -21,11 +21,6 @@ class I2CMasterController: I2CController {
 
     private var transmittingAddressRWBit: Int = 0
     private var currentTransmissionBit: Bit { Bit((Int(self.activeTransmission!.addressRW) >> (7-transmittingAddressRWBit)) & 1) }
-    private var lastReadBit: Bit!
-    
-    private let xStepDefault: CGFloat = 30
-    
-    private var xRef: CGFloat?
     
     
     func scheduleTransmission(at x: CGFloat, _ transmission: I2CTransmission) {
@@ -41,6 +36,7 @@ class I2CMasterController: I2CController {
         print("bus state: \(busFSM.currentState)")
         print("transmission: \(activeTransmission)")
         print("transmission state: \(transmissionFSM.currentState)")
+        print("transmission result: \(transmissionFSM.result)")
         print("start state: \(startFSM.currentState)")
         print("stop state: \(stopFSM.currentState)")
         print("bit write state: \(bitWriteFSM.currentState)")
@@ -151,17 +147,9 @@ class I2CMasterController: I2CController {
                 case .clockingHigh:
                     return .releaseSCL
 
-                case .reading:
-            
-                    if busFSM.currentState == .transmitting_HH {
-                        lastReadBit = .one
-                    } else if busFSM.currentState == .transmitting_LH {
-                        lastReadBit = .zero
-                    }
-
                 case .done:
                     
-                    if lastReadBit == .one {
+                    if bitReadFSM.readBit == .one {
                         transmissionFSM.nack()
                     } else {
                         transmissionFSM.ack()

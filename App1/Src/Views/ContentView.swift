@@ -7,7 +7,7 @@ struct ContentView: View {
     
     
     @State private var scene = RenderScene()
-    
+    @State private var canvasSize: CGSize = .zero
     
     @State private var viewportTranslation: CGFloat = 0
     @State private var viewportScale: CGFloat = 1
@@ -17,25 +17,18 @@ struct ContentView: View {
     @State private var screenMouse: CGPoint = .zero
     @State private var screenMouseOnLastDown: CGPoint = .zero
     
+    @State private var mouseHoverLocation: CGPoint? = nil
+    
     
     private let zoomScrollCoeff: CGFloat = 0.001
     private let zoomPinchCoeff: CGFloat = 0.5
-    
-    
-    var worldMouse: CGPoint {
-        
-        let inverseTransform: CGAffineTransform =
-            .identity
-            .concatenating(.init(translationX: -viewportTranslation, y: 0))
-            .concatenating(.init(scaleX: 1/viewportScale, y: 1))
-        
-        return screenMouse.applying(inverseTransform)
-    }
-    
-    
+
+    private var worldMouse: CGPoint { CGPoint(x: (screenMouse.x - viewportTranslation)/viewportScale, y: canvasSize.height - screenMouse.y) }
+
+
     var body: some View {
 
-        ZStack {
+        ZStack(alignment: .bottomLeading) {
             
             Canvas { context, canvasSize in
                 
@@ -46,10 +39,16 @@ struct ContentView: View {
                     context: context,
                     canvasSize: canvasSize,
                     viewportTranslation: viewportTranslation,
-                    viewportScale: viewportScale
+                    viewportScale: viewportScale,
+                    screenMouseX: mouseHoverLocation != nil ? screenMouse.x : nil
                 )
                 renderer.render(scene)
             }
+            .background(GeometryReader { proxy in
+                Color.clear.onChange(of: proxy.size, initial: true) { _, newSize in
+                    self.canvasSize = newSize
+                }
+            })
             
             MouseEventsArea(
                 onMouseMove: { point in
@@ -70,8 +69,22 @@ struct ContentView: View {
                     zoomViewport(by: delta*zoomPinchCoeff)
                 }
             )
+
+            if let location = mouseHoverLocation {
+                Text("x\(Int(worldMouse.x))")
+                    .offset(x: location.x, y: location.y - canvasSize.height)
+                    .offset(x: 12, y: -12)
+            }
         }
         .frame(minWidth: 1600, minHeight: 800)
+        .onContinuousHover { phase in
+            switch phase {
+            case .active(let location):
+                mouseHoverLocation = location
+            case .ended:
+                mouseHoverLocation = nil
+            }
+        }
     }
     
     

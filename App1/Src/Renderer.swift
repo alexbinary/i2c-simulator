@@ -53,6 +53,7 @@ class Renderer {
     private let canvasSize: CGSize
     private let viewportTranslation: CGFloat
     private let viewportScale: CGFloat
+    private let screenMouseX: CGFloat?
     
     private let margin: CGFloat = 24
     
@@ -61,12 +62,14 @@ class Renderer {
         context: GraphicsContext,
         canvasSize: CGSize,
         viewportTranslation: CGFloat,
-        viewportScale: CGFloat
+        viewportScale: CGFloat,
+        screenMouseX: CGFloat?
     ) {
         self.context = context
         self.canvasSize = canvasSize
         self.viewportTranslation = viewportTranslation
         self.viewportScale = viewportScale
+        self.screenMouseX = screenMouseX
     }
     
     
@@ -154,6 +157,14 @@ class Renderer {
             
             line.path.addLine(to: CGPoint(x: toScreen(max(currentX, worldMaxX)), y: params.y(for: line.currentLevel)))
             context.stroke(line.path, with: .color(line.color), lineWidth: line.lineWidth)
+        }
+        
+        if let screenMouseX = screenMouseX {
+            let x = toWorld(screenMouseX)
+            var path = Path()
+            path.move(to: CGPoint(x: x, y: 0))
+            path.addLine(to: CGPoint(x: x, y: canvasSize.height))
+            context.stroke(path, with: .color(.white), lineWidth: 1)
         }
     }
 }

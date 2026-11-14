@@ -13,14 +13,8 @@ class RenderSceneLine {
 
 class RenderScene {
     
-    
     let lineSCL = RenderSceneLine()
     let lineSDA = RenderSceneLine()
-    
-    private let i2cBus = I2CBus()
-    private let i2cMaster = I2CMasterController()
-    private let i2cSlave1 = I2CSlaveController()
-    private let i2cSlave2 = I2CSlaveController()
 
 
     init() {
@@ -30,23 +24,31 @@ class RenderScene {
     
     
     func run() {
+
+        let bus = I2CBus()
         
-        lineSCL.initialLevel = i2cBus.lineSCL.currentLevel
-        lineSDA.initialLevel = i2cBus.lineSDA.currentLevel
+        lineSCL.initialLevel = bus.lineSCL.currentLevel
+        lineSDA.initialLevel = bus.lineSDA.currentLevel
+        
+        //
+
+        let master = I2CMasterController()
+        let slave1 = I2CSlaveController()
+        let slave2 = I2CSlaveController()
+        let perturbator = I2CPerturbatorController()
+        
+        bus.connect(master)
+        bus.connect(slave1)
+        bus.connect(slave2)
+        bus.connect(perturbator)
+        
+        master.scheduleTransmission(at: 100, I2CTransmission(addressRW: 0x2a<<1+1, bytes: [0x01, 0x02]))
+        
+        bus.simulate(from: 0, to: 2000)
         
         //
         
-        i2cBus.connect(i2cMaster)
-        i2cBus.connect(i2cSlave1)
-        i2cBus.connect(i2cSlave2)
-        
-        i2cMaster.scheduleTransmission(at: 100, I2CTransmission(addressRW: 0x2a<<1+1, bytes: [0x01, 0x02]))
-        
-        i2cBus.simulate(from: 0, to: 2000)
-        
-        //
-        
-        lineSCL.transitions = i2cBus.lineSCL.transitions
-        lineSDA.transitions = i2cBus.lineSDA.transitions
+        lineSCL.transitions = bus.lineSCL.transitions
+        lineSDA.transitions = bus.lineSDA.transitions
     }
 }

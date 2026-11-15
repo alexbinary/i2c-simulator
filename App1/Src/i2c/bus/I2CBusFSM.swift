@@ -23,7 +23,8 @@ enum I2CBusFSMState {
 class I2CBusFSM {
     
     
-    var currentState: I2CBusFSMState = .idle_HH
+    private(set) var currentState: I2CBusFSMState = .idle_HH
+    
     var isIdle: Bool { currentState == .idle_HH }
 
 
@@ -104,6 +105,22 @@ class I2CBusFSM {
             case .SCL: currentState = .transmitting_LH
             case .SDA: currentState = .transmitting_HL
             }
+        }
+    }
+
+
+    var lineLevels: (SDA: LineLevel, SCL: LineLevel) {
+
+        switch currentState {
+        case .idle_HH: return (SDA: .high, SCL: .high)
+        case .idle_HL: return (SDA: .high, SCL: .low)
+        case .idle_LH: return (SDA: .low, SCL: .high)
+        case .idle_LL: return (SDA: .low, SCL: .low)
+        case .started_LH: return (SDA: .low, SCL: .high)
+        case .transmitting_HH: return (SDA: .high, SCL: .high)
+        case .transmitting_HL: return (SDA: .high, SCL: .low)
+        case .transmitting_LH: return (SDA: .low, SCL: .high)
+        case .transmitting_LL: return (SDA: .low, SCL: .low)
         }
     }
 }

@@ -3,7 +3,7 @@ import SwiftUI
 
 
 
-enum I2CStartFSMState {
+enum I2CRestartFSMState {
     
     case ready
     case releasingSCL
@@ -16,10 +16,10 @@ enum I2CStartFSMState {
 }
 
 
-class I2CSendStartFSM {
+class I2CRestartFSM {
     
     
-    private(set) var currentState: I2CStartFSMState = .ready
+    private(set) var currentState: I2CRestartFSMState = .ready
     
     private let xWaitBeforeStart: CGFloat = 30
     private let xWaitAfterStart: CGFloat = 30

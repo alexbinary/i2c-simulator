@@ -5,7 +5,6 @@ import SwiftUI
 
 enum I2CMasterTransmissionFSMState {
     
-    case waitingXStart
     case sendingStart
     case writingAddressRW
     case readingAddressAck
@@ -19,6 +18,7 @@ enum I2CMasterTransmissionFSMState {
 
 
 enum I2CMasterTransmissionResultEnum {
+
     case success
     case addressNack
 }
@@ -27,11 +27,10 @@ enum I2CMasterTransmissionResultEnum {
 class I2CMasterTransmissionFSM {
     
     
-    private(set) var currentState: I2CMasterTransmissionFSMState = .waitingXStart
+    private(set) var currentState: I2CMasterTransmissionFSMState = .sendingStart
     private(set) var result: I2CMasterTransmissionResultEnum = .success
 
     var transmission: I2CTransmission
-    var xStart: CGFloat
 
     private(set) var transmittingAddressRWBit: Int = 0
     private var currentTransmissionBit: Bit { Bit((Int(transmission.addressRW) >> (7-transmittingAddressRWBit)) & 1) }
@@ -43,17 +42,15 @@ class I2CMasterTransmissionFSM {
 
 
     init(
-        transmission: I2CTransmission,
-        xStart: CGFloat
+        transmission: I2CTransmission
     ) {
         self.transmission = transmission
-        self.xStart = xStart
     }
     
     
     func reset() {
         
-        currentState = .waitingXStart
+        currentState = .sendingStart
         result = .success
 
         sendStartFSM.reset()
@@ -70,12 +67,6 @@ class I2CMasterTransmissionFSM {
             var nextState = currentState
 
             switch currentState {
-            case .waitingXStart:
-
-                if x >= xStart {
-                    nextState = .sendingStart
-                }
-
             case .sendingStart:
 
                 sendStartFSM.update(x: x, updatedBusFSM: updatedBusFSM)
@@ -174,61 +165,5 @@ class I2CMasterTransmissionFSM {
                 break
             }
         }
-    }
-
-
-    var currentAction: I2CControllerLineAction? {
-
-        switch sendStartFSM.currentState {
-        case .pullingSDA:
-            return .pullSDA
-
-        default:
-            break
-        }
-
-        switch bitWriteFSM.currentState {
-        case .pullingSCL, .clockingLow:
-            return .pullSCL
-
-        case .pullingSDA:
-            return .pullSDA
-
-        case .releasingSDA:
-            return .releaseSDA
-
-        case .clockingHigh:
-            return .releaseSCL
-            
-        default:
-            break
-        }
-
-        switch bitReadFSM.currentState {
-        case .pullingSCL, .clockingLow:
-            return .pullSCL
-
-        case .clockingHigh:
-            return .releaseSCL
-
-        default:
-            break
-        }
-
-        switch sendStopFSM.currentState {
-        case .pullingSDA:
-            return .pullSDA
-
-        case .releasingSCL:
-            return .releaseSCL
-
-        case .releasingSDA:
-            return .releaseSDA
-            
-        default:
-            break
-        }
-
-        return nil
     }
 }

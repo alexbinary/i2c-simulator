@@ -48,36 +48,6 @@
             endingLineNumber = "72"
             landmarkName = "update(x:updatedBusFSM:)"
             landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "624709D9-9B49-47A6-B21C-957238D9FDBA - 7307348a61def578"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "App1.I2CBitReadFSM.update(x: CoreGraphics.CGFloat, updatedBusFSM: App1.I2CBusFSM) -&gt; ()"
-                  moduleName = "App1.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/alexandrebintz/Documents/electronique/i2c-simulator/i2c-simulator/App1/Src/i2c/fsms/I2CBitReadFSM.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "73"
-                  endingLineNumber = "73">
-               </Location>
-               <Location
-                  uuid = "624709D9-9B49-47A6-B21C-957238D9FDBA - 7307348a61def597"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "App1.I2CBitReadFSM.update(x: CoreGraphics.CGFloat, updatedBusFSM: App1.I2CBusFSM) -&gt; ()"
-                  moduleName = "App1.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/alexandrebintz/Documents/electronique/i2c-simulator/i2c-simulator/App1/Src/i2c/fsms/I2CBitReadFSM.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "72"
-                  endingLineNumber = "72">
-               </Location>
-            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy

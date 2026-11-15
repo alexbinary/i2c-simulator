@@ -21,7 +21,6 @@ class I2CMasterController: I2CController {
     func scheduleTransmission(at x: CGFloat, _ transmission: I2CTransmission) {
         
         self.scheduledTransmissions.append(ScheduledTransmission(transmission: transmission, x: x))
-        loadNextTransmission()
     }
 
 
@@ -42,26 +41,94 @@ class I2CMasterController: I2CController {
     
     override func _updateCompute(x: CGFloat) -> I2CControllerLineAction? {
 
-        if let transmissionFSM = transmissionFSM {
+        while true {
 
-            transmissionFSM.update(x: x, updatedBusFSM: busFSM)
-            printState()
+            if let transmissionFSM = transmissionFSM {
 
-            return transmissionFSM.currentAction
+                transmissionFSM.update(x: x, updatedBusFSM: busFSM)
+                printState()
+
+                if transmissionFSM.currentState == .done || transmissionFSM.currentState == .aborted {
+
+                    self.transmissionFSM = nil
+                    printState()
+
+                } else {
+
+                    return currentAction(for: transmissionFSM)
+                }
+
+            } else {
+
+                if let entry = scheduledTransmissions.sorted(by: { a, b in a.x < b.x }).first, entry.x <= x {
+
+                    scheduledTransmissions.removeAll(where: { $0.transmission.id == entry.transmission.id })
+                    transmissionFSM = I2CMasterTransmissionFSM(transmission: entry.transmission)
+                    printState()
+
+                } else {
+
+                    break
+                }
+            }
         }
 
         return nil
     }
-    
-    
-    private func loadNextTransmission() {
-        
-        transmissionFSM = nil
-        
-        if let entry = scheduledTransmissions.sorted(by: { a, b in a.x < b.x }).first {
 
-            scheduledTransmissions.removeAll(where: { $0.transmission.id == entry.transmission.id })
-            transmissionFSM = I2CMasterTransmissionFSM(transmission: entry.transmission, xStart: entry.x)
+
+    func currentAction(for transmissionFSM: I2CMasterTransmissionFSM) -> I2CControllerLineAction? {
+
+        switch transmissionFSM.sendStartFSM.currentState {
+        case .pullingSDA:
+            return .pullSDA
+
+        default:
+            break
         }
+
+        switch transmissionFSM.bitWriteFSM.currentState {
+        case .pullingSCL, .clockingLow:
+            return .pullSCL
+
+        case .pullingSDA:
+            return .pullSDA
+
+        case .releasingSDA:
+            return .releaseSDA
+
+        case .clockingHigh:
+            return .releaseSCL
+            
+        default:
+            break
+        }
+
+        switch transmissionFSM.bitReadFSM.currentState {
+        case .pullingSCL, .clockingLow:
+            return .pullSCL
+
+        case .clockingHigh:
+            return .releaseSCL
+
+        default:
+            break
+        }
+
+        switch transmissionFSM.sendStopFSM.currentState {
+        case .pullingSDA:
+            return .pullSDA
+
+        case .releasingSCL:
+            return .releaseSCL
+
+        case .releasingSDA:
+            return .releaseSDA
+            
+        default:
+            break
+        }
+
+        return nil
     }
 }

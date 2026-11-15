@@ -33,8 +33,8 @@ class I2CMasterController: I2CController {
         print("transmission state: \(transmissionFSM?.currentState)")
         print("transmittingAddressRWBit: \(transmissionFSM?.transmittingAddressRWBit)")
         print("transmission result: \(transmissionFSM?.result)")
-        print("start state: \(transmissionFSM?.startFSM.currentState)")
-        print("stop state: \(transmissionFSM?.stopFSM.currentState)")
+        print("start state: \(transmissionFSM?.sendStartFSM.currentState)")
+        print("stop state: \(transmissionFSM?.sendStopFSM.currentState)")
         print("bit write state: \(transmissionFSM?.bitWriteFSM.currentState)")
         print("bit read state: \(transmissionFSM?.bitReadFSM.currentState)")
     }

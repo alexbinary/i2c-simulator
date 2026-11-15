@@ -6,7 +6,6 @@ import SwiftUI
 enum I2CBitReadFSMState {
     
     case ready
-    case activated
     case pullingSCL
     case waitingLowBefore
     case clockingHigh
@@ -39,12 +38,6 @@ class I2CBitReadFSM {
     }
     
 
-    func activate() {
-
-        currentState = .activated
-    }
-    
-
     func update(x: CGFloat, updatedBusFSM: I2CBusFSM) {
 
         while true {
@@ -52,11 +45,7 @@ class I2CBitReadFSM {
             var nextState = currentState
 
             switch currentState {
-
             case .ready:
-                break
-
-            case .activated:
 
                 if updatedBusFSM.currentState == .started_LH {
                     nextState = .pullingSCL

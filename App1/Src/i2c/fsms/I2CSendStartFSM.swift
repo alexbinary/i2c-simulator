@@ -6,7 +6,6 @@ import SwiftUI
 enum I2CStartFSMState {
     
     case ready
-    case activated
     case releasingSCL
     case releasingSDA
     case waitingBefore
@@ -33,12 +32,6 @@ class I2CSendStartFSM {
     }
 
 
-    func activate() {
-
-        currentState = .activated
-    }
-
-
     func update(x: CGFloat, updatedBusFSM: I2CBusFSM) {
 
         while true {
@@ -46,11 +39,7 @@ class I2CSendStartFSM {
             var nextState = currentState
 
             switch currentState {
-
             case .ready:
-                break
-
-            case .activated:
 
                 if updatedBusFSM.currentState == .idle_HH {
                     nextState = .waitingBefore

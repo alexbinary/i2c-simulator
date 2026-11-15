@@ -36,8 +36,8 @@ class I2CMasterTransmissionFSM {
     private(set) var transmittingAddressRWBit: Int = 0
     private var currentTransmissionBit: Bit { Bit((Int(transmission.addressRW) >> (7-transmittingAddressRWBit)) & 1) }
 
-    var startFSM = I2CSendStartFSM()
-    var stopFSM = I2CSendStopFSM()
+    var sendStartFSM = I2CSendStartFSM()
+    var sendStopFSM = I2CSendStopFSM()
     var bitWriteFSM = I2CBitWriteFSM()
     var bitReadFSM = I2CBitReadFSM()
 
@@ -56,19 +56,14 @@ class I2CMasterTransmissionFSM {
         currentState = .waitingXStart
         result = .success
 
-        startFSM.reset()
-        stopFSM.reset()
+        sendStartFSM.reset()
+        sendStopFSM.reset()
         bitWriteFSM.reset()
         bitReadFSM.reset()
     }
 
 
     func update(x: CGFloat, updatedBusFSM: I2CBusFSM) {
-
-        startFSM.update(x: x, updatedBusFSM: updatedBusFSM)
-        stopFSM.update(x: x, updatedBusFSM: updatedBusFSM)
-        bitWriteFSM.update(x: x, updatedBusFSM: updatedBusFSM)
-        bitReadFSM.update(x: x, updatedBusFSM: updatedBusFSM)
 
         while true {
 
@@ -82,29 +77,26 @@ class I2CMasterTransmissionFSM {
                 }
 
             case .sendingStart:
-                
-                switch startFSM.currentState {
-                case .ready:
-                    startFSM.activate()
 
+                sendStartFSM.update(x: x, updatedBusFSM: updatedBusFSM)
+                
+                switch sendStartFSM.currentState {
                 case .done:
                     nextState = .writingAddressRW
-                    startFSM.reset()
-
+                    sendStartFSM.reset()
                 case .error:
                     nextState = .aborted
-                    startFSM.reset()
-
+                    sendStartFSM.reset()
                 default:
                     break
                 }
                 
             case .writingAddressRW:
 
+                bitWriteFSM.sendingBit = currentTransmissionBit
+                bitWriteFSM.update(x: x, updatedBusFSM: updatedBusFSM)
+                
                 switch bitWriteFSM.currentState {
-                case .ready:
-                    bitWriteFSM.activate(sending: currentTransmissionBit)
-    
                 case .done:
                     
                     if transmittingAddressRWBit == 7 {
@@ -124,11 +116,9 @@ class I2CMasterTransmissionFSM {
                 
             case .readingAddressAck:
 
-                switch bitReadFSM.currentState {
-                    
-                case .ready:
-                    bitReadFSM.activate()
+                bitReadFSM.update(x: x, updatedBusFSM: updatedBusFSM)
 
+                switch bitReadFSM.currentState {
                 case .done:
                     
                     if bitReadFSM.readBit == .one {
@@ -156,19 +146,16 @@ class I2CMasterTransmissionFSM {
                 break
             
             case .sendingStop:
+
+                sendStopFSM.update(x: x, updatedBusFSM: updatedBusFSM)
                 
-                switch stopFSM.currentState {
-                case .ready:
-                    stopFSM.activate()
-    
+                switch sendStopFSM.currentState {
                 case .done:
                     nextState = .done
-                    stopFSM.reset()
-
+                    sendStopFSM.reset()
                 case .error:
                     nextState = .aborted
-                    stopFSM.reset()
-
+                    sendStopFSM.reset()
                 default:
                     break
                 }
@@ -192,7 +179,7 @@ class I2CMasterTransmissionFSM {
 
     var currentAction: I2CControllerLineAction? {
 
-        switch startFSM.currentState {
+        switch sendStartFSM.currentState {
         case .pullingSDA:
             return .pullSDA
 
@@ -228,7 +215,7 @@ class I2CMasterTransmissionFSM {
             break
         }
 
-        switch stopFSM.currentState {
+        switch sendStopFSM.currentState {
         case .pullingSDA:
             return .pullSDA
 

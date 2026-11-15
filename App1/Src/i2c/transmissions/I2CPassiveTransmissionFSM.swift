@@ -30,7 +30,7 @@ class I2CPassiveTransmissionFSM {
     var bitFSM = I2CBitFSM()
 
 
-    func update(x: CGFloat, updatedBusFSM: I2CBusFSM, onDone: () -> (), onAborted: () -> ()) {
+    func update(x: CGFloat, updatedBusFSM: I2CBusFSM, onStop: () -> (), onDone: () -> (), onAborted: () -> ()) {
 
         while true {
 
@@ -71,6 +71,7 @@ class I2CPassiveTransmissionFSM {
                 )
                 stopFSM.update(x: x, updatedBusFSM: updatedBusFSM,
                     onSuccess: {
+                        onStop()
                         done()
                     },
                     onError: {

@@ -28,6 +28,9 @@ class I2CController {
     let id = UUID()
 
     var busFSM = I2CBusFSM()
+
+    var pullingSDA = false
+    var pullingSCL = false
     
     
     func initCompute(x: CGFloat, levelSCL: LineLevel, levelSDA: LineLevel) {
@@ -42,12 +45,31 @@ class I2CController {
             busFSM.update(changedLine: line)
         }
 
-        return _updateCompute(x: x)
+        let action = _updateCompute(x: x)
+        updatePullStatus(from: action)
+        return action
     }
 
 
     func _updateCompute(x: CGFloat) -> I2CControllerLineAction? {
         
         return nil
+    }
+
+
+    private func updatePullStatus(from action: I2CControllerLineAction?) {
+
+        if action.type == .pull, action.target == .SDA {
+            pullingSDA = true
+        }
+        if action.type == .release, action.target == .SDA {
+            pullingSDA = false
+        }
+        if action.type == .pull, action.target == .SCL {
+            pullingSCL = true
+        }
+        if action.type == .release, action.target == .SCL {
+            pullingSCL = false
+        }
     }
 }

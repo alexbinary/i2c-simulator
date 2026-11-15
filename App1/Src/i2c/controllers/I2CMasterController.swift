@@ -10,20 +10,6 @@ struct ScheduledTransmission {
 }
 
 
-enum TransmissionByteType: Equatable {
-
-    case addressRW
-    case data(index: Int)
-}
-
-
-enum TransmissionBitType: Equatable {
-
-    case bit(index: Int)
-    case ack
-}
-
-
 
 class I2CMasterController: I2CController {
     
@@ -31,24 +17,16 @@ class I2CMasterController: I2CController {
     private var scheduledTransmissions: [ScheduledTransmission] = []
     private var activeTransmission: I2CTransmission? = nil
 
-    private var currentTransmissionByteType: TransmissionByteType? = nil
-    private var currentTransmissionByte: UInt8? {
-        switch currentTransmissionByteType {
-        case .addressRW: return activeTransmission?.addressRW
-        case .data(let index): return activeTransmission?.bytes[index]
-        case .none: return nil
-        }
-    }
-    private var currentTransmissionBitType: TransmissionBitType? = nil
-    private var currentTransmissionWriteBit: Bit? {
-        if currentTransmissionByte == nil { return nil }
-        switch currentTransmissionBitType {
-        case .bit(let index): return Bit((Int(currentTransmissionByte!) >> (7-index)) & 1)
-        case .ack: return nil
-        case .none: return nil
-        }
-    }
-
+    private var sendingStop = false
+    private var sendingAddress = false
+    
+    private var writingBit = false
+    private var readingAck = false
+    
+    private var currentByteToWrite: UInt8 = 0x00
+    private var currentBitIndex = -1
+    private var currentBitToWrite: Bit = .zero
+    
     private var transmissionFSM = I2CPassiveTransmissionFSM()
 
     private var xTimerCurrent: CGFloat!
@@ -83,10 +61,6 @@ class I2CMasterController: I2CController {
         print("timer: \(xTimerCurrent)")
         print("bus state: \(busFSM.currentState)")
         print("activeTransmission: \(activeTransmission)")
-        print("currentTransmissionByteType: \(currentTransmissionByteType)")
-        print("currentTransmissionByte: \(currentTransmissionByte)")
-        print("currentTransmissionBitType: \(currentTransmissionBitType)")
-        print("currentTransmissionWriteBit: \(currentTransmissionWriteBit)")
         print("transmission state: \(transmissionFSM.currentState)")
         print("transmission result: \(transmissionFSM.result)")
         print("start state: \(transmissionFSM.startFSM.currentState)")
@@ -108,8 +82,9 @@ class I2CMasterController: I2CController {
 
                     scheduledTransmissions.removeAll(where: { $0.transmission.id == entry.transmission.id })
                     activeTransmission = entry.transmission
-                    currentTransmissionByteType = .addressRW
-                    currentTransmissionBitType = .bit(index: 0)
+    
+                    initTransmissionState()
+
                     printState()
 
                 } else {
@@ -121,6 +96,9 @@ class I2CMasterController: I2CController {
             if activeTransmission != nil {
 
                 transmissionFSM.update(x: x, updatedBusFSM: busFSM,
+                    onStop: {
+                        xTimerTargetStopEnd = xTimerTargetStopEnd ?? (xTimerCurrent + xWaitAfterStop)
+                    },
                     onDone: {
                         self.activeTransmission = nil
                         printState()
@@ -160,6 +138,11 @@ class I2CMasterController: I2CController {
                 xTimerTargetStart = nil
                 xTimerTargetClockBitLowStart = nil
                 xTimerTargetClockBitHighStart = nil
+                xTimerTargetStopStart = nil
+
+                if let xTimerTargetStopEnd = xTimerTargetStopEnd, xTimerCurrent < xTimerTargetStopEnd {
+                    return nil
+                }
 
                 if busFSM.lineLevels.SDA == .low {
                     return .releaseSDA
@@ -182,63 +165,106 @@ class I2CMasterController: I2CController {
 
         case .started:
 
-            if let currentTransmissionByteType = currentTransmissionByteType {
+            let delay = ((sendingAddress && currentBitIndex == 0) || sendingStop) ? xWaitAfterStart : xWaitAfterBitClockHigh
+            xTimerTargetClockBitLowStart = xTimerTargetClockBitLowStart ?? (xTimerCurrent + delay)
+            if xTimerCurrent < xTimerTargetClockBitLowStart! {
+                return nil
+            }
 
-                switch transmissionFSM.bitFSM.currentState {
-                case .setup:
+            switch transmissionFSM.bitFSM.currentState {
+            case .setup:
 
-                    xTimerTargetClockBitHighEnd = nil
+                xTimerTargetClockBitHighEnd = nil
 
-                    let delay = currentTransmissionByteType == .addressRW && currentTransmissionBitType == .bit(index: 0) ? xWaitAfterStart : xWaitAfterBitClockHigh
-                    xTimerTargetClockBitLowStart = xTimerTargetClockBitLowStart ?? (xTimerCurrent + delay)
-                    if xTimerCurrent < xTimerTargetClockBitLowStart! {
-                        return nil
+                if busFSM.lineLevels.SCL == .high {
+                    return .pullSCL
+                }
+
+                if sendingStop {
+                    if busFSM.lineLevels.SDA == .high {
+                        return .pullSDA
                     }
-
-                    if busFSM.lineLevels.SCL == .high {
-                        return .pullSCL
+                } else if writingBit {
+                    if currentBitToWrite == .zero && busFSM.lineLevels.SDA == .high {
+                        return .pullSDA
                     }
-
-                    switch currentTransmissionBitType {
-                    case .bit(let index):
-                        if currentTransmissionWriteBit == .zero && busFSM.lineLevels.SDA == .high {
-                            return .pullSDA
-                        }
-                        if currentTransmissionWriteBit == .one && busFSM.lineLevels.SDA == .low {
-                            return .releaseSDA
-                        }
-                    case .ack:
-                        break
-                    case .none:
-                        fatalError()
+                    if currentBitToWrite == .one && busFSM.lineLevels.SDA == .low {
+                        return .releaseSDA
                     }
+                }
 
-                    xTimerTargetClockBitHighStart = xTimerTargetClockBitHighStart ?? (xTimerCurrent + xWaitBeforeBitClockHigh)
-                    if xTimerCurrent < xTimerTargetClockBitHighStart! {
+                xTimerTargetClockBitHighStart = xTimerTargetClockBitHighStart ?? (xTimerCurrent + xWaitBeforeBitClockHigh)
+                if xTimerCurrent < xTimerTargetClockBitHighStart! {
+                    return nil
+                } else {
+                    return .releaseSCL
+                }
+
+            case .clockHigh:
+
+                xTimerTargetClockBitLowStart = nil
+                xTimerTargetClockBitHighStart = nil
+                
+                if sendingStop {
+
+                    xTimerTargetStopStart = xTimerTargetStopStart ?? (xTimerCurrent + xWaitBeforeStop)
+                    if xTimerCurrent < xTimerTargetStopStart! {
+                        xTimerTargetStopEnd = nil
                         return nil
                     } else {
-                        return .releaseSCL
+                        return .releaseSDA
                     }
 
-                case .clockHigh:
+                } else {
 
-                    xTimerTargetClockBitLowStart = nil
-                    xTimerTargetClockBitHighStart = nil
-                    
                     xTimerTargetClockBitHighEnd = xTimerTargetClockBitHighEnd ?? (xTimerCurrent + xWaitBitClockHigh)
                     if xTimerCurrent < xTimerTargetClockBitHighEnd! {
                         return nil
                     } else {
-                        // read bit
-                        // move to next bit
+                        clockBit(transmissionFSM.bitFSM.readBit)
                         return .pullSCL
                     }
                 }
+            }
 
+            return nil
+        }
+    }
+
+
+    private func initTransmissionState() {
+
+        sendingAddress = true
+        sendingStop = false
+        
+        writingBit = true
+        readingAck = false
+        
+        currentByteToWrite = activeTransmission!.addressRW
+        currentBitIndex = 0
+        currentBitToWrite = Bit((Int(currentByteToWrite) >> (7-currentBitIndex)) & 1)
+    }
+
+
+    private func clockBit(_ bit: Bit) {
+
+        if transmittingBit {
+            if currentBitIndex < 7 {
+                currentBitIndex += 1
+                currentBitToWrite = Bit((Int(currentByteToWrite) >> (7-currentBitIndex)) & 1)
             } else {
-
-                // send stop
-                return nil
+                writingBit = false
+                readingAck = true
+            }
+        } else if readingAck {
+            let ack = bit == .zero
+            let nack = !ack
+            if nack {
+                transmittingBit = false
+                sendingStop = true
+            } else if ack {
+                transmittingBit = false
+                sendingStop = true
             }
         }
     }

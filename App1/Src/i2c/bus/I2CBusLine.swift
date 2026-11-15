@@ -4,6 +4,7 @@ import SwiftUI
 
 
 enum I2CBusLineEnum {
+
     case SCL, SDA
 }
 
@@ -19,6 +20,14 @@ class I2CBusLine {
 
     init(_ identity: I2CBusLineEnum) {
         self.identity = identity
+    }
+
+
+    func reset() {
+
+        currentLevel = .high
+        pullers = []
+        transitions = []
     }
     
     

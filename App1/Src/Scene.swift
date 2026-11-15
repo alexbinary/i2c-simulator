@@ -26,6 +26,10 @@ class RenderScene {
     func run() {
 
         let bus = I2CBus()
+
+        //
+        
+        bus.reset()
         
         lineSCL.initialLevel = bus.lineSCL.currentLevel
         lineSDA.initialLevel = bus.lineSDA.currentLevel

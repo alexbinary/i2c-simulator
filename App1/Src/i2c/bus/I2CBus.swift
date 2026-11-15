@@ -15,6 +15,13 @@ class I2CBus {
     private var minimumComputeX: CGFloat = 1
 
 
+    func reset() {
+
+        lineSCL.reset()
+        lineSDA.reset()
+    }
+
+
     func line(_ identity: I2CBusLineEnum) -> I2CBusLine {
 
         switch identity {
@@ -47,16 +54,11 @@ class I2CBus {
     
     
     func simulate(from startX: CGFloat, to endX: CGFloat) {
-        
-        for line in [lineSCL, lineSDA] {
-            line.removeAllPullers()
-            line.updateLevel()
-        }
 
         advanceX(to: startX)
 
         for controller in controllers {
-            controller.initCompute(x: currentX, levelSCL: lineSCL.currentLevel, levelSDA: lineSDA.currentLevel)
+            controller.initState(x: currentX, levelSCL: lineSCL.currentLevel, levelSDA: lineSDA.currentLevel)
         }
 
         var changedLines: [I2CBusLineEnum] = []
@@ -73,13 +75,17 @@ class I2CBus {
                     print("-- CLOCK TICK: \(currentX) --")
                 }
 
-                for controller in controllers.shuffled() {
-                    if let action = controller.updateCompute(x: currentX, changedLine: changedLine) {
-                        let line = line(action.target)
-                        switch action.type {
-                        case .pull: line.addPuller(controller)
-                        case .release: line.removePuller(controller)
-                        }
+                for controller in controllers {
+                    controller.updateBusControl(x: currentX, changedLine: changedLine)
+                    if controller.pullingSDA {
+                        lineSDA.addPuller(controller)
+                    } else {
+                        lineSDA.removePuller(controller)
+                    }
+                    if controller.pullingSCL {
+                        lineSCL.addPuller(controller)
+                    } else {
+                        lineSCL.removePuller(controller)
                     }
                 }
             }

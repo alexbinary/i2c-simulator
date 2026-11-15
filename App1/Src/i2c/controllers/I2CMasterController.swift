@@ -69,55 +69,49 @@ class I2CMasterController: I2CController {
     }
     
     
-    override func _updateCompute(x: CGFloat) -> I2CControllerLineAction? {
+    override func _updateBusControl(x: CGFloat) {
 
         timerUpdate(x: x)
         printState()
 
-        while true {
+        if activeTransmission == nil {
 
-            if activeTransmission == nil {
+            if let entry = scheduledTransmissions.sorted(by: { a, b in a.x < b.x }).first, entry.x <= x {
 
-                if let entry = scheduledTransmissions.sorted(by: { a, b in a.x < b.x }).first, entry.x <= x {
+                scheduledTransmissions.removeAll(where: { $0.transmission.id == entry.transmission.id })
+                activeTransmission = entry.transmission
 
-                    scheduledTransmissions.removeAll(where: { $0.transmission.id == entry.transmission.id })
-                    activeTransmission = entry.transmission
-    
-                    initTransmissionState()
+                initTransmissionState()
 
-                    printState()
-
-                } else {
-
-                    break
-                }
-            }
-
-            if activeTransmission != nil {
-
-                transmissionFSM.update(x: x, updatedBusFSM: busFSM,
-                    onStop: {
-                        xTimerTargetStopEnd = xTimerTargetStopEnd ?? (xTimerCurrent + xWaitAfterStop)
-                    },
-                    onDone: {
-                        self.activeTransmission = nil
-                        printState()
-                    },
-                    onAborted: {
-                        self.activeTransmission = nil
-                        printState()
-                    }
-                )
                 printState()
-            }
-
-            if let activeTransmission = activeTransmission {
-
-                return currentAction(for: transmissionFSM)
             }
         }
 
-        return nil
+        if activeTransmission != nil {
+
+            transmissionFSM.update(x: x, updatedBusFSM: busFSM,
+                onReadBit: { bit in
+                    readBit(bit)
+                },
+                onStop: {
+                    xTimerTargetStopEnd = xTimerTargetStopEnd ?? (xTimerCurrent + xWaitAfterStop)
+                },
+                onDone: {
+                    self.activeTransmission = nil
+                    printState()
+                },
+                onAborted: {
+                    self.activeTransmission = nil
+                    printState()
+                }
+            )
+            printState()
+        }
+
+        if let activeTransmission = activeTransmission {
+
+            updateControls(for: transmissionFSM)
+        }
     }
 
 
@@ -127,7 +121,7 @@ class I2CMasterController: I2CController {
     }
 
 
-    private func currentAction(for transmissionFSM: I2CPassiveTransmissionFSM) -> I2CControllerLineAction? {
+    private func updateControls(for transmissionFSM: I2CPassiveTransmissionFSM) {
 
         switch transmissionFSM.currentState {
         case .waitingStart:
@@ -141,26 +135,19 @@ class I2CMasterController: I2CController {
                 xTimerTargetStopStart = nil
 
                 if let xTimerTargetStopEnd = xTimerTargetStopEnd, xTimerCurrent < xTimerTargetStopEnd {
-                    return nil
+                    return
                 }
 
-                if busFSM.lineLevels.SDA == .low {
-                    return .releaseSDA
-                }
-                if busFSM.lineLevels.SCL == .low {
-                    return .releaseSCL
-                }
-
-                fatalError("state not expected to be reachable")
+                self.pullingSDA = false
+                self.pullingSCL = false
 
             case .waitingSDApull:
 
                 xTimerTargetStart = xTimerTargetStart ?? (xTimerCurrent + xWaitBeforeStart)
                 if xTimerCurrent < xTimerTargetStart! {
-                    return nil
-                } else {
-                    return .pullSDA
+                    return
                 }
+                self.pullingSDA = true
             }
 
         case .started:
@@ -168,7 +155,7 @@ class I2CMasterController: I2CController {
             let delay = ((sendingAddress && currentBitIndex == 0) || sendingStop) ? xWaitAfterStart : xWaitAfterBitClockHigh
             xTimerTargetClockBitLowStart = xTimerTargetClockBitLowStart ?? (xTimerCurrent + delay)
             if xTimerCurrent < xTimerTargetClockBitLowStart! {
-                return nil
+                return
             }
 
             switch transmissionFSM.bitFSM.currentState {
@@ -177,28 +164,33 @@ class I2CMasterController: I2CController {
                 xTimerTargetClockBitHighEnd = nil
 
                 if busFSM.lineLevels.SCL == .high {
-                    return .pullSCL
+                    self.pullingSCL = true
+                    return
                 }
 
                 if sendingStop {
                     if busFSM.lineLevels.SDA == .high {
-                        return .pullSDA
+                        self.pullingSDA = true
+                        return
                     }
                 } else if writingBit {
                     if currentBitToWrite == .zero && busFSM.lineLevels.SDA == .high {
-                        return .pullSDA
+                        self.pullingSDA = true
+                        return
                     }
                     if currentBitToWrite == .one && busFSM.lineLevels.SDA == .low {
-                        return .releaseSDA
+                        self.pullingSDA = false
+                        return
                     }
+                } else {
+                    self.pullingSDA = false
                 }
 
                 xTimerTargetClockBitHighStart = xTimerTargetClockBitHighStart ?? (xTimerCurrent + xWaitBeforeBitClockHigh)
                 if xTimerCurrent < xTimerTargetClockBitHighStart! {
-                    return nil
-                } else {
-                    return .releaseSCL
+                    return
                 }
+                self.pullingSCL = false
 
             case .clockHigh:
 
@@ -210,24 +202,21 @@ class I2CMasterController: I2CController {
                     xTimerTargetStopStart = xTimerTargetStopStart ?? (xTimerCurrent + xWaitBeforeStop)
                     if xTimerCurrent < xTimerTargetStopStart! {
                         xTimerTargetStopEnd = nil
-                        return nil
-                    } else {
-                        return .releaseSDA
+                        return
                     }
+                    self.pullingSDA = false
 
                 } else {
 
                     xTimerTargetClockBitHighEnd = xTimerTargetClockBitHighEnd ?? (xTimerCurrent + xWaitBitClockHigh)
                     if xTimerCurrent < xTimerTargetClockBitHighEnd! {
-                        return nil
-                    } else {
-                        clockBit(transmissionFSM.bitFSM.readBit)
-                        return .pullSCL
+                        return
                     }
+                    self.pullingSCL = true
                 }
             }
 
-            return nil
+            return
         }
     }
 
@@ -246,25 +235,23 @@ class I2CMasterController: I2CController {
     }
 
 
-    private func clockBit(_ bit: Bit) {
+    private func readBit(_ bit: Bit) {
 
-        if transmittingBit {
+        if readingAck {
+            let ack = bit == .zero
+            let nack = !ack
+            if nack {
+                sendingStop = true
+            } else if ack {
+                sendingStop = true
+            }
+        } else {
             if currentBitIndex < 7 {
                 currentBitIndex += 1
                 currentBitToWrite = Bit((Int(currentByteToWrite) >> (7-currentBitIndex)) & 1)
             } else {
                 writingBit = false
                 readingAck = true
-            }
-        } else if readingAck {
-            let ack = bit == .zero
-            let nack = !ack
-            if nack {
-                transmittingBit = false
-                sendingStop = true
-            } else if ack {
-                transmittingBit = false
-                sendingStop = true
             }
         }
     }

@@ -76,7 +76,7 @@ struct ContentView: View {
                     .offset(x: 12, y: -12)
             }
         }
-        .frame(minWidth: 1600, minHeight: 800)
+        .frame(minWidth: 2000, minHeight: 800)
         .onContinuousHover { phase in
             switch phase {
             case .active(let location):

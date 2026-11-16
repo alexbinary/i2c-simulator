@@ -42,14 +42,17 @@ class I2CSlaveController: I2CController {
             },
             onStop: {
                 print("-- SLAVE TRANSMISSION STOP --")
+                resetTransmission()
                 printState()
             },
             onDone: {
                 print("-- SLAVE TRANSMISSION DONE --")
+                resetTransmission()
                 printState()
             },
             onAborted: {
                 print("-- SLAVE TRANSMISSION ABORTED --")
+                resetTransmission()
                 printState()
             }
         )
@@ -76,6 +79,13 @@ class I2CSlaveController: I2CController {
                 break
             }
         }
+    }
+
+
+    private func resetTransmission() {
+
+        readBits = []
+        pullNextBit = false
     }
 
 

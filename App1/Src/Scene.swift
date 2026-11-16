@@ -43,7 +43,7 @@ class RenderScene {
         
         bus.connect(master)
         bus.connect(slave1)
-        bus.connect(slave2)
+        // bus.connect(slave2)
         bus.connect(perturbator)
         
         master.scheduleTransmission(at: 10, I2CTransmission(addressRW: 0x2a<<1, bytes: [0x01, 0x02]))

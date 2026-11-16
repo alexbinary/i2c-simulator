@@ -9,9 +9,8 @@ class I2CSlaveController: I2CController {
     private var transmissionFSM = I2CPassiveTransmissionFSM()
 
 
-    private var readBit = 0
+    private var readBits = 0
     private var writingBit = false
-    private var currentBitToWrite: Bit = .zero
 
 
     private func printState() {
@@ -21,9 +20,8 @@ class I2CSlaveController: I2CController {
         print("bus state: \(busFSM.currentState)")
         print("transmission state: \(transmissionFSM.currentState)")
         print("transmission result: \(transmissionFSM.result)")
-        print("readBit: \(readBit)")
+        print("readBits: \(readBits)")
         print("writingBit: \(writingBit)")
-        print("currentBitToWrite: \(currentBitToWrite)")
     }
 
 
@@ -64,34 +62,20 @@ class I2CSlaveController: I2CController {
             switch transmissionFSM.bitFSM.currentState {
             case .setup:
 
-                if writingBit {
-                    if currentBitToWrite == .zero && busFSM.lineLevels.SDA == .high {
-                        self.pullingSDA = true
-                        return
-                    }
-                    if currentBitToWrite == .one && busFSM.lineLevels.SDA == .low {
-                        self.pullingSDA = false
-                        return
-                    }
-                } else {
-                    self.pullingSDA = false
-                }
+                self.pullingSDA = writingBit
 
             case .clockHigh:
                 break
             }
-
-            return
         }
     }
 
 
     private func readBit(_ bit: Bit) {
 
-        readBit += 1
-        if readBit == 8 {
+        readBits += 1
+        if readBits == 8 {
             writingBit = true
-            currentBitToWrite = .zero
         }
     }
 }

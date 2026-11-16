@@ -36,6 +36,13 @@ class I2CController {
     func initState(x: CGFloat, levelSCL: LineLevel, levelSDA: LineLevel) {
 
         busFSM.reset(levelSCL: levelSCL, levelSDA: levelSDA)
+
+        _initState()
+    }
+
+
+    func _initState() {
+
     }
     
     
@@ -50,7 +57,6 @@ class I2CController {
 
 
     func _updateBusControl(x: CGFloat) {
-        
-        
+           
     }
 }

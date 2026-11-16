@@ -3,34 +3,34 @@ import SwiftUI
 
 
 
-enum I2CMasterTransmissionFSMState {
+enum I2CTransmissionFSMState {
     
     case waitingStart
     case started
 
-    static var initialState: I2CMasterTransmissionFSMState { .waitingStart }
+    static var initialState: I2CTransmissionFSMState { .waitingStart }
 }
 
 
-enum I2CMasterTransmissionResultEnum {
+enum I2CTransmissionResultEnum {
 
     case success
     case addressNack
 }
 
 
-class I2CPassiveTransmissionFSM {
+class I2CTransmissionFSM {
     
     
-    private(set) var currentState: I2CMasterTransmissionFSMState = .waitingStart
-    private(set) var result: I2CMasterTransmissionResultEnum = .success
+    private(set) var currentState: I2CTransmissionFSMState = .waitingStart
+    private(set) var result: I2CTransmissionResultEnum = .success
 
     var startFSM = I2CStartFSM()
     var stopFSM = I2CStopFSM()
     var bitFSM = I2CBitFSM()
 
 
-    func update(x: CGFloat, updatedBusFSM: I2CBusFSM, onReadBit: (Bit) -> (), onStop: () -> (), onDone: () -> (), onAborted: () -> ()) {
+    func update(x: CGFloat, updatedBusFSM: I2CBusFSM, onClockedBit: (Bit) -> (), onStop: () -> (), onDone: () -> (), onAborted: () -> ()) {
 
         while true {
 
@@ -64,7 +64,7 @@ class I2CPassiveTransmissionFSM {
             
                 bitFSM.update(x: x, updatedBusFSM: updatedBusFSM,
                     onSuccess: {
-                        onReadBit(bitFSM.readBit)
+                        onClockedBit(bitFSM.readBit)
                     },
                     onError: {
                         bitError = true

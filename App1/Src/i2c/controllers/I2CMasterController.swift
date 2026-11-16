@@ -23,20 +23,13 @@ class I2CMasterController: I2CController {
     private var writingBit = false
     private var readingAck = false
     
+    private var currentByteIndex = -1
     private var currentByteToWrite: UInt8 = 0x00
     private var currentBitIndex = -1
     private var currentBitToWrite: Bit = .zero
     
-    private var transmissionFSM = I2CPassiveTransmissionFSM()
+    private var transmissionFSM = I2CTransmissionFSM()
 
-    private var xTimerCurrent: CGFloat!
-    private var xTimerTargetStart: CGFloat?
-    private var xTimerTargetClockBitLowStart: CGFloat?
-    private var xTimerTargetClockBitHighStart: CGFloat?
-    private var xTimerTargetClockBitHighEnd: CGFloat?
-    private var xTimerTargetStopStart: CGFloat?
-    private var xTimerTargetStopEnd: CGFloat?
-    
     private let xWaitBeforeStart: CGFloat = 10
     private let xWaitAfterStart: CGFloat = 10
 
@@ -45,7 +38,15 @@ class I2CMasterController: I2CController {
     private let xWaitAfterBitClockHigh: CGFloat = 10
 
     private let xWaitBeforeStop: CGFloat = 10
-    private let xWaitAfterStop: CGFloat = 10
+    private let xWaitAfterStop: CGFloat = 100
+    
+    private var xTimerCurrent: CGFloat!
+    private var xTimerTargetStart: CGFloat?
+    private var xTimerTargetClockBitLowStart: CGFloat?
+    private var xTimerTargetClockBitHighStart: CGFloat?
+    private var xTimerTargetClockBitHighEnd: CGFloat?
+    private var xTimerTargetStopStart: CGFloat?
+    private var xTimerTargetStopEnd: CGFloat?
     
     
     func scheduleTransmission(at x: CGFloat, _ transmission: I2CTransmission) {
@@ -90,11 +91,11 @@ class I2CMasterController: I2CController {
         if activeTransmission != nil {
 
             transmissionFSM.update(x: x, updatedBusFSM: busFSM,
-                onReadBit: { bit in
-                    readBit(bit)
+                onClockedBit: { bit in
+                    onClockedBit(bit)
                 },
                 onStop: {
-                    xTimerTargetStopEnd = xTimerTargetStopEnd ?? (xTimerCurrent + xWaitAfterStop)
+                    xTimerTargetStopEnd = xTimerCurrent + xWaitAfterStop
                 },
                 onDone: {
                     self.activeTransmission = nil
@@ -121,7 +122,7 @@ class I2CMasterController: I2CController {
     }
 
 
-    private func updateControls(for transmissionFSM: I2CPassiveTransmissionFSM) {
+    private func updateControls(for transmissionFSM: I2CTransmissionFSM) {
 
         switch transmissionFSM.currentState {
         case .waitingStart:
@@ -129,14 +130,9 @@ class I2CMasterController: I2CController {
             switch transmissionFSM.startFSM.currentState {
             case .waitingIdle:
 
-                xTimerTargetStart = nil
                 xTimerTargetClockBitLowStart = nil
                 xTimerTargetClockBitHighStart = nil
                 xTimerTargetStopStart = nil
-
-                if let xTimerTargetStopEnd = xTimerTargetStopEnd, xTimerCurrent < xTimerTargetStopEnd {
-                    return
-                }
 
                 self.pullingSDA = false
                 self.pullingSCL = false
@@ -145,6 +141,9 @@ class I2CMasterController: I2CController {
 
                 xTimerTargetStart = xTimerTargetStart ?? (xTimerCurrent + xWaitBeforeStart)
                 if xTimerCurrent < xTimerTargetStart! {
+                    return
+                }
+                if let xTimerTargetStopEnd = xTimerTargetStopEnd, xTimerCurrent < xTimerTargetStopEnd {
                     return
                 }
                 self.pullingSDA = true
@@ -229,30 +228,54 @@ class I2CMasterController: I2CController {
         writingBit = true
         readingAck = false
         
+        currentByteIndex = 0
         currentByteToWrite = activeTransmission!.addressRW
         currentBitIndex = 0
         currentBitToWrite = Bit((Int(currentByteToWrite) >> (7-currentBitIndex)) & 1)
+        
+        xTimerTargetStart = nil
     }
 
 
-    private func readBit(_ bit: Bit) {
+    private func onClockedBit(_ bit: Bit) {
 
         if readingAck {
+
             let ack = bit == .zero
-            let nack = !ack
-            if nack {
-                sendingStop = true
-            } else if ack {
+            if ack {
+
+                if sendingAddress {
+                    sendingAddress = false
+                    currentByteIndex = 0
+                } else {
+                    currentByteIndex += 1
+                }
+                currentBitIndex = 0
+
+            } else {
                 sendingStop = true
             }
+
         } else {
-            if currentBitIndex < 7 {
-                currentBitIndex += 1
+
+            currentBitIndex += 1
+        }
+
+        if sendingAddress || currentByteIndex < activeTransmission!.bytes.count {
+            
+            currentByteToWrite = sendingAddress ? activeTransmission!.addressRW : activeTransmission!.bytes[currentByteIndex]
+            
+            if currentBitIndex < 8 {
                 currentBitToWrite = Bit((Int(currentByteToWrite) >> (7-currentBitIndex)) & 1)
+                writingBit = true
+                readingAck = false
             } else {
                 writingBit = false
                 readingAck = true
             }
+            
+        } else {
+            sendingStop = true
         }
     }
 }

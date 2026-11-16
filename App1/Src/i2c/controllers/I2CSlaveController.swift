@@ -6,22 +6,30 @@ import SwiftUI
 class I2CSlaveController: I2CController {
     
     
+    let address: UInt8
+
     private var transmissionFSM = I2CPassiveTransmissionFSM()
 
+    private var readBits: [Bit] = []
+    private var pullNextBit = false
 
-    private var readBits = 0
-    private var writingBit = false
+
+    init(
+        address: UInt8
+    ) {
+        self.address = address
+    }
 
 
     private func printState() {
 
         print("")
-        print("-- SLAVE UPDATED STATE --")
+        print("-- SLAVE \(address) UPDATED STATE --")
         print("bus state: \(busFSM.currentState)")
         print("transmission state: \(transmissionFSM.currentState)")
         print("transmission result: \(transmissionFSM.result)")
         print("readBits: \(readBits)")
-        print("writingBit: \(writingBit)")
+        print("pullNextBit: \(pullNextBit)")
     }
 
 
@@ -62,7 +70,7 @@ class I2CSlaveController: I2CController {
             switch transmissionFSM.bitFSM.currentState {
             case .setup:
 
-                self.pullingSDA = writingBit
+                self.pullingSDA = pullNextBit
 
             case .clockHigh:
                 break
@@ -73,9 +81,21 @@ class I2CSlaveController: I2CController {
 
     private func readBit(_ bit: Bit) {
 
-        readBits += 1
-        if readBits == 8 {
-            writingBit = true
+        readBits.append(bit)
+        if readBits.count == 8 {
+
+            let byte = byte(from: readBits)
+            if (byte >> 1) == address {
+                pullNextBit = true
+            }
         }
+    }
+
+
+    private func byte(from bits:[Bit]) -> UInt8 {
+
+        return bits
+            .map { $0 == .zero ? 0 : 1 }
+            .reduce(0, { byte, bit in (byte << 1) + bit })
     }
 }

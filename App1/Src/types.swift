@@ -20,7 +20,7 @@ enum Bit {
     
     case zero, one
 
-    init(_ value: Int) {
+    init(_ value: UInt8) {
 
         if value == 0 {
             self = .zero

@@ -304,7 +304,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "240"
             endingLineNumber = "240"
-            landmarkName = "onClockedBit(_:)"
+            landmarkName = "onClockedBit()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -480,7 +480,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "241"
             endingLineNumber = "241"
-            landmarkName = "onClockedBit(_:)"
+            landmarkName = "onClockedBit()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -816,7 +816,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "138"
             endingLineNumber = "138"
-            landmarkName = "onClockedBit(_:)"
+            landmarkName = "onClockedBit()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -832,7 +832,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "140"
             endingLineNumber = "140"
-            landmarkName = "onClockedBit(_:)"
+            landmarkName = "onClockedBit()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -848,38 +848,8 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "141"
             endingLineNumber = "141"
-            landmarkName = "onClockedBit(_:)"
+            landmarkName = "onClockedBit()"
             landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "2700883C-E0CC-4E2F-98E2-E7BAD3554545 - 1111734beea22155"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "App1.I2CSlaveController.onClockedBit(App1.Bit) -&gt; ()"
-                  moduleName = "App1.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/alexandrebintz/Documents/electronique/i2c-simulator/i2c-simulator/App1/Src/i2c/controllers/I2CSlaveController.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "141"
-                  endingLineNumber = "141">
-               </Location>
-               <Location
-                  uuid = "2700883C-E0CC-4E2F-98E2-E7BAD3554545 - 1111734beea22174"
-                  shouldBeEnabled = "No"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "App1.I2CSlaveController.onClockedBit(App1.Bit) -&gt; ()"
-                  moduleName = "App1.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/alexandrebintz/Documents/electronique/i2c-simulator/i2c-simulator/App1/Src/i2c/controllers/I2CSlaveController.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "142"
-                  endingLineNumber = "142">
-               </Location>
-            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy

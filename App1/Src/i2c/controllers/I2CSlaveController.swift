@@ -14,10 +14,8 @@ class I2CSlaveController: I2CController {
     private var transmissionFSM = I2CTransmissionFSM()
     private var transmissionActive = false
 
-    private var readingAddress = false
-    private var readBits: [Bit] = []
-    private var pullNextBit = false
     private var readBytes: [UInt8] = []
+    private var pullNextBit = false
 
 
     init(
@@ -39,10 +37,8 @@ class I2CSlaveController: I2CController {
         print("-- SLAVE \(address) UPDATED STATE --")
         print("bus state: \(busFSM.currentState)")
         print("transmission state: \(transmissionFSM.currentState)")
-        print("readingAddress: \(readingAddress)")
-        print("readBits: \(readBits)")
-        print("pullNextBit: \(pullNextBit)")
         print("readBytes: \(readBytes)")
+        print("pullNextBit: \(pullNextBit)")
     }
 
 
@@ -55,10 +51,10 @@ class I2CSlaveController: I2CController {
     override func _updateBusControl(x: CGFloat) {
 
         transmissionFSM.update(x: x, updatedBusFSM: busFSM,
-            onClockedBit: { bit in
+            onClockedBit: {
                 if transmissionActive {
-                    print("-- SLAVE READ BIT: \(bit) --")
-                    onClockedBit(bit)
+                    print("-- SLAVE READ BIT --")
+                    onClockedBit()
                 }
             },
             onStop: {
@@ -106,28 +102,25 @@ class I2CSlaveController: I2CController {
     private func resetTransmission() {
 
         transmissionActive = true
-        readingAddress = true
-        
-        readBits = []
-        pullNextBit = false
         readBytes = []
+        pullNextBit = false
     }
 
 
-    private func onClockedBit(_ bit: Bit) {
-
-        readBits.append(bit)
+    private func onClockedBit() {
 
         pullNextBit = false
 
-        if readBits.count == 8 {
+        switch transmissionFSM.currentMacroState {
+        
+        case .transmittingAddress:
 
-            let byte = byte(from: readBits)
+            if transmissionFSM.currentByteComplete {
 
-            if readingAddress {
-
+                let byte = transmissionFSM.lastReadByte!
+                
                 let address = (byte >> 1)
-                let rwBit = readBits[7]
+                let rwBit = Bit(byte & 1)
                 let rw: ReadWrite = rwBit == .zero ? .write : .read
                 
                 let addressMatch = address == self.address
@@ -138,28 +131,24 @@ class I2CSlaveController: I2CController {
                 } else {
                     transmissionActive = false
                 }
+            }
+            
+        case .transmittingAddressAck:
+            break
+            
+        case .transmittingByte:
 
-            } else {
+            if transmissionFSM.currentByteComplete {
 
-                readBytes.append(byte)
+                readBytes.append(transmissionFSM.lastReadByte!)
 
                 if maxWrites == nil || readBytes.count < maxWrites! {
                     pullNextBit = true
                 }
             }
-
-        } else if readBits.count == 9 {
-
-            readBits = []
-            readingAddress = false
+            
+        case .transmittingByteAck:
+            break
         }
-    }
-
-
-    private func byte(from bits:[Bit]) -> UInt8 {
-
-        return bits
-            .map { $0 == .zero ? 0 : 1 }
-            .reduce(0, { byte, bit in (byte << 1) + bit })
     }
 }

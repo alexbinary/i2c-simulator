@@ -51,12 +51,7 @@ class I2CSlaveController: I2CController {
     override func _updateBusControl(x: CGFloat) {
 
         transmissionFSM.update(x: x, updatedBusFSM: busFSM,
-            onClockedBit: {
-                if transmissionActive {
-                    print("-- SLAVE READ BIT --")
-                    onClockedBit()
-                }
-            },
+            onBitClocked: onBitClocked,
             onStop: {
                 print("-- SLAVE TRANSMISSION STOP --")
                 resetTransmission()
@@ -104,23 +99,37 @@ class I2CSlaveController: I2CController {
         transmissionActive = true
         readBytes = []
         pullNextBit = false
+
+        prepareNextBit()
     }
 
 
-    private func onClockedBit() {
+    private func onBitClocked(bit: Bit, transmittingAddress: Bool, transmittingAck: Bool, byteIndex: Int, byteBitIndex: Int, byteComplete: Bool, byte: UInt8?) {
+
+        if !transmissionActive {
+            return
+        }
+
+        if !transmittingAck, !transmittingAddress, byteComplete {
+            readBytes.append(byte!)
+        }
+
+        prepareNextBit()
+    }
+
+
+    private func prepareNextBit() {
 
         pullNextBit = false
 
-        switch transmissionFSM.currentMacroState {
-        
-        case .transmittingAddress:
+        if transmissionFSM.transmittingAddress {
+            
+            if transmissionFSM.transmittingAck {
 
-            if transmissionFSM.currentByteComplete {
-
-                let byte = transmissionFSM.lastReadByte!
-                
-                let address = (byte >> 1)
-                let rwBit = Bit(byte & 1)
+                let addressByte = transmissionFSM.lastReadByte!
+                    
+                let address = (addressByte >> 1)
+                let rwBit = Bit(addressByte & 1)
                 let rw: ReadWrite = rwBit == .zero ? .write : .read
                 
                 let addressMatch = address == self.address
@@ -131,24 +140,20 @@ class I2CSlaveController: I2CController {
                 } else {
                     transmissionActive = false
                 }
-            }
-            
-        case .transmittingAddressAck:
-            break
-            
-        case .transmittingByte:
+           }
 
-            if transmissionFSM.currentByteComplete {
+        } else {
 
-                readBytes.append(transmissionFSM.lastReadByte!)
+            if transmissionFSM.transmittingAck {
 
                 if maxWrites == nil || readBytes.count < maxWrites! {
                     pullNextBit = true
                 }
+    
+            } else {
+
+                // TODO
             }
-            
-        case .transmittingByteAck:
-            break
         }
     }
 }

@@ -91,9 +91,7 @@ class I2CMasterController: I2CController {
         if activeTransmission != nil {
 
             transmissionFSM.update(x: x, updatedBusFSM: busFSM,
-                onClockedBit: {
-                    onClockedBit()
-                },
+                onBitClocked: onBitClocked,
                 onStop: {
                     xTimerTargetStopEnd = xTimerCurrent + xWaitAfterStop
                 },
@@ -151,7 +149,7 @@ class I2CMasterController: I2CController {
 
         case .started:
 
-            let delay = ((transmissionFSM.currentMacroState == .transmittingAddress && transmissionFSM.currentByteBitIndex == 0) || sendingStop) ? xWaitAfterStart : xWaitAfterBitClockHigh
+            let delay = ((transmissionFSM.transmittingAddress && transmissionFSM.currentByteBitIndex == 0) || sendingStop) ? xWaitAfterStart : xWaitAfterBitClockHigh
             xTimerTargetClockBitLowStart = xTimerTargetClockBitLowStart ?? (xTimerCurrent + delay)
             if xTimerCurrent < xTimerTargetClockBitLowStart! {
                 return
@@ -225,20 +223,39 @@ class I2CMasterController: I2CController {
         readBytes = []
         sendingStop = false
 
-        writingBit = true
-        nextBitToWrite = nextAddressBitToWrite()
-
         xTimerTargetStart = nil
+
+        prepareNextBit()
     }
 
 
-    private func onClockedBit() {
+    private func onBitClocked(bit: Bit, transmittingAddress: Bool, transmittingAck: Bool, byteIndex: Int, byteBitIndex: Int, byteComplete: Bool, byte: UInt8?) {
 
-        switch transmissionFSM.currentMacroState {
-        
-        case .transmittingAddress:
+        if transmittingAck {
 
-            if !transmissionFSM.currentByteComplete {
+            let ackBit = bit
+            let ack = ackBit == .zero
+            if !ack {
+
+                sendingStop = true
+            }
+
+        } else if !transmittingAddress, activeTransmission!.mode == .read, byteComplete {
+
+            readBytes.append(byte!)
+        }
+
+        if !sendingStop {
+            prepareNextBit()
+        }
+    }
+
+
+    private func prepareNextBit() {
+
+        if transmissionFSM.transmittingAddress {
+
+            if !transmissionFSM.transmittingAck {
 
                 writingBit = true
                 nextBitToWrite = nextAddressBitToWrite()
@@ -248,15 +265,9 @@ class I2CMasterController: I2CController {
                 writingBit = false
             }
 
-        case .transmittingAddressAck:
-            
-            let ackBit = transmissionFSM.lastReadBit!
-            let ack = ackBit == .zero
-            if !ack {
+        } else {
 
-                sendingStop = true
-
-            } else {
+            if !transmissionFSM.transmittingAck {
 
                 switch activeTransmission!.mode {
                 case .write:
@@ -265,59 +276,15 @@ class I2CMasterController: I2CController {
                 case .read:
                     writingBit = false
                 }
-            }
-            
-        case .transmittingByte:
 
-            switch activeTransmission!.mode {
-            case .write:
+            } else {
 
-                if !transmissionFSM.currentByteComplete {
-
-                    writingBit = true
-                    nextBitToWrite = nextDataBitToWrite()
-
-                } else {
-
+                switch activeTransmission!.mode {
+                case .write:
                     writingBit = false
-                }
-
-            case .read:
-
-                if transmissionFSM.currentByteComplete {
-
-                    readBytes.append(transmissionFSM.lastReadByte!)
-
-                    if readBytes.count < activeTransmission!.numBytes {
-
-                        writingBit = true
-                        nextBitToWrite = .zero
-                    }
-                }
-            }
-            
-        case .transmittingByteAck:
-            
-            switch activeTransmission!.mode {
-            case .write:
-
-                let ackBit = transmissionFSM.lastReadBit!
-                let ack = ackBit == .zero
-                if !ack {
-
-                    sendingStop = true
-
-                } else {
-
+                case .read:
                     writingBit = true
-                    nextBitToWrite = nextDataBitToWrite()
-                }
-
-            case .read:
-
-                if readBytes.count == activeTransmission!.numBytes {
-
-                    sendingStop = true
+                    nextBitToWrite = readBytes.count < activeTransmission!.numBytes ? .zero : .one
                 }
             }
         }

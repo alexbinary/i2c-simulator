@@ -12,17 +12,6 @@ enum I2CTransmissionFSMState {
 }
 
 
-enum I2CTransmissionFSMMacroState {
-    
-    case transmittingAddress
-    case transmittingAddressAck
-    case transmittingByte
-    case transmittingByteAck
-
-    static var initialState: I2CTransmissionFSMMacroState { .transmittingAddress }
-}
-
-
 enum I2CTransmissionResultEnum {
 
     case success
@@ -40,7 +29,8 @@ class I2CTransmissionFSM {
     var stopFSM = I2CStopFSM()
     var bitFSM = I2CBitFSM()
     
-    private(set) var currentMacroState: I2CTransmissionFSMMacroState = .initialState
+    private(set) var transmittingAddress = false
+    private(set) var transmittingAck = false
 
     private var readBytes: [UInt8] = []
 
@@ -54,8 +44,10 @@ class I2CTransmissionFSM {
     var currentByteComplete: Bool { currentByteReadBits.count == 8 }
 
 
-    func update(x: CGFloat, updatedBusFSM: I2CBusFSM, onClockedBit: () -> (), onStop: () -> (), onDone: () -> (), onAborted: () -> ()) {
-
+    func update(x: CGFloat, updatedBusFSM: I2CBusFSM,
+        onBitClocked: (Bit, Bool, Bool, Int, Int, Bool, UInt8?) -> (),
+        onStop: () -> (), onDone: () -> (), onAborted: () -> ()
+    ) {
         while true {
 
             var nextState = currentState
@@ -63,13 +55,13 @@ class I2CTransmissionFSM {
             func done() {
                 onDone()
                 nextState = .initialState
-                _reset()
+                _resetMacroState()
             }
             
             func abort() {
                 onAborted()
                 nextState = .initialState
-                _reset()
+                _resetMacroState()
             }
 
             switch currentState {
@@ -91,10 +83,22 @@ class I2CTransmissionFSM {
                 bitFSM.update(x: x, updatedBusFSM: updatedBusFSM,
                     onSuccess: {
                         let bit = bitFSM.readBit!
-                        _onClockedBit(bit)
-                        let previousMacroState
-                        _updateMacroState()
-                        onClockedBit(previousMacroState)
+                        let transmittingAddress = transmittingAddress
+                        let transmittingAck = transmittingAck
+                        let byteIndex = currentByteIndex
+                        let bitIndex = currentByteBitIndex
+                        let byteComplete = currentByteComplete
+                        
+                        _updateMacroState(bit)
+                        onBitClocked(
+                            bit,
+                            transmittingAddress,
+                            transmittingAck,
+                            byteIndex,
+                            bitIndex,
+                            byteComplete,
+                            lastReadByte
+                        )
                     },
                     onError: {
                         bitError = true
@@ -125,58 +129,42 @@ class I2CTransmissionFSM {
     }
 
 
-    private func _reset() {
+    private func _resetMacroState() {
 
+        transmittingAddress = true
+        transmittingAck = false
+        
         lastReadBit = nil
         lastReadByte = nil
         currentByteReadBits = []
     }
 
 
-    private func _onClockedBit(_ bit: Bit) {
+    private func _updateMacroState(_ bit: Bit) {
 
         lastReadBit = bit
 
-        switch currentMacroState {
-        case .transmittingAddress:
+        if transmittingAck {
+
+            transmittingAck = false
+            transmittingAddress = false
+
+        } else {
+
             currentByteReadBits.append(bit)
-            if currentByteReadBits.count == 8 {
-                let byte = byte(from: currentByteReadBits)
-                currentByteReadBits = []
-                lastReadByte = byte
-            }
-        case .transmittingAddressAck:
-            break
-        case .transmittingByte:
-            currentByteReadBits.append(bit)
-            if currentByteReadBits.count == 8 {
-                let byte = byte(from: currentByteReadBits)
-                currentByteReadBits = []
-                lastReadByte = byte
-                readBytes.append(byte)
-            }
-        case .transmittingByteAck:
-            break
-        }
-    }
-
-
-    private func _updateMacroState() {
-
-        switch currentMacroState {
-        case .transmittingAddress:
-            if currentByteComplete {
-                currentMacroState = .transmittingAddressAck
-            }
-        case .transmittingAddressAck:
-            currentMacroState = .transmittingByte
             
-        case .transmittingByte:
-            if currentByteComplete {
-                currentMacroState = .transmittingByteAck
+            if currentByteReadBits.count == 8 {
+             
+                let byte = byte(from: currentByteReadBits)
+                currentByteReadBits = []
+                lastReadByte = byte
+
+                if !transmittingAddress {
+                    readBytes.append(byte)
+                }
+
+                transmittingAck = true
             }
-        case .transmittingByteAck:
-            currentMacroState = .transmittingByte
         }
     }
 

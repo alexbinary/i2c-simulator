@@ -10,6 +10,8 @@ class I2CSlaveController: I2CController {
     let acceptWrites: Bool
     let acceptReads: Bool
     let maxWrites: Int?
+    
+    let bytes: [UInt8] = [0x11, 0x22]
 
     private var transmissionFSM = I2CTransmissionFSM()
     private var transmissionActive = false
@@ -100,8 +102,22 @@ class I2CSlaveController: I2CController {
         if !transmissionActive {
             return
         }
+        
+        var shouldPrepareNextBit = true
+        
+        if transmittingAck {
+            
+            let ackBit = bit
+            let ack = ackBit == .zero
+            if !ack {
+                
+                shouldPrepareNextBit = false
+            }
+        }
 
-        prepareNextBit()
+        if shouldPrepareNextBit {
+            prepareNextBit()
+        }
     }
 
 
@@ -109,42 +125,46 @@ class I2CSlaveController: I2CController {
 
         pullNextBit = false
 
-        if transmissionFSM.transmittingAddress {
+        if transmissionFSM.transmittingAddress, transmissionFSM.transmittingAck {
+        
+            let addressByte = transmissionFSM.lastReadByte!
             
-            if transmissionFSM.transmittingAck {
-
-                let addressByte = transmissionFSM.lastReadByte!
-                    
-                let address = (addressByte >> 1)
-                let rwBit = Bit(addressByte & 1)
-                let rw: ReadWrite = rwBit == .zero ? .write : .read
-                
-                let addressMatch = address == self.address
-                let acceptRW = (rw == .write && acceptWrites || rw == .read && acceptReads)
-                
-                if addressMatch && acceptRW {
-                    pullNextBit = true
-                    transmissionMode = rw
-                } else {
-                    transmissionActive = false
-                }
-           }
-
-        } else {
-
-            if transmissionFSM.transmittingAck {
-                
-                if transmissionMode == .write {
-                    
-                    if maxWrites == nil || transmissionFSM.currentByteIndex < maxWrites! {
-                        pullNextBit = true
-                    }
-                }
-
+            let address = (addressByte >> 1)
+            let rwBit = Bit(addressByte & 1)
+            let rw: ReadWrite = rwBit == .zero ? .write : .read
+            
+            let addressMatch = address == self.address
+            let acceptRW = (rw == .write && acceptWrites || rw == .read && acceptReads)
+            
+            if addressMatch && acceptRW {
+                pullNextBit = true
+                transmissionMode = rw
             } else {
-
-                // TODO send data
+                transmissionActive = false
             }
         }
+        
+        if !transmissionFSM.transmittingAddress, transmissionMode == .write, transmissionFSM.transmittingAck {
+                    
+            pullNextBit = maxWrites == nil || transmissionFSM.currentByteIndex < maxWrites!
+        }
+    
+        if !transmissionFSM.transmittingAddress, transmissionMode == .read, !transmissionFSM.transmittingAck {
+                    
+            pullNextBit = nextDataBitToWrite == .zero
+        }
+    }
+    
+    
+    private var nextDataBitToWrite: Bit {
+        
+        let byte = bytes[transmissionFSM.currentByteIndex]
+        return bit(fromByte: byte, atIndex: transmissionFSM.currentByteBitIndex)
+    }
+    
+    
+    private func bit(fromByte byte: UInt8, atIndex bitIndex: Int) -> Bit {
+        
+        return Bit((byte >> (7-bitIndex)) & 1)
     }
 }

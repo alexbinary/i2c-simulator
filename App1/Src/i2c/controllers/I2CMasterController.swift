@@ -14,38 +14,38 @@ struct ScheduledTransmission {
 class I2CMasterController: I2CController {
     
     
-    private let onReadSuccess: (([UInt8])->())?
+    let onReadSuccess: (([UInt8])->())?
     
-    private var scheduledTransmissions: [ScheduledTransmission] = []
-    private var activeTransmission: I2CTransmission? = nil
-    private var addressAcked: Bool = false
+    var scheduledTransmissions: [ScheduledTransmission] = []
+    var activeTransmission: I2CTransmission? = nil
+    var addressAcked: Bool = false
 
-    private var sendingStop = false
-    private var holdingBus = false
-    private var writingBit = false
-    private var nextBitToWrite: Bit = .zero
+    var sendingStop = false
+    var holdingBus = false
+    var writingBit = false
+    var nextBitToWrite: Bit = .zero
     
-    private var transmissionFSM = I2CTransmissionFSM()
+    var transmissionFSM = I2CTransmissionFSM()
 
-    private let xWaitBeforeStartSCLRelease: CGFloat = 10
-    private let xWaitBeforeStartSDAPull: CGFloat = 10
-    private let xWaitAfterStart: CGFloat = 10
+    let xWaitBeforeStartSCLRelease: CGFloat = 10
+    let xWaitBeforeStartSDAPull: CGFloat = 10
+    let xWaitAfterStart: CGFloat = 10
 
-    private let xWaitBeforeBitClockHigh: CGFloat = 10
-    private let xWaitDuringBitClockHigh: CGFloat = 10
-    private let xWaitAfterBitClockHigh: CGFloat = 10
+    let xWaitBeforeBitClockHigh: CGFloat = 10
+    let xWaitDuringBitClockHigh: CGFloat = 10
+    let xWaitAfterBitClockHigh: CGFloat = 10
 
-    private let xWaitBeforeStop: CGFloat = 10
-    private let xWaitAfterStop: CGFloat = 100
+    let xWaitBeforeStop: CGFloat = 10
+    let xWaitAfterStop: CGFloat = 100
     
-    private var currentX: CGFloat = 0
-    private var nextTransmissionStartReleasesSCLAfterX: CGFloat = 0
-    private var nextTransmissionStartPullsSDAAfterX: CGFloat = 0
-    private var nextBitSetupStartsAfterX: CGFloat = 0
-    private var nextBitClockHighStartsAfterX: CGFloat = 0
-    private var nextBitClockHighEndsAfterX: CGFloat = 0
-    private var transmissionStopStartsAfterX: CGFloat = 0
-    private var transmissionStopEndsAtX: CGFloat?
+    var currentX: CGFloat = 0
+    var nextTransmissionStartReleasesSCLAfterX: CGFloat = 0
+    var nextTransmissionStartPullsSDAAfterX: CGFloat = 0
+    var nextBitSetupStartsAfterX: CGFloat = 0
+    var nextBitClockHighStartsAfterX: CGFloat = 0
+    var nextBitClockHighEndsAfterX: CGFloat = 0
+    var transmissionStopStartsAfterX: CGFloat = 0
+    var transmissionStopEndsAtX: CGFloat?
     
     
     init(
@@ -61,7 +61,7 @@ class I2CMasterController: I2CController {
     }
 
 
-    private func printState() {
+    func printState() {
 
 //        print("")
 //        print("-- MASTER UPDATED STATE --")
@@ -79,10 +79,11 @@ class I2CMasterController: I2CController {
     }
     
     
-    override func initState(x: CGFloat, levelSCL: LineLevel, levelSDA: LineLevel) {
+    override func initState(x: CGFloat) {
         
-        transmissionFSM.reset(levelSCL: levelSCL, levelSDA: levelSDA)
-        initTransmissionState()
+        currentX = x
+        
+        resetTransmissionState()
     }
     
     
@@ -90,66 +91,69 @@ class I2CMasterController: I2CController {
 
         switch event {
         case .timeStep(let step):
+            
             currentX += step
-        case .lineChange:
+            
+            if activeTransmission == nil {
+                
+                if let entry = scheduledTransmissions.sorted(by: { a, b in a.x < b.x }).first, entry.x <= currentX {
+                    
+                    scheduledTransmissions.removeAll(where: { $0.transmission.id == entry.transmission.id })
+                    activeTransmission = entry.transmission
+                    
+                    resetTransmissionState()
+                    printState()
+                }
+            }
+            
+        case .lineChange(let changedLine):
+            
+            if activeTransmission != nil {
+                
+                transmissionFSM.update(
+                    afterLineChange: changedLine,
+                    onBitClocked: onBitClocked,
+                    onDone: onTransmissionDone,
+                    onAborted: {
+                        self.activeTransmission = nil
+                        printState()
+                    }
+                )
+                printState()
+            }
+            
+            if activeTransmission != nil {
+                updateControls()
+            }
+            
             break
         }
         
         printState()
-
-        if activeTransmission == nil {
-
-            if let entry = scheduledTransmissions.sorted(by: { a, b in a.x < b.x }).first, entry.x <= currentX {
-
-                scheduledTransmissions.removeAll(where: { $0.transmission.id == entry.transmission.id })
-                activeTransmission = entry.transmission
-
-                initTransmissionState()
-
-                printState()
-            }
-        }
-
-        if activeTransmission != nil {
-
-            transmissionFSM.update(after: event,
-                onBitClocked: onBitClocked,
-                onDone: onDone,
-                onAborted: {
-                    self.activeTransmission = nil
-                    printState()
-                }
-            )
-            printState()
-        }
-
-        if activeTransmission != nil {
-
-            updateControls(for: transmissionFSM)
-        }
     }
     
     
-    private func onDone(readBytes: [UInt8]) {
+    func onTransmissionDone(readBytes: [UInt8]) {
         
         let readSuccess = self.activeTransmission!.mode == .read && addressAcked
-        self.activeTransmission = nil
-        transmissionFSM.reset(levelSCL: bus.lineSCL.currentLevel, levelSDA: bus.lineSDA.currentLevel)
+        
+        clearActiveTransmission()
         printState()
+        
         if readSuccess {
             onReadSuccess?(readBytes)
         }
     }
-
-
-    private func updateControls(for transmissionFSM: I2CTransmissionFSM) {
-
+    
+    
+    func updateControls() {
+        
         switch transmissionFSM.currentTransmissionState {
         case .waitingStart:
-
+            
             switch transmissionFSM.startFSM.currentState {
-            case .waitingIdle:
-
+            case .waitingPreCondition:
+                
                 if bus.lineSDA.isLow {
                     self.pullingSDA = false
                     return
@@ -165,9 +169,9 @@ class I2CMasterController: I2CController {
                 }
                 
                 nextTransmissionStartPullsSDAAfterX = currentX + xWaitBeforeStartSDAPull
-
-            case .waitingSDApull:
-
+                
+            case .waitingSDADrop:
+                
                 if currentX < nextTransmissionStartPullsSDAAfterX {
                     return
                 }
@@ -175,22 +179,22 @@ class I2CMasterController: I2CController {
                 self.pullingSDA = true
                 nextBitSetupStartsAfterX = currentX + xWaitAfterStart
             }
-
+            
         case .started:
-
+            
             switch transmissionFSM.bitFSM.currentState {
             case .setup:
                 
                 if currentX < nextBitSetupStartsAfterX {
                     return
                 }
-
+                
                 if bus.lineSCL.isHigh {
                     self.pullingSCL = true
                     nextBitClockHighStartsAfterX = currentX + xWaitBeforeBitClockHigh
                     return
                 }
-
+                
                 if sendingStop {
                     if bus.lineSDA.isHigh {
                         self.pullingSDA = true
@@ -208,24 +212,24 @@ class I2CMasterController: I2CController {
                 } else {
                     self.pullingSDA = false
                 }
-
+                
                 if currentX < nextBitClockHighStartsAfterX {
                     return
                 }
                 
                 if holdingBus {
-                    onDone(readBytes: transmissionFSM.readBytes)
+                    onTransmissionDone(readBytes: transmissionFSM.readBytes)
                 } else {
                     self.pullingSCL = false
                     
                     nextBitClockHighEndsAfterX = currentX + xWaitDuringBitClockHigh
                     transmissionStopStartsAfterX = currentX + xWaitBeforeStop
                 }
-
-            case .clockHigh:
+                
+            case .clocking:
                 
                 if sendingStop {
-
+                    
                     if currentX < transmissionStopStartsAfterX {
                         return
                     }
@@ -234,9 +238,9 @@ class I2CMasterController: I2CController {
                     
                     transmissionStopEndsAtX = currentX + xWaitAfterStop
                     nextTransmissionStartReleasesSCLAfterX = transmissionStopEndsAtX! + xWaitBeforeStartSCLRelease
-
+                    
                 } else {
-
+                    
                     if currentX < nextBitClockHighEndsAfterX {
                         return
                     }
@@ -247,24 +251,33 @@ class I2CMasterController: I2CController {
                     nextBitClockHighStartsAfterX = nextBitSetupStartsAfterX + xWaitBeforeBitClockHigh
                 }
             }
-
+            
             return
         }
     }
 
-
-    private func initTransmissionState() {
-
+    
+    func clearActiveTransmission() {
+        
+        self.activeTransmission = nil
+    }
+    
+    
+    func resetTransmissionState() {
+        
+        transmissionFSM.reset(levelSCL: bus.lineSCL.currentLevel, levelSDA: bus.lineSDA.currentLevel)
+        
         sendingStop = false
         holdingBus = false
         addressAcked = false
-        prepareNextBit()
         
         nextTransmissionStartReleasesSCLAfterX = max(nextTransmissionStartReleasesSCLAfterX, currentX + xWaitBeforeStartSCLRelease)
+        
+        prepareNextBit()
     }
 
 
-    private func onBitClocked(bit: Bit, transmittingAddress: Bool, transmittingAck: Bool, byteIndex: Int, byteBitIndex: Int, byteComplete: Bool, byte: UInt8?) {
+    func onBitClocked(bit: Bit, transmittingAddress: Bool, transmittingAck: Bool, byteIndex: Int, byteBitIndex: Int, byteComplete: Bool, byte: UInt8?) {
 
         sendingStop = false
         holdingBus = false
@@ -331,22 +344,16 @@ class I2CMasterController: I2CController {
     }
 
 
-    private func nextAddressBitToWrite() -> Bit {
+    func nextAddressBitToWrite() -> Bit {
 
         let byte = activeTransmission!.addressRW
-        return bit(fromByte: byte, atIndex: transmissionFSM.currentByteBitIndex)
+        return byte.bit(atIndex: transmissionFSM.currentByteBitIndex)
     }
 
 
-    private func nextDataBitToWrite() -> Bit {
+    func nextDataBitToWrite() -> Bit {
 
         let byte = activeTransmission!.bytes[transmissionFSM.currentByteIndex]
-        return bit(fromByte: byte, atIndex: transmissionFSM.currentByteBitIndex)
-    }
-
-
-    private func bit(fromByte byte: UInt8, atIndex bitIndex: Int) -> Bit {
-
-        return Bit((byte >> (7-bitIndex)) & 1)
+        return byte.bit(atIndex: transmissionFSM.currentByteBitIndex)
     }
 }

@@ -6,90 +6,51 @@ import SwiftUI
 enum I2CBitFSMState {
     
     case setup
-    case clockHigh
-
-    static var initialState: I2CBitFSMState { .setup }
+    case clocking
 }
 
 
 class I2CBitFSM {
     
-    private(set) var currentState: I2CBitFSMState = .initialState
-    private(set) var readBit: Bit!
+    var currentState: I2CBitFSMState = .setup
+    var currentLineLevels: I2CBusLineLevels = .init(SCL: .high, SDA: .high)
+    var readBit: Bit!
     
     
-    init() {
-        reset()
+    func reset(lineLevels: I2CBusLineLevels) {
+        
+        currentLineLevels = lineLevels
+        currentState = .setup
+        readBit = nil
     }
     
     
     func reset() {
-        currentState = .initialState
-        readBit = nil
+        
+        reset(lineLevels: currentLineLevels)
     }
     
 
-    func update(
+    func update(afterLineChange changedLine: I2CBusLineEnum, onSuccess: (Bit) -> (), onError: () -> ()) {
         
-        afterLineChange changedLine: I2CBusLineEnum, updatedBusState: I2CBusFSMState, updatedLineLevels: (SDA: LineLevel, SCL: LineLevel),
-        onSuccess: (Bit) -> (), onError: () -> ()
-    
-    ) {
-
-        func success() {
-            let bit = readBit!
-            reset()
-            onSuccess(bit)
-        }
+        currentLineLevels = currentLineLevels.updated(afterLineChange: changedLine)
         
-        func error() {
-            reset()
-            onError()
-        }
-
         switch currentState {
         case .setup:
-
-            if updatedBusState == .transmitting_LH || updatedBusState == .transmitting_HH {
-                currentState = .clockHigh
-            } else if updatedBusState != .started_LH && updatedBusState != .transmitting_HL && updatedBusState != .transmitting_LL {
-                error()
-            }
-
-        case .clockHigh:
-
-            if updatedBusState == .transmitting_LL || updatedBusState == .transmitting_HL {
-                success()
-            } else if updatedBusState != .transmitting_LH && updatedBusState != .transmitting_HH {
-                error()
-            }
-
-            readBit = updatedLineLevels.SDA == .high ? .one : .zero
-        }
-        
-        update_stabilize(onSuccess: onSuccess, onError: onError)
-    }
-    
-    
-    func update_stabilize(onSuccess: (Bit) -> (), onError: () -> ()) {
-        
-        while true {
             
-            let stateBefore = currentState
-            
-            switch currentState {
-            case .setup:
-                break
-            case .clockHigh:
-                break
+            if currentLineLevels.SCL == .high {
+                currentState = .clocking
             }
             
-            if currentState != stateBefore {
-                continue
+        case .clocking:
+            
+            if currentLineLevels.SCL == .high {
+                readBit = currentLineLevels.SDA.bit
             } else {
-                break
+                let bit = readBit!
+                reset()
+                onSuccess(bit)
             }
         }
     }
 }
-

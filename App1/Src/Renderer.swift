@@ -8,7 +8,7 @@ struct LineRenderParams {
     let yLow: CGFloat
     let yHigh: CGFloat
     
-    func y(for level: LineLevel) -> CGFloat {
+    func y(for level: I2CLineLevel) -> CGFloat {
         switch level {
         case .high: return yHigh
         case .low: return yLow
@@ -25,7 +25,7 @@ class RenderLine {
     let color: Color
     let lineWidth: CGFloat
     
-    var currentLevel: LineLevel
+    var currentLevel: I2CLineLevel
     var path: Path
     
     init(
@@ -112,7 +112,7 @@ class Renderer {
     }
     
     
-    func bring(_ line: RenderLine, to level: LineLevel, at x: CGFloat) {
+    func bring(_ line: RenderLine, to level: I2CLineLevel, at x: CGFloat) {
         
         let params = params(forLineSlot: line.slot)
         let y = params.y(for: level)

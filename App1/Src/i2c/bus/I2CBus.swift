@@ -72,7 +72,7 @@ class I2CBus {
         advanceX(to: startX)
 
         for controller in controllers {
-            controller.initState(x: currentX, levelSCL: lineSCL.currentLevel, levelSDA: lineSDA.currentLevel)
+            controller.initState(x: currentX)
         }
 
         var changedLines: [I2CBusLineEnum] = []

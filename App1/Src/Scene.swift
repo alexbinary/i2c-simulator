@@ -5,7 +5,7 @@ import SwiftUI
 
 class RenderSceneLine {
     
-    var initialLevel: LineLevel = .high
+    var initialLevel: I2CLineLevel = .high
     var transitions: [CGFloat] = []
 }
 

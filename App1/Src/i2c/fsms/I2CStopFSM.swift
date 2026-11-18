@@ -5,69 +5,50 @@ import SwiftUI
 
 enum I2CStopFSMState {
     
-    case waitingConditions
-    case releasingSDA
-
-    static var initialState: I2CStopFSMState { .waitingConditions }
+    case waitingPreCondition
+    case waitingSDARelease
 }
 
 
 class I2CStopFSM {
     
     
-    private(set) var currentState: I2CStopFSMState = .initialState
+    var currentState: I2CStopFSMState = .waitingPreCondition
+    var currentLineLevels: I2CBusLineLevels = .init(SCL: .high, SDA: .high)
     
     
-    init() {
-        reset()
+    func reset(lineLevels: I2CBusLineLevels) {
+        
+        currentLineLevels = lineLevels
+        currentState = .waitingPreCondition
     }
     
     
     func reset() {
-        currentState = .initialState
+        
+        reset(lineLevels: currentLineLevels)
     }
 
 
-    func update(afterLineChange changedLine: I2CBusLineEnum, updatedBusState: I2CBusFSMState, onSuccess: () -> (), onError: () -> ()) {
-
-        while true {
-
-            var nextState = currentState
-            var exit = false
-
-            func success() {
-                reset()
-                onSuccess()
-                exit = true
+    func update(afterLineChange changedLine: I2CBusLineEnum, onSuccess: () -> (), onError: () -> ()) {
+        
+        currentLineLevels = currentLineLevels.updated(afterLineChange: changedLine)
+        
+        switch currentState {
+        case .waitingPreCondition:
+            
+            if currentLineLevels.match(SCL: .high, SDA: .low) {
+                currentState = .waitingSDARelease
             }
             
-            func error() {
+        case .waitingSDARelease:
+            
+            if currentLineLevels.match(SCL: .high, SDA: .high) {
+                reset()
+                onSuccess()
+            } else {
                 reset()
                 onError()
-                exit = true
-            }
-
-            switch currentState {
-            case .waitingConditions:
-
-                if updatedBusState == .started_LH || updatedBusState == .transmitting_LH {
-                    nextState = .releasingSDA
-                }
-
-            case .releasingSDA:
-
-                if updatedBusState == .idle_HH {
-                    success()
-                } else if updatedBusState != .started_LH && updatedBusState != .transmitting_LH {
-                    error()
-                }
-            }
-
-            if nextState == currentState || exit {
-                break
-            } else {
-                currentState = nextState
-                continue
             }
         }
     }

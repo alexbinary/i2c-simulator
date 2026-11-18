@@ -39,7 +39,7 @@ class I2CController {
     }
     
     
-    func initState(x: CGFloat, levelSCL: LineLevel, levelSDA: LineLevel) {
+    func initState(x: CGFloat) {
 
     }
     

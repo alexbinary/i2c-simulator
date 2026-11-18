@@ -6,19 +6,19 @@ import SwiftUI
 class I2CSlaveController: I2CController {
     
     
-    private let address: UInt8
-    private let acceptWrites: Bool
-    private let acceptReads: Bool
-    private let maxWrites: Int?
+    let address: UInt8
+    let acceptWrites: Bool
+    let acceptReads: Bool
+    let maxWrites: Int?
     
-    private let nextBytesForMasterRead: (() -> [UInt8])?
-    private let onWriteSuccess: (([UInt8])->())?
+    let nextBytesForMasterRead: (() -> [UInt8])?
+    let onWriteSuccess: (([UInt8])->())?
     
-    private var bytes: [UInt8] = [0x01, 0x02]
+    var bytes: [UInt8] = [0x01, 0x02]
 
-    private var transmissionFSM = I2CTransmissionFSM()
-    private var transmissionActive = false
-    private var transmissionMode: ReadWrite = .write
+    var transmissionFSM = I2CTransmissionFSM()
+    var transmissionIsAddressedToSelf = true
+    var transmissionMode: ReadWrite = .write
 
     private var pullNextBit = false
 
@@ -40,7 +40,7 @@ class I2CSlaveController: I2CController {
     }
 
 
-    private func printState() {
+    func printState() {
 
 //        print("")
 //        print("-- SLAVE \(address) UPDATED STATE --")
@@ -51,70 +51,74 @@ class I2CSlaveController: I2CController {
     }
 
 
-    override func initState(x: CGFloat, levelSCL: LineLevel, levelSDA: LineLevel) {
+    override func initState(x: CGFloat) {
 
-        transmissionFSM.reset(levelSCL: levelSCL, levelSDA: levelSDA)
-        resetTransmission()
+        resetTransmissionState()
     }
 
 
     override func updateBusControl(after event: I2CBusEvent) {
 
-        transmissionFSM.update(after: event,
-            onBitClocked: onBitClocked,
-            onDone: { readBytes in
-                print("-- SLAVE TRANSMISSION DONE --")
-                let writeSuccess = transmissionActive && transmissionMode == .write
-                resetTransmission()
-                printState()
-                if writeSuccess {
-                    onWriteSuccess?(readBytes)
+        switch event {
+        case .lineChange(let changedLine):
+            
+            transmissionFSM.update(
+                afterLineChange: changedLine,
+                onBitClocked: onBitClocked,
+                onDone: { readBytes in
+                    let writeSuccess = transmissionIsAddressedToSelf && transmissionMode == .write
+                    resetTransmissionState()
+                    printState()
+                    if writeSuccess {
+                        onWriteSuccess?(readBytes)
+                    }
+                },
+                onAborted: {
+                    resetTransmissionState()
+                    printState()
                 }
-            },
-            onAborted: {
-                print("-- SLAVE TRANSMISSION ABORTED --")
-                resetTransmission()
-                printState()
-            }
-        )
-        printState()
-        
-        switch transmissionFSM.currentTransmissionState {
-        case .waitingStart:
-            break
-
-        case .started:
-
-            switch transmissionFSM.bitFSM.currentState {
-            case .setup:
-
-                self.pullingSDA = pullNextBit
-
-            case .clockHigh:
+            )
+            printState()
+            
+            switch transmissionFSM.currentTransmissionState {
+            case .waitingStart:
                 break
+                
+            case .started:
+                
+                switch transmissionFSM.bitFSM.currentState {
+                case .setup:
+                    
+                    self.pullingSDA = pullNextBit
+                    
+                case .clocking:
+                    break
+                }
             }
+            
+        case .timeStep:
+            break
         }
     }
 
 
-    private func resetTransmission() {
+    func resetTransmissionState() {
 
-        transmissionActive = true
+        transmissionFSM.reset(levelSCL: bus.lineSCL.currentLevel, levelSDA: bus.lineSDA.currentLevel)
+        transmissionIsAddressedToSelf = true
         prepareNextBit()
     }
 
 
-    private func onBitClocked(bit: Bit, transmittingAddress: Bool, transmittingAck: Bool, byteIndex: Int, byteBitIndex: Int, byteComplete: Bool, byte: UInt8?) {
+    func onBitClocked(bit: Bit, transmittingAddress: Bool, transmittingAck: Bool, byteIndex: Int, byteBitIndex: Int, byteComplete: Bool, byte: UInt8?) {
 
-        if !transmissionActive {
-            return
+        if transmissionIsAddressedToSelf {
+            prepareNextBit()
         }
-        
-        prepareNextBit()
     }
 
 
-    private func prepareNextBit() {
+    func prepareNextBit() {
 
         pullNextBit = false
 
@@ -133,7 +137,7 @@ class I2CSlaveController: I2CController {
                 pullNextBit = true
                 transmissionMode = rw
             } else {
-                transmissionActive = false
+                transmissionIsAddressedToSelf = false
             }
         }
         
@@ -149,7 +153,7 @@ class I2CSlaveController: I2CController {
     }
     
     
-    private var nextDataBitToWrite: Bit {
+    var nextDataBitToWrite: Bit {
         
         if transmissionFSM.currentByteIndex < bytes.count {
             
@@ -163,12 +167,6 @@ class I2CSlaveController: I2CController {
         }
         
         let byte = bytes[transmissionFSM.currentByteIndex]
-        return bit(fromByte: byte, atIndex: transmissionFSM.currentByteBitIndex)
-    }
-    
-    
-    private func bit(fromByte byte: UInt8, atIndex bitIndex: Int) -> Bit {
-        
-        return Bit((byte >> (7-bitIndex)) & 1)
+        return byte.bit(atIndex: transmissionFSM.currentByteBitIndex)
     }
 }

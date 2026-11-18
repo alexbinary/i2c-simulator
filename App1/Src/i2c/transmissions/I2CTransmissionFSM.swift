@@ -38,15 +38,14 @@ enum I2CTransmissionResultEnum {
 class I2CTransmissionFSM {
     
     
-    var currentBusState: I2CBusFSMState = .idle_HH
-    var isIdle: Bool { currentBusState == .idle_HH }
-    
     var currentTransmissionState: I2CTransmissionFSMState = .initialState
     var transmissionsResult: I2CTransmissionResultEnum = .success
 
     var startFSM = I2CStartFSM()
     var stopFSM = I2CStopFSM()
     var bitFSM = I2CBitFSM()
+    
+    var currentLineLevels: (SDA: I2CLineLevel, SCL: I2CLineLevel) = (.high, .high)
     
     var transmittingAddress = false
     var transmittingAck = false
@@ -61,21 +60,16 @@ class I2CTransmissionFSM {
     var currentByteBitIndex: Int { currentByteReadBits.count }
     
     
-    func reset(levelSCL: LineLevel, levelSDA: LineLevel) {
+    func reset(levelSCL: I2CLineLevel, levelSDA: I2CLineLevel) {
         
-        switch (levelSDA, levelSCL) {
-        case (.high, .high): currentBusState = .idle_HH
-        case (.high, .low): currentBusState = .idle_HL
-        case (.low, .high): currentBusState = .idle_LH
-        case (.low, .low): currentBusState = .idle_LL
-        }
+        currentLineLevels = (SDA: levelSDA, SCL: levelSCL)
         
         currentTransmissionState = .initialState
         transmissionsResult = .success
         
-        startFSM.reset()
-        stopFSM.reset()
-        bitFSM.reset()
+        startFSM.reset(lineLevels: I2CBusLineLevels(SCL: levelSCL, SDA: levelSDA))
+        stopFSM.reset(lineLevels: I2CBusLineLevels(SCL: levelSCL, SDA: levelSDA))
+        bitFSM.reset(lineLevels: I2CBusLineLevels(SCL: levelSCL, SDA: levelSDA))
         
         transmittingAddress = true
         transmittingAck = false
@@ -88,37 +82,11 @@ class I2CTransmissionFSM {
         
         currentByteIndex = 0
     }
-
-
-    func update(
+    
+    
+    func reset() {
         
-        after event: I2CBusEvent,
-        
-        onBitClocked: (Bit, Bool, Bool, Int, Int, Bool, UInt8?) -> (),
-        onDone: ([UInt8]) -> (), onAborted: () -> ()
-        
-    ) {
-        
-        switch event {
-            
-        case .lineChange(let changedLine):
-            
-            update(
-                afterLineChange: changedLine,
-                onBitClocked: onBitClocked, onDone: onDone, onAborted: onAborted
-            )
-            
-        case .timeStep(let step):
-            
-            update(
-                afterTimeStep: step,
-                onBitClocked: onBitClocked, onDone: onDone, onAborted: onAborted
-            )
-        }
-        
-        update_stabilize(
-            onBitClocked: onBitClocked, onDone: onDone, onAborted: onAborted
-        )
+        reset(levelSCL: currentLineLevels.SCL, levelSDA: currentLineLevels.SDA)
     }
     
     
@@ -147,56 +115,18 @@ class I2CTransmissionFSM {
         
     ) {
         
+        currentLineLevels = (SDA: currentLineLevels.SDA.opposite, SCL: currentLineLevels.SCL)
+        
         let changedLine: I2CBusLineEnum = .SDA
-        
-        switch currentBusState {
-            
-        case .idle_HH:
-            
-            currentBusState = .started_LH
-            
-        case .idle_HL:
-            
-            currentBusState = .idle_LL
-            
-        case .idle_LH:
-            
-            currentBusState = .idle_HH
-            
-        case .idle_LL:
-            
-            currentBusState = .idle_HL
-            
-        case .started_LH:
-            
-            currentBusState = .idle_HH
-            
-        case .transmitting_HH:
-            
-            currentBusState = .started_LH
-            
-        case .transmitting_HL:
-            
-            currentBusState = .transmitting_LL
-            
-        case .transmitting_LH:
-            
-            currentBusState = .idle_HH
-            
-        case .transmitting_LL:
-            
-            currentBusState = .transmitting_HL
-        }
-        
         
         func stop() {
             let bytes = readBytes
-            reset(levelSCL: lineLevels.SCL, levelSDA: lineLevels.SDA)
+            reset()
             onDone(bytes)
         }
         
         func abort() {
-            reset(levelSCL: lineLevels.SCL, levelSDA: lineLevels.SDA)
+            reset()
             onAborted()
         }
         
@@ -204,7 +134,7 @@ class I2CTransmissionFSM {
         case .waitingStart:
             
             startFSM.update(
-                afterLineChange: changedLine, updatedBusState: currentBusState,
+                afterLineChange: changedLine,
                 onSuccess: {
                     currentTransmissionState = .started
                 }, onError: {
@@ -218,7 +148,7 @@ class I2CTransmissionFSM {
             var stopError = false
             
             bitFSM.update(
-                afterLineChange: changedLine, updatedBusState: currentBusState, updatedLineLevels: lineLevels,
+                afterLineChange: changedLine,
                 onSuccess: { bit in
                     
                     let transmittingAddress = transmittingAddress
@@ -244,7 +174,7 @@ class I2CTransmissionFSM {
                 }
             )
             stopFSM.update(
-                afterLineChange: changedLine, updatedBusState: currentBusState,
+                afterLineChange: changedLine,
                 onSuccess: {
                     stop()
                 },
@@ -267,56 +197,19 @@ class I2CTransmissionFSM {
         
     ) {
         
+        currentLineLevels = (SDA: currentLineLevels.SDA, SCL: currentLineLevels.SCL.opposite)
+        
         let changedLine: I2CBusLineEnum = .SCL
-        
-        switch currentBusState {
-            
-        case .idle_HH:
-            
-            currentBusState = .idle_HL
-            
-        case .idle_HL:
-            
-            currentBusState = .idle_HH
-            
-        case .idle_LH:
-            
-            currentBusState = .idle_LL
-            
-        case .idle_LL:
-            
-            currentBusState = .idle_LH
-            
-        case .started_LH:
-            
-            currentBusState = .transmitting_LL
-            
-        case .transmitting_HH:
-            
-            currentBusState = .transmitting_HL
-            
-        case .transmitting_HL:
-            
-            currentBusState = .transmitting_HH
-            
-        case .transmitting_LH:
-            
-            currentBusState = .transmitting_LL
-            
-        case .transmitting_LL:
-            
-            currentBusState = .transmitting_LH
-        }
-        
+
         
         func stop() {
             let bytes = readBytes
-            reset(levelSCL: lineLevels.SCL, levelSDA: lineLevels.SDA)
+            reset()
             onDone(bytes)
         }
         
         func abort() {
-            reset(levelSCL: lineLevels.SCL, levelSDA: lineLevels.SDA)
+            reset()
             onAborted()
         }
         
@@ -324,7 +217,7 @@ class I2CTransmissionFSM {
         case .waitingStart:
             
             startFSM.update(
-                afterLineChange: changedLine, updatedBusState: currentBusState,
+                afterLineChange: changedLine,
                 onSuccess: {
                     currentTransmissionState = .started
                 }, onError: {
@@ -338,7 +231,7 @@ class I2CTransmissionFSM {
             var stopError = false
             
             bitFSM.update(
-                afterLineChange: changedLine, updatedBusState: currentBusState, updatedLineLevels: lineLevels,
+                afterLineChange: changedLine,
                 onSuccess: { bit in
                     
                     let transmittingAddress = transmittingAddress
@@ -364,7 +257,7 @@ class I2CTransmissionFSM {
                 }
             )
             stopFSM.update(
-                afterLineChange: changedLine, updatedBusState: currentBusState,
+                afterLineChange: changedLine,
                 onSuccess: {
                     stop()
                 },
@@ -376,24 +269,6 @@ class I2CTransmissionFSM {
             if bitError && stopError {
                 abort()
             }
-        }
-    }
-    
-    
-    func update(
-        
-        afterTimeStep xStep: CGFloat,
-        
-        onBitClocked: (Bit, Bool, Bool, Int, Int, Bool, UInt8?) -> (),
-        onDone: ([UInt8]) -> (), onAborted: () -> ()
-        
-    ) {
-        
-        switch currentTransmissionState {
-        case .waitingStart:
-            break
-        case .started:
-            break
         }
     }
     
@@ -464,21 +339,5 @@ class I2CTransmissionFSM {
         return bits
             .map { $0 == .zero ? 0 : 1 }
             .reduce(0, { byte, bit in (byte << 1) + bit })
-    }
-    
-    
-    var lineLevels: (SDA: LineLevel, SCL: LineLevel) {
-        
-        switch currentBusState {
-        case .idle_HH: return (SDA: .high, SCL: .high)
-        case .idle_HL: return (SDA: .high, SCL: .low)
-        case .idle_LH: return (SDA: .low, SCL: .high)
-        case .idle_LL: return (SDA: .low, SCL: .low)
-        case .started_LH: return (SDA: .low, SCL: .high)
-        case .transmitting_HH: return (SDA: .high, SCL: .high)
-        case .transmitting_HL: return (SDA: .high, SCL: .low)
-        case .transmitting_LH: return (SDA: .low, SCL: .high)
-        case .transmitting_LL: return (SDA: .low, SCL: .low)
-        }
     }
 }

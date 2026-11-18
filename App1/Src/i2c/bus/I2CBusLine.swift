@@ -12,7 +12,7 @@ enum I2CBusLineEnum {
 class I2CBusLine {
     
     let identity: I2CBusLineEnum
-    var currentLevel: LineLevel = .high
+    var currentLevel: I2CLineLevel = .high
     
     var isLow: Bool { return currentLevel == .low }
     var isHigh: Bool { return currentLevel == .high }
@@ -54,7 +54,7 @@ class I2CBusLine {
     
     @discardableResult func updateLevel() -> Bool {
 
-        let updatedLevel: LineLevel = pullers.count == 0 ? .high : .low
+        let updatedLevel: I2CLineLevel = pullers.count == 0 ? .high : .low
         if updatedLevel != currentLevel {
             
             currentLevel = updatedLevel

@@ -19,8 +19,8 @@ class I2CBitFSM {
     
     func reset(lineLevels: I2CBusLineLevels) {
         
-        currentLineLevels = lineLevels
         currentState = .setup
+        currentLineLevels = lineLevels
         readBit = nil
     }
     
@@ -31,7 +31,7 @@ class I2CBitFSM {
     }
     
 
-    func update(afterLineChange changedLine: I2CBusLineEnum, onSuccess: (Bit) -> (), onError: () -> ()) {
+    func update(afterLineChange changedLine: I2CBusLineEnum, onBitClocked clockedBitDetected: (Bit) -> ()) {
         
         currentLineLevels = currentLineLevels.updated(afterLineChange: changedLine)
         
@@ -49,7 +49,7 @@ class I2CBitFSM {
             } else {
                 let bit = readBit!
                 reset()
-                onSuccess(bit)
+                clockedBitDetected(bit)
             }
         }
     }

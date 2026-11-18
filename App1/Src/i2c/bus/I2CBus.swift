@@ -16,6 +16,8 @@ class I2CBus {
     let lineSCL = I2CBusLine(.SCL)
     let lineSDA = I2CBusLine(.SDA)
     
+    var currentLineLevels: I2CBusLineLevels { .init(SCL: lineSCL.currentLevel, SDA: lineSDA.currentLevel) }
+    
     private var controllers: [I2CController] = []
     
     private var currentX: CGFloat = 0

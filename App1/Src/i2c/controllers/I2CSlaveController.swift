@@ -16,7 +16,7 @@ class I2CSlaveController: I2CController {
     
     var bytes: [UInt8] = [0x01, 0x02]
 
-    var transmissionFSM = I2CTransmissionFSM()
+    var transmissionFSM = I2CTransmissionPassiveStateMachine()
     var transmissionIsAddressedToSelf = true
     var transmissionMode: ReadWrite = .write
 
@@ -80,7 +80,7 @@ class I2CSlaveController: I2CController {
             )
             printState()
             
-            switch transmissionFSM.currentTransmissionState {
+            switch transmissionFSM.currentMicroState {
             case .waitingStart:
                 break
                 
@@ -104,13 +104,13 @@ class I2CSlaveController: I2CController {
 
     func resetTransmissionState() {
 
-        transmissionFSM.reset(levelSCL: bus.lineSCL.currentLevel, levelSDA: bus.lineSDA.currentLevel)
+        transmissionFSM.reset(lineLevels: bus.currentLineLevels)
         transmissionIsAddressedToSelf = true
         prepareNextBit()
     }
 
 
-    func onBitClocked(bit: Bit, transmittingAddress: Bool, transmittingAck: Bool, byteIndex: Int, byteBitIndex: Int, byteComplete: Bool, byte: UInt8?) {
+    func onBitClocked(bit: Bit, transmissionMacroState: I2CTransmissionPassiveStateMachine.MacroState, byteIndex: Int) {
 
         if transmissionIsAddressedToSelf {
             prepareNextBit()
@@ -121,9 +121,14 @@ class I2CSlaveController: I2CController {
     func prepareNextBit() {
 
         pullNextBit = false
-
-        if transmissionFSM.transmittingAddress, transmissionFSM.transmittingAck {
         
+        switch transmissionFSM.currentMacroState {
+            
+        case .transmittingAddressByte:
+            break
+            
+        case .transmittingAddressAck:
+            
             let addressByte = transmissionFSM.lastReadByte!
             
             let address = (addressByte >> 1)
@@ -139,16 +144,19 @@ class I2CSlaveController: I2CController {
             } else {
                 transmissionIsAddressedToSelf = false
             }
-        }
-        
-        if !transmissionFSM.transmittingAddress, transmissionMode == .write, transmissionFSM.transmittingAck {
-                    
-            pullNextBit = maxWrites == nil || transmissionFSM.currentByteIndex < maxWrites!
-        }
-    
-        if !transmissionFSM.transmittingAddress, transmissionMode == .read, !transmissionFSM.transmittingAck {
-                    
-            pullNextBit = nextDataBitToWrite == .zero
+            
+            
+        case .transmittingDataByte:
+            
+            if transmissionMode == .read {
+                pullNextBit = nextDataBitToWrite == .zero
+            }
+            
+        case .transmittingDataAck:
+            
+            if transmissionMode == .write {
+                pullNextBit = maxWrites == nil || transmissionFSM.currentByteIndex < maxWrites!
+            }
         }
     }
     

@@ -25,7 +25,7 @@ class I2CMasterController: I2CController {
     var writingBit = false
     var nextBitToWrite: Bit = .zero
     
-    var transmissionFSM = I2CTransmissionFSM()
+    var transmissionFSM = I2CTransmissionPassiveStateMachine()
 
     let xWaitBeforeStartSCLRelease: CGFloat = 10
     let xWaitBeforeStartSDAPull: CGFloat = 10
@@ -148,7 +148,7 @@ class I2CMasterController: I2CController {
     
     func updateControls() {
         
-        switch transmissionFSM.currentTransmissionState {
+        switch transmissionFSM.currentMicroState {
         case .waitingStart:
             
             switch transmissionFSM.startFSM.currentState {
@@ -218,7 +218,7 @@ class I2CMasterController: I2CController {
                 }
                 
                 if holdingBus {
-                    onTransmissionDone(readBytes: transmissionFSM.readBytes)
+                    onTransmissionDone(readBytes: transmissionFSM.readDataBytes)
                 } else {
                     self.pullingSCL = false
                     
@@ -265,7 +265,7 @@ class I2CMasterController: I2CController {
     
     func resetTransmissionState() {
         
-        transmissionFSM.reset(levelSCL: bus.lineSCL.currentLevel, levelSDA: bus.lineSDA.currentLevel)
+        transmissionFSM.reset(lineLevels: bus.currentLineLevels)
         
         sendingStop = false
         holdingBus = false
@@ -277,17 +277,17 @@ class I2CMasterController: I2CController {
     }
 
 
-    func onBitClocked(bit: Bit, transmittingAddress: Bool, transmittingAck: Bool, byteIndex: Int, byteBitIndex: Int, byteComplete: Bool, byte: UInt8?) {
+    func onBitClocked(bit: Bit, transmissionMacroState: I2CTransmissionPassiveStateMachine.MacroState, byteIndex: Int) {
 
         sendingStop = false
         holdingBus = false
         
-        if transmittingAck {
+        if transmissionMacroState == .transmittingAddressAck || transmissionMacroState == .transmittingDataAck {
             
             let ackBit = bit
             let ack = ackBit == .zero
             
-            if ack && transmittingAddress {
+            if ack && transmissionMacroState == .transmittingAddressAck {
                 addressAcked = true
             }
 
@@ -305,53 +305,44 @@ class I2CMasterController: I2CController {
 
     private func prepareNextBit() {
 
-        if transmissionFSM.transmittingAddress {
-
-            if !transmissionFSM.transmittingAck {
-
+        writingBit = false
+        
+        switch transmissionFSM.currentMacroState {
+        
+        case .transmittingAddressByte:
+            
+            writingBit = true
+            nextBitToWrite = nextAddressBitToWrite
+        
+        case .transmittingAddressAck:
+            break
+            
+        case .transmittingDataByte:
+            
+            if activeTransmission!.mode == .write {
                 writingBit = true
-                nextBitToWrite = nextAddressBitToWrite()
-
-            } else {
-
-                writingBit = false
+                nextBitToWrite = nextDataBitToWrite
             }
-
-        } else {
-
-            if !transmissionFSM.transmittingAck {
-
-                switch activeTransmission!.mode {
-                case .write:
-                    writingBit = true
-                    nextBitToWrite = nextDataBitToWrite()
-                case .read:
-                    writingBit = false
-                }
-
-            } else {
-
-                switch activeTransmission!.mode {
-                case .write:
-                    writingBit = false
-                case .read:
-                    writingBit = true
-                    let ack = transmissionFSM.currentByteIndex < activeTransmission!.numBytes-1
-                    nextBitToWrite = ack ? .zero : .one
-                }
+        
+        case .transmittingDataAck:
+        
+            if activeTransmission!.mode == .read {
+                writingBit = true
+                let ack = transmissionFSM.currentByteIndex < activeTransmission!.numBytes-1
+                nextBitToWrite = ack ? .zero : .one
             }
         }
     }
 
 
-    func nextAddressBitToWrite() -> Bit {
+    var nextAddressBitToWrite: Bit {
 
         let byte = activeTransmission!.addressRW
         return byte.bit(atIndex: transmissionFSM.currentByteBitIndex)
     }
 
 
-    func nextDataBitToWrite() -> Bit {
+    var nextDataBitToWrite: Bit {
 
         let byte = activeTransmission!.bytes[transmissionFSM.currentByteIndex]
         return byte.bit(atIndex: transmissionFSM.currentByteBitIndex)

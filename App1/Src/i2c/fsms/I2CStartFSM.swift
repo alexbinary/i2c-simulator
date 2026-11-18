@@ -18,8 +18,8 @@ class I2CStartFSM {
     
     func reset(lineLevels: I2CBusLineLevels) {
         
-        currentLineLevels = lineLevels
         currentState = .waitingPreCondition
+        currentLineLevels = lineLevels
     }
     
     
@@ -29,7 +29,7 @@ class I2CStartFSM {
     }
 
 
-    func update(afterLineChange changedLine: I2CBusLineEnum, onSuccess: () -> (), onError: () -> ()) {
+    func update(afterLineChange changedLine: I2CBusLineEnum, onStart startDetected: () -> ()) {
         
         currentLineLevels = currentLineLevels.updated(afterLineChange: changedLine)
                          
@@ -44,10 +44,9 @@ class I2CStartFSM {
             
             if currentLineLevels.match(SCL: .high, SDA: .low) {
                 reset()
-                onSuccess()
+                startDetected()
             } else {
-                reset()
-                onError()
+                currentState = .waitingPreCondition
             }
         }
     }

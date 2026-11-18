@@ -5,9 +5,16 @@ import SwiftUI
 
 class EquipmentTestMaster1: Equipment {
     
-    let master = I2CMasterController()
+    let master: I2CMasterController
     
     init() {
+        self.master = I2CMasterController(
+            onReadComplete: { readBytes in
+                print("-- EquipmentTestMaster1 READ DONE --")
+                print("read bytes: \(readBytes)")
+            }
+        )
+        
         super.init(i2cController: master)
         
         master.scheduleTransmission(at: 10, I2CTransmission(writeTo: 0x2b, bytes: [0x01, 0x02]))

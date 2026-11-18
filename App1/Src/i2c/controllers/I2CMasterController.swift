@@ -14,8 +14,11 @@ struct ScheduledTransmission {
 class I2CMasterController: I2CController {
     
     
+    private let onReadComplete: (([UInt8])->())?
+    
     private var scheduledTransmissions: [ScheduledTransmission] = []
     private var activeTransmission: I2CTransmission? = nil
+    private var addressAcked: Bool = false
 
     private var sendingStop = false
     private var writingBit = false
@@ -40,6 +43,13 @@ class I2CMasterController: I2CController {
     private var nextBitClockHighEndsAfterX: CGFloat = 0
     private var transmissionStopStartsAfterX: CGFloat = 0
     private var transmissionStopEndsAtX: CGFloat?
+    
+    
+    init(
+        onReadComplete: (([UInt8])->())?
+    ) {
+        self.onReadComplete = onReadComplete
+    }
     
     
     func scheduleTransmission(at x: CGFloat, _ transmission: I2CTransmission) {
@@ -88,9 +98,13 @@ class I2CMasterController: I2CController {
 
             transmissionFSM.update(x: x, updatedBusFSM: busFSM,
                 onBitClocked: onBitClocked,
-                onDone: { _ in
+                onDone: { readBytes in
+                    let readSuccess = self.activeTransmission!.mode == .read && addressAcked
                     self.activeTransmission = nil
                     printState()
+                    if readSuccess {
+                        onReadComplete?(readBytes)
+                    }
                 },
                 onAborted: {
                     self.activeTransmission = nil
@@ -206,6 +220,7 @@ class I2CMasterController: I2CController {
     private func initTransmissionState() {
 
         sendingStop = false
+        addressAcked = false
         prepareNextBit()
         
         nextTransmissionStartsAfterX = max(nextTransmissionStartsAfterX, currentX + xWaitBeforeStart)
@@ -217,11 +232,15 @@ class I2CMasterController: I2CController {
         sendingStop = false
         
         if transmittingAck {
-
+            
             let ackBit = bit
             let ack = ackBit == .zero
-            if !ack || byteIndex == (activeTransmission!.bytes.count-1) {
+            
+            if ack && transmittingAddress {
+                addressAcked = true
+            }
 
+            if !ack || byteIndex == (activeTransmission!.bytes.count-1) {
                 sendingStop = true
             }
         }

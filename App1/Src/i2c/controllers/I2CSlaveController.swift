@@ -6,13 +6,13 @@ import SwiftUI
 class I2CSlaveController: I2CController {
     
     
-    let address: UInt8
-    let acceptWrites: Bool
-    let acceptReads: Bool
-    let maxWrites: Int?
+    private let address: UInt8
+    private let acceptWrites: Bool
+    private let acceptReads: Bool
+    private let maxWrites: Int?
     
-    let nextBytesForMasterRead: (() -> [UInt8])?
-    let onTransmissionComplete: (([UInt8])->())?
+    private let nextBytesForMasterRead: (() -> [UInt8])?
+    private let onTransmissionComplete: (([UInt8])->())?
     
     private var bytes: [UInt8] = [0x01, 0x02]
 

@@ -29,7 +29,7 @@ class I2CBitFSM {
     }
     
 
-    func update(x: CGFloat, updatedBusFSM: I2CBusFSM, onSuccess: () -> (), onError: () -> ()) {
+    func update(x: CGFloat, updatedBusFSM: I2CBusFSM, onSuccess: (Bit) -> (), onError: () -> ()) {
 
         while true {
 
@@ -37,8 +37,9 @@ class I2CBitFSM {
             var exit = false
 
             func success() {
+                let bit = readBit!
                 reset()
-                onSuccess()
+                onSuccess(bit)
                 exit = true
             }
             

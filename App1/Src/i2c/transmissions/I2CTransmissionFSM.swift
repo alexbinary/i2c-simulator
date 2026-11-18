@@ -111,9 +111,8 @@ class I2CTransmissionFSM {
                 var stopError = false
             
                 bitFSM.update(x: x, updatedBusFSM: updatedBusFSM,
-                    onSuccess: {
+                    onSuccess: { bit in
                         
-                        let bit = bitFSM.readBit!
                         let transmittingAddress = transmittingAddress
                         let transmittingAck = transmittingAck
                         let byteIndex = currentByteIndex

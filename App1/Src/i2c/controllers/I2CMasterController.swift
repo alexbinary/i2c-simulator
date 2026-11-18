@@ -34,7 +34,7 @@ class I2CMasterController: I2CController {
     private let xWaitAfterStop: CGFloat = 100
     
     private var currentX: CGFloat = 0
-    private var transmissionStartStartsAfterX: CGFloat = 0
+    private var nextTransmissionStartsAfterX: CGFloat = 0
     private var nextBitSetupStartsAfterX: CGFloat = 0
     private var nextBitClockHighStartsAfterX: CGFloat = 0
     private var nextBitClockHighEndsAfterX: CGFloat = 0
@@ -89,7 +89,7 @@ class I2CMasterController: I2CController {
             transmissionFSM.update(x: x, updatedBusFSM: busFSM,
                 onBitClocked: onBitClocked,
                 onStop: {
-                    transmissionStopEndsAtX = currentX + xWaitAfterStop
+                    
                 },
                 onDone: {
                     self.activeTransmission = nil
@@ -120,35 +120,31 @@ class I2CMasterController: I2CController {
 
                 self.pullingSDA = false
                 self.pullingSCL = false
+                
+                nextTransmissionStartsAfterX = currentX + xWaitBeforeStart
 
             case .waitingSDApull:
 
-                if let x = transmissionStopEndsAtX, currentX < x {
+                if currentX < nextTransmissionStartsAfterX {
                     return
                 }
-                if currentX < transmissionStartStartsAfterX {
-                    return
-                }
-                self.pullingSDA = true
                 
+                self.pullingSDA = true
                 nextBitSetupStartsAfterX = currentX + xWaitAfterStart
             }
 
         case .started:
 
-            nextBitSetupStartsAfterX = max(nextBitSetupStartsAfterX, currentX + xWaitAfterBitClockHigh)
-            
-            if currentX < nextBitSetupStartsAfterX {
-                return
-            }
-            
-            nextBitClockHighStartsAfterX = currentX + xWaitBeforeBitClockHigh
-
             switch transmissionFSM.bitFSM.currentState {
             case .setup:
+                
+                if currentX < nextBitSetupStartsAfterX {
+                    return
+                }
 
                 if busFSM.lineLevels.SCL == .high {
                     self.pullingSCL = true
+                    nextBitClockHighStartsAfterX = currentX + xWaitBeforeBitClockHigh
                     return
                 }
 
@@ -186,14 +182,22 @@ class I2CMasterController: I2CController {
                     if currentX < transmissionStopStartsAfterX {
                         return
                     }
+                    
                     self.pullingSDA = false
+                    
+                    transmissionStopEndsAtX = currentX + xWaitAfterStop
+                    nextTransmissionStartsAfterX = transmissionStopEndsAtX! + xWaitBeforeStart
 
                 } else {
 
                     if currentX < nextBitClockHighEndsAfterX {
                         return
                     }
+                    
                     self.pullingSCL = true
+                    
+                    nextBitSetupStartsAfterX = currentX + xWaitAfterBitClockHigh
+                    nextBitClockHighStartsAfterX = nextBitSetupStartsAfterX + xWaitBeforeBitClockHigh
                 }
             }
 
@@ -207,7 +211,7 @@ class I2CMasterController: I2CController {
         sendingStop = false
         prepareNextBit()
         
-        transmissionStartStartsAfterX = currentX + xWaitBeforeStart
+        nextTransmissionStartsAfterX = max(nextTransmissionStartsAfterX, currentX + xWaitBeforeStart)
     }
 
 

@@ -12,7 +12,7 @@ class I2CSlaveController: I2CController {
     private let maxWrites: Int?
     
     private let nextBytesForMasterRead: (() -> [UInt8])?
-    private let onTransmissionComplete: (([UInt8])->())?
+    private let onWriteSuccess: (([UInt8])->())?
     
     private var bytes: [UInt8] = [0x01, 0x02]
 
@@ -29,14 +29,14 @@ class I2CSlaveController: I2CController {
         acceptReads: Bool,
         maxWrites: Int? = nil,
         nextBytesForMasterRead: (() -> [UInt8])? = nil,
-        onTransmissionComplete: (([UInt8])->())? = nil
+        onWriteSuccess: (([UInt8])->())? = nil
     ) {
         self.address = address
         self.acceptWrites = acceptWrites
         self.acceptReads = acceptReads
         self.maxWrites = maxWrites
         self.nextBytesForMasterRead = nextBytesForMasterRead
-        self.onTransmissionComplete = onTransmissionComplete
+        self.onWriteSuccess = onWriteSuccess
     }
 
 
@@ -63,11 +63,11 @@ class I2CSlaveController: I2CController {
             onBitClocked: onBitClocked,
             onDone: { readBytes in
                 print("-- SLAVE TRANSMISSION DONE --")
-                let active = transmissionActive
+                let writeSuccess = transmissionActive && transmissionMode == .write
                 resetTransmission()
                 printState()
-                if active {
-                    onTransmissionComplete?(readBytes)
+                if writeSuccess {
+                    onWriteSuccess?(readBytes)
                 }
             },
             onAborted: {

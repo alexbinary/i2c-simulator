@@ -7,9 +7,20 @@ class EquipmentTestMaster1: Equipment {
     
     let master: I2CMasterController
     
+    let transmissions: [I2CTransmission] = [
+        
+        I2CTransmission(writeTo: 0x2b, bytes: [0x01, 0x02]),
+        
+        I2CTransmission(writeTo: 0x2a, bytes: [0x01, 0x02]),
+        I2CTransmission(readFrom: 0x2a, bytes: 2),
+        
+        I2CTransmission(writeTo: 0x61, bytes: [0x03, 0x04]),
+        I2CTransmission(readFrom: 0x61, bytes: 5),
+    ]
+    
     init() {
         self.master = I2CMasterController(
-            onReadComplete: { readBytes in
+            onReadSuccess: { readBytes in
                 print("-- EquipmentTestMaster1 READ DONE --")
                 print("read bytes: \(readBytes)")
             }

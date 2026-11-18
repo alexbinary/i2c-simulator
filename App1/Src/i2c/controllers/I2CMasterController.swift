@@ -14,19 +14,21 @@ struct ScheduledTransmission {
 class I2CMasterController: I2CController {
     
     
-    private let onReadComplete: (([UInt8])->())?
+    private let onReadSuccess: (([UInt8])->())?
     
     private var scheduledTransmissions: [ScheduledTransmission] = []
     private var activeTransmission: I2CTransmission? = nil
     private var addressAcked: Bool = false
 
     private var sendingStop = false
+    private var holdingBus = false
     private var writingBit = false
     private var nextBitToWrite: Bit = .zero
     
     private var transmissionFSM = I2CTransmissionFSM()
 
-    private let xWaitBeforeStart: CGFloat = 10
+    private let xWaitBeforeStartSCLRelease: CGFloat = 10
+    private let xWaitBeforeStartSDAPull: CGFloat = 10
     private let xWaitAfterStart: CGFloat = 10
 
     private let xWaitBeforeBitClockHigh: CGFloat = 10
@@ -37,7 +39,8 @@ class I2CMasterController: I2CController {
     private let xWaitAfterStop: CGFloat = 100
     
     private var currentX: CGFloat = 0
-    private var nextTransmissionStartsAfterX: CGFloat = 0
+    private var nextTransmissionStartReleasesSCLAfterX: CGFloat = 0
+    private var nextTransmissionStartPullsSDAAfterX: CGFloat = 0
     private var nextBitSetupStartsAfterX: CGFloat = 0
     private var nextBitClockHighStartsAfterX: CGFloat = 0
     private var nextBitClockHighEndsAfterX: CGFloat = 0
@@ -46,9 +49,9 @@ class I2CMasterController: I2CController {
     
     
     init(
-        onReadComplete: (([UInt8])->())?
+        onReadSuccess: (([UInt8])->())?
     ) {
-        self.onReadComplete = onReadComplete
+        self.onReadSuccess = onReadSuccess
     }
     
     
@@ -98,14 +101,7 @@ class I2CMasterController: I2CController {
 
             transmissionFSM.update(x: x, updatedBusFSM: busFSM,
                 onBitClocked: onBitClocked,
-                onDone: { readBytes in
-                    let readSuccess = self.activeTransmission!.mode == .read && addressAcked
-                    self.activeTransmission = nil
-                    printState()
-                    if readSuccess {
-                        onReadComplete?(readBytes)
-                    }
-                },
+                onDone: onDone,
                 onAborted: {
                     self.activeTransmission = nil
                     printState()
@@ -119,6 +115,18 @@ class I2CMasterController: I2CController {
             updateControls(for: transmissionFSM)
         }
     }
+    
+    
+    private func onDone(readBytes: [UInt8]) {
+        
+        let readSuccess = self.activeTransmission!.mode == .read && addressAcked
+        self.activeTransmission = nil
+        transmissionFSM.reset()
+        printState()
+        if readSuccess {
+            onReadSuccess?(readBytes)
+        }
+    }
 
 
     private func updateControls(for transmissionFSM: I2CTransmissionFSM) {
@@ -129,14 +137,25 @@ class I2CMasterController: I2CController {
             switch transmissionFSM.startFSM.currentState {
             case .waitingIdle:
 
-                self.pullingSDA = false
-                self.pullingSCL = false
+                if busFSM.lineLevels.SDA == .low {
+                    self.pullingSDA = false
+                    return
+                }
                 
-                nextTransmissionStartsAfterX = currentX + xWaitBeforeStart
+                if currentX < nextTransmissionStartReleasesSCLAfterX {
+                    return
+                }
+                
+                if busFSM.lineLevels.SCL == .low {
+                    self.pullingSCL = false
+                    return
+                }
+                
+                nextTransmissionStartPullsSDAAfterX = currentX + xWaitBeforeStartSDAPull
 
             case .waitingSDApull:
 
-                if currentX < nextTransmissionStartsAfterX {
+                if currentX < nextTransmissionStartPullsSDAAfterX {
                     return
                 }
                 
@@ -181,10 +200,14 @@ class I2CMasterController: I2CController {
                     return
                 }
                 
-                self.pullingSCL = false
-                
-                nextBitClockHighEndsAfterX = currentX + xWaitDuringBitClockHigh
-                transmissionStopStartsAfterX = currentX + xWaitBeforeStop
+                if holdingBus {
+                    onDone(readBytes: transmissionFSM.readBytes)
+                } else {
+                    self.pullingSCL = false
+                    
+                    nextBitClockHighEndsAfterX = currentX + xWaitDuringBitClockHigh
+                    transmissionStopStartsAfterX = currentX + xWaitBeforeStop
+                }
 
             case .clockHigh:
                 
@@ -197,7 +220,7 @@ class I2CMasterController: I2CController {
                     self.pullingSDA = false
                     
                     transmissionStopEndsAtX = currentX + xWaitAfterStop
-                    nextTransmissionStartsAfterX = transmissionStopEndsAtX! + xWaitBeforeStart
+                    nextTransmissionStartReleasesSCLAfterX = transmissionStopEndsAtX! + xWaitBeforeStartSCLRelease
 
                 } else {
 
@@ -220,16 +243,18 @@ class I2CMasterController: I2CController {
     private func initTransmissionState() {
 
         sendingStop = false
+        holdingBus = false
         addressAcked = false
         prepareNextBit()
         
-        nextTransmissionStartsAfterX = max(nextTransmissionStartsAfterX, currentX + xWaitBeforeStart)
+        nextTransmissionStartReleasesSCLAfterX = max(nextTransmissionStartReleasesSCLAfterX, currentX + xWaitBeforeStartSCLRelease)
     }
 
 
     private func onBitClocked(bit: Bit, transmittingAddress: Bool, transmittingAck: Bool, byteIndex: Int, byteBitIndex: Int, byteComplete: Bool, byte: UInt8?) {
 
         sendingStop = false
+        holdingBus = false
         
         if transmittingAck {
             
@@ -242,6 +267,7 @@ class I2CMasterController: I2CController {
 
             if !ack || byteIndex == (activeTransmission!.bytes.count-1) {
                 sendingStop = true
+                holdingBus = true
             }
         }
 

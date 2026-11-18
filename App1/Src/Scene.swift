@@ -40,11 +40,9 @@ class RenderScene {
         let slave1 = EquipmentTestSlave1()
         let slave2 = EquipmentTestSlave2()
         
-        let equipments = [master, slave1, slave2]
-        
-        for equipment in equipments {
-            bus.connect(equipment)
-        }
+        bus.connect(master)
+//        bus.connect(slave1)
+//        bus.connect(slave2)
         
         let perturbator = I2CPerturbatorController()
         bus.connect(perturbator)

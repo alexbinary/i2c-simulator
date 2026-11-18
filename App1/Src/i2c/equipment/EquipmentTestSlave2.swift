@@ -10,7 +10,7 @@ class EquipmentTestSlave2: Equipment {
     init() {
         self.slave = I2CSlaveController(
             address: 0x61,
-            acceptWrites: false,
+            acceptWrites: true,
             acceptReads: true,
             nextBytesForMasterRead: {
                 return []

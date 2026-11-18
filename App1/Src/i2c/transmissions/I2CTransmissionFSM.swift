@@ -35,8 +35,8 @@ class I2CTransmissionFSM {
     private(set) var lastReadBit: Bit? = nil
     private(set) var lastReadByte: UInt8? = nil
     
-    private var readBytes: [UInt8] = []
-    private var currentByteReadBits: [Bit] = []
+    private(set) var readBytes: [UInt8] = []
+    private(set) var currentByteReadBits: [Bit] = []
     
     private(set) var currentByteIndex: Int = 0
     var currentByteBitIndex: Int { currentByteReadBits.count }

@@ -49,7 +49,7 @@ class I2CStartFSM {
             switch currentState {
             case .waitingIdle:
 
-                if updatedBusFSM.currentState == .idle_HH {
+                if updatedBusFSM.currentState == .idle_HH || updatedBusFSM.currentState == .transmitting_HH {
                     nextState = .waitingSDApull
                 }
 
@@ -57,7 +57,7 @@ class I2CStartFSM {
 
                 if updatedBusFSM.currentState == .started_LH {
                     success()
-                } else if updatedBusFSM.currentState != .idle_HH {
+                } else if updatedBusFSM.currentState != .idle_HH && updatedBusFSM.currentState != .transmitting_HH{
                     error()
                 }
             }

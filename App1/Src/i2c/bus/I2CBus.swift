@@ -37,6 +37,12 @@ class I2CBus {
     }
     
     
+    func connect(_ equipment: Equipment) {
+        
+        controllers.append(equipment.i2cController)
+    }
+    
+    
     func advanceX(by step: CGFloat) {
         
         if (step < 0) { fatalError("X must always go forward") }

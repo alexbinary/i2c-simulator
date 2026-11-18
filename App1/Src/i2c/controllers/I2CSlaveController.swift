@@ -11,7 +11,10 @@ class I2CSlaveController: I2CController {
     let acceptReads: Bool
     let maxWrites: Int?
     
-    let bytes: [UInt8] = [0x11, 0x22]
+    let nextBytesForMasterRead: (() -> [UInt8])?
+    let onTransmissionComplete: (([UInt8])->())?
+    
+    private var bytes: [UInt8] = [0x01, 0x02]
 
     private var transmissionFSM = I2CTransmissionFSM()
     private var transmissionActive = false
@@ -24,12 +27,16 @@ class I2CSlaveController: I2CController {
         address: UInt8,
         acceptWrites: Bool,
         acceptReads: Bool,
-        maxWrites: Int? = nil
+        maxWrites: Int? = nil,
+        nextBytesForMasterRead: (() -> [UInt8])? = nil,
+        onTransmissionComplete: (([UInt8])->())? = nil
     ) {
         self.address = address
         self.acceptWrites = acceptWrites
         self.acceptReads = acceptReads
         self.maxWrites = maxWrites
+        self.nextBytesForMasterRead = nextBytesForMasterRead
+        self.onTransmissionComplete = onTransmissionComplete
     }
 
 
@@ -54,15 +61,14 @@ class I2CSlaveController: I2CController {
 
         transmissionFSM.update(x: x, updatedBusFSM: busFSM,
             onBitClocked: onBitClocked,
-            onStop: {
-                print("-- SLAVE TRANSMISSION STOP --")
-                resetTransmission()
-                printState()
-            },
-            onDone: {
+            onDone: { readBytes in
                 print("-- SLAVE TRANSMISSION DONE --")
+                let active = transmissionActive
                 resetTransmission()
                 printState()
+                if active {
+                    onTransmissionComplete?(readBytes)
+                }
             },
             onAborted: {
                 print("-- SLAVE TRANSMISSION ABORTED --")
@@ -103,21 +109,7 @@ class I2CSlaveController: I2CController {
             return
         }
         
-        var shouldPrepareNextBit = true
-        
-        if transmittingAck {
-            
-            let ackBit = bit
-            let ack = ackBit == .zero
-            if !ack {
-                
-                shouldPrepareNextBit = false
-            }
-        }
-
-        if shouldPrepareNextBit {
-            prepareNextBit()
-        }
+        prepareNextBit()
     }
 
 
@@ -157,6 +149,17 @@ class I2CSlaveController: I2CController {
     
     
     private var nextDataBitToWrite: Bit {
+        
+        if transmissionFSM.currentByteIndex < bytes.count {
+            
+            var nextBytes = nextBytesForMasterRead?() ?? []
+            if nextBytes.isEmpty {
+                nextBytes.append(0xFF)
+            }
+            for byte in nextBytes {
+                bytes.append(byte)
+            }
+        }
         
         let byte = bytes[transmissionFSM.currentByteIndex]
         return bit(fromByte: byte, atIndex: transmissionFSM.currentByteBitIndex)

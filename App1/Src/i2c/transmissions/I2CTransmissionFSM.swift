@@ -38,7 +38,7 @@ class I2CTransmissionFSM {
     private var readBytes: [UInt8] = []
     private var currentByteReadBits: [Bit] = []
     
-    var currentByteIndex: Int { readBytes.count }
+    private(set) var currentByteIndex: Int = 0
     var currentByteBitIndex: Int { currentByteReadBits.count }
     
     init() {
@@ -63,21 +63,24 @@ class I2CTransmissionFSM {
         
         readBytes = []
         currentByteReadBits = []
+        
+        currentByteIndex = 0
     }
 
 
     func update(x: CGFloat, updatedBusFSM: I2CBusFSM,
         onBitClocked: (Bit, Bool, Bool, Int, Int, Bool, UInt8?) -> (),
-        onStop: () -> (), onDone: () -> (), onAborted: () -> ()
+        onDone: ([UInt8]) -> (), onAborted: () -> ()
     ) {
         while true {
 
             var nextState = currentState
             var exit = false
 
-            func done() {
+            func stop() {
+                let bytes = readBytes
                 reset()
-                onDone()
+                onDone(bytes)
                 exit = true
             }
             
@@ -87,13 +90,6 @@ class I2CTransmissionFSM {
                 exit = true
             }
             
-            func stop() {
-                reset()
-                onStop()
-                onDone()
-                exit = true
-            }
-
             switch currentState {
             case .waitingStart:
 
@@ -166,7 +162,12 @@ class I2CTransmissionFSM {
         if transmittingAck {
 
             transmittingAck = false
-            transmittingAddress = false
+            
+            if transmittingAddress {
+                transmittingAddress = false
+            } else {
+                currentByteIndex += 1
+            }
 
         } else {
 

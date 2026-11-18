@@ -88,10 +88,7 @@ class I2CMasterController: I2CController {
 
             transmissionFSM.update(x: x, updatedBusFSM: busFSM,
                 onBitClocked: onBitClocked,
-                onStop: {
-                    
-                },
-                onDone: {
+                onDone: { _ in
                     self.activeTransmission = nil
                     printState()
                 },
@@ -268,7 +265,8 @@ class I2CMasterController: I2CController {
                     writingBit = false
                 case .read:
                     writingBit = true
-                    nextBitToWrite = transmissionFSM.currentByteIndex < activeTransmission!.numBytes ? .zero : .one
+                    let ack = transmissionFSM.currentByteIndex < activeTransmission!.numBytes-1
+                    nextBitToWrite = ack ? .zero : .one
                 }
             }
         }

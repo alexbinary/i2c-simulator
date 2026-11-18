@@ -16,6 +16,6 @@ class EquipmentTestMaster1: Equipment {
         master.scheduleTransmission(at: 1400, I2CTransmission(readFrom: 0x2a, bytes: 2))
         
         master.scheduleTransmission(at: 2000, I2CTransmission(writeTo: 0x61, bytes: [0x03, 0x04]))
-        master.scheduleTransmission(at: 2400, I2CTransmission(readFrom: 0x61, bytes: 2))
+        master.scheduleTransmission(at: 2400, I2CTransmission(readFrom: 0x61, bytes: 5))
     }
 }

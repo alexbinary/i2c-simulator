@@ -13,6 +13,7 @@ class I2CSlaveController: I2CController {
 
     private var transmissionFSM = I2CTransmissionFSM()
     private var transmissionActive = false
+    private var transmissionMode: ReadWrite = .write
 
     private var pullNextBit = false
 
@@ -123,6 +124,7 @@ class I2CSlaveController: I2CController {
                 
                 if addressMatch && acceptRW {
                     pullNextBit = true
+                    transmissionMode = rw
                 } else {
                     transmissionActive = false
                 }
@@ -131,11 +133,14 @@ class I2CSlaveController: I2CController {
         } else {
 
             if transmissionFSM.transmittingAck {
-
-                if maxWrites == nil || transmissionFSM.currentByteIndex < maxWrites! {
-                    pullNextBit = true
+                
+                if transmissionMode == .write {
+                    
+                    if maxWrites == nil || transmissionFSM.currentByteIndex < maxWrites! {
+                        pullNextBit = true
+                    }
                 }
-    
+
             } else {
 
                 // TODO send data

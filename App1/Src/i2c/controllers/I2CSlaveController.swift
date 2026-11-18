@@ -14,7 +14,6 @@ class I2CSlaveController: I2CController {
     private var transmissionFSM = I2CTransmissionFSM()
     private var transmissionActive = false
 
-    private var readBytes: [UInt8] = []
     private var pullNextBit = false
 
 
@@ -33,12 +32,12 @@ class I2CSlaveController: I2CController {
 
     private func printState() {
 
-        print("")
-        print("-- SLAVE \(address) UPDATED STATE --")
-        print("bus state: \(busFSM.currentState)")
-        print("transmission state: \(transmissionFSM.currentState)")
-        print("readBytes: \(readBytes)")
-        print("pullNextBit: \(pullNextBit)")
+//        print("")
+//        print("-- SLAVE \(address) UPDATED STATE --")
+//        print("bus state: \(busFSM.currentState)")
+//        print("transmission state: \(transmissionFSM.currentState)")
+//        print("readBytes: \(readBytes)")
+//        print("pullNextBit: \(pullNextBit)")
     }
 
 
@@ -69,13 +68,7 @@ class I2CSlaveController: I2CController {
             }
         )
         printState()
-
-        updateControls(for: transmissionFSM)
-    }
-
-
-    private func updateControls(for transmissionFSM: I2CTransmissionFSM) {
-
+        
         switch transmissionFSM.currentState {
         case .waitingStart:
             break
@@ -97,9 +90,6 @@ class I2CSlaveController: I2CController {
     private func resetTransmission() {
 
         transmissionActive = true
-        readBytes = []
-        pullNextBit = false
-
         prepareNextBit()
     }
 
@@ -108,10 +98,6 @@ class I2CSlaveController: I2CController {
 
         if !transmissionActive {
             return
-        }
-
-        if !transmittingAck, !transmittingAddress, byteComplete {
-            readBytes.append(byte!)
         }
 
         prepareNextBit()
@@ -146,13 +132,13 @@ class I2CSlaveController: I2CController {
 
             if transmissionFSM.transmittingAck {
 
-                if maxWrites == nil || readBytes.count < maxWrites! {
+                if maxWrites == nil || transmissionFSM.currentByteIndex < maxWrites! {
                     pullNextBit = true
                 }
     
             } else {
 
-                // TODO
+                // TODO send data
             }
         }
     }

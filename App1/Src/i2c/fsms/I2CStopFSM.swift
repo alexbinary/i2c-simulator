@@ -16,6 +16,16 @@ class I2CStopFSM {
     
     
     private(set) var currentState: I2CStopFSMState = .initialState
+    
+    
+    init() {
+        reset()
+    }
+    
+    
+    func reset() {
+        currentState = .initialState
+    }
 
 
     func update(x: CGFloat, updatedBusFSM: I2CBusFSM, onSuccess: () -> (), onError: () -> ()) {
@@ -23,15 +33,18 @@ class I2CStopFSM {
         while true {
 
             var nextState = currentState
+            var exit = false
 
             func success() {
+                reset()
                 onSuccess()
-                nextState = .initialState
+                exit = true
             }
             
             func error() {
+                reset()
                 onError()
-                nextState = .initialState
+                exit = true
             }
 
             switch currentState {
@@ -50,11 +63,11 @@ class I2CStopFSM {
                 }
             }
 
-            if nextState != currentState {
+            if nextState == currentState || exit {
+                break
+            } else {
                 currentState = nextState
                 continue
-            } else {
-                break
             }
         }
     }

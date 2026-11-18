@@ -16,9 +16,15 @@ class I2CStartFSM {
     
     private(set) var currentState: I2CStartFSMState = .initialState
     
-    private let xWaitBeforeStart: CGFloat = 30
-    private let xWaitAfterStart: CGFloat = 30
-    private var xRef: CGFloat?
+    
+    init() {
+        reset()
+    }
+    
+    
+    func reset() {
+        currentState = .initialState
+    }
 
 
     func update(x: CGFloat, updatedBusFSM: I2CBusFSM, onSuccess: () -> (), onError: () -> ()) {
@@ -26,15 +32,18 @@ class I2CStartFSM {
         while true {
 
             var nextState = currentState
+            var exit = false
 
             func success() {
+                reset()
                 onSuccess()
-                nextState = .initialState
+                exit = true
             }
             
             func error() {
+                reset()
                 onError()
-                nextState = .initialState
+                exit = true
             }
 
             switch currentState {
@@ -53,11 +62,11 @@ class I2CStartFSM {
                 }
             }
 
-            if nextState != currentState {
+            if nextState == currentState || exit {
+                break
+            } else {
                 currentState = nextState
                 continue
-            } else {
-                break
             }
         }
     }

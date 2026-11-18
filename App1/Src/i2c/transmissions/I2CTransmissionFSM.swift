@@ -32,16 +32,38 @@ class I2CTransmissionFSM {
     private(set) var transmittingAddress = false
     private(set) var transmittingAck = false
 
-    private var readBytes: [UInt8] = []
-
     private(set) var lastReadBit: Bit? = nil
     private(set) var lastReadByte: UInt8? = nil
     
+    private var readBytes: [UInt8] = []
     private var currentByteReadBits: [Bit] = []
     
     var currentByteIndex: Int { readBytes.count }
     var currentByteBitIndex: Int { currentByteReadBits.count }
-    var currentByteComplete: Bool { currentByteReadBits.count == 8 }
+    
+    init() {
+        reset()
+    }
+    
+    
+    func reset() {
+        
+        currentState = .initialState
+        result = .success
+        
+        startFSM.reset()
+        stopFSM.reset()
+        bitFSM.reset()
+        
+        transmittingAddress = true
+        transmittingAck = false
+        
+        lastReadBit = nil
+        lastReadByte = nil
+        
+        readBytes = []
+        currentByteReadBits = []
+    }
 
 
     func update(x: CGFloat, updatedBusFSM: I2CBusFSM,
@@ -51,17 +73,25 @@ class I2CTransmissionFSM {
         while true {
 
             var nextState = currentState
+            var exit = false
 
             func done() {
+                reset()
                 onDone()
-                nextState = .initialState
-                _resetMacroState()
+                exit = true
             }
             
             func abort() {
+                reset()
                 onAborted()
-                nextState = .initialState
-                _resetMacroState()
+                exit = true
+            }
+            
+            func stop() {
+                reset()
+                onStop()
+                onDone()
+                exit = true
             }
 
             switch currentState {
@@ -82,14 +112,16 @@ class I2CTransmissionFSM {
             
                 bitFSM.update(x: x, updatedBusFSM: updatedBusFSM,
                     onSuccess: {
+                        
                         let bit = bitFSM.readBit!
                         let transmittingAddress = transmittingAddress
                         let transmittingAck = transmittingAck
                         let byteIndex = currentByteIndex
                         let bitIndex = currentByteBitIndex
-                        let byteComplete = currentByteComplete
+                        let byteComplete = currentByteReadBits.count == 8
                         
                         _updateMacroState(bit)
+                    
                         onBitClocked(
                             bit,
                             transmittingAddress,
@@ -106,8 +138,7 @@ class I2CTransmissionFSM {
                 )
                 stopFSM.update(x: x, updatedBusFSM: updatedBusFSM,
                     onSuccess: {
-                        onStop()
-                        done()
+                        stop()
                     },
                     onError: {
                         stopError = true
@@ -119,24 +150,13 @@ class I2CTransmissionFSM {
                 }
             }
 
-            if nextState != currentState {
+            if nextState == currentState || exit {
+                break
+            } else {
                 currentState = nextState
                 continue
-            } else {
-                break
             }
         }
-    }
-
-
-    private func _resetMacroState() {
-
-        transmittingAddress = true
-        transmittingAck = false
-        
-        lastReadBit = nil
-        lastReadByte = nil
-        currentByteReadBits = []
     }
 
 

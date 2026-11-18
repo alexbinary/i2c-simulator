@@ -17,21 +17,35 @@ class I2CBitFSM {
     private(set) var currentState: I2CBitFSMState = .initialState
     private(set) var readBit: Bit!
     
+    
+    init() {
+        reset()
+    }
+    
+    
+    func reset() {
+        currentState = .initialState
+        readBit = nil
+    }
+    
 
     func update(x: CGFloat, updatedBusFSM: I2CBusFSM, onSuccess: () -> (), onError: () -> ()) {
 
         while true {
 
             var nextState = currentState
+            var exit = false
 
             func success() {
+                reset()
                 onSuccess()
-                nextState = .initialState
+                exit = true
             }
             
             func error() {
+                reset()
                 onError()
-                nextState = .initialState
+                exit = true
             }
 
             switch currentState {
@@ -54,11 +68,11 @@ class I2CBitFSM {
                 readBit = updatedBusFSM.lineLevels.SDA == .high ? .one : .zero
             }
 
-            if nextState != currentState {
+            if nextState == currentState || exit {
+                break
+            } else {
                 currentState = nextState
                 continue
-            } else {
-                break
             }
         }
     }

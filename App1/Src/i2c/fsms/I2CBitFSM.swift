@@ -29,51 +29,65 @@ class I2CBitFSM {
     }
     
 
-    func update(x: CGFloat, updatedBusFSM: I2CBusFSM, onSuccess: (Bit) -> (), onError: () -> ()) {
+    func update(
+        
+        afterLineChange changedLine: I2CBusLineEnum, updatedBusState: I2CBusFSMState, updatedLineLevels: (SDA: LineLevel, SCL: LineLevel),
+        onSuccess: (Bit) -> (), onError: () -> ()
+    
+    ) {
 
+        func success() {
+            let bit = readBit!
+            reset()
+            onSuccess(bit)
+        }
+        
+        func error() {
+            reset()
+            onError()
+        }
+
+        switch currentState {
+        case .setup:
+
+            if updatedBusState == .transmitting_LH || updatedBusState == .transmitting_HH {
+                currentState = .clockHigh
+            } else if updatedBusState != .started_LH && updatedBusState != .transmitting_HL && updatedBusState != .transmitting_LL {
+                error()
+            }
+
+        case .clockHigh:
+
+            if updatedBusState == .transmitting_LL || updatedBusState == .transmitting_HL {
+                success()
+            } else if updatedBusState != .transmitting_LH && updatedBusState != .transmitting_HH {
+                error()
+            }
+
+            readBit = updatedLineLevels.SDA == .high ? .one : .zero
+        }
+        
+        update_stabilize(onSuccess: onSuccess, onError: onError)
+    }
+    
+    
+    func update_stabilize(onSuccess: (Bit) -> (), onError: () -> ()) {
+        
         while true {
-
-            var nextState = currentState
-            var exit = false
-
-            func success() {
-                let bit = readBit!
-                reset()
-                onSuccess(bit)
-                exit = true
-            }
             
-            func error() {
-                reset()
-                onError()
-                exit = true
-            }
-
+            let stateBefore = currentState
+            
             switch currentState {
             case .setup:
-
-                if updatedBusFSM.currentState == .transmitting_LH || updatedBusFSM.currentState == .transmitting_HH {
-                    nextState = .clockHigh
-                } else if updatedBusFSM.currentState != .started_LH && updatedBusFSM.currentState != .transmitting_HL && updatedBusFSM.currentState != .transmitting_LL {
-                    error()
-                }
-
-            case .clockHigh:
-
-                if updatedBusFSM.currentState == .transmitting_LL || updatedBusFSM.currentState == .transmitting_HL {
-                    success()
-                } else if updatedBusFSM.currentState != .transmitting_LH && updatedBusFSM.currentState != .transmitting_HH {
-                    error()
-                }
-
-                readBit = updatedBusFSM.lineLevels.SDA == .high ? .one : .zero
-            }
-
-            if nextState == currentState || exit {
                 break
-            } else {
-                currentState = nextState
+            case .clockHigh:
+                break
+            }
+            
+            if currentState != stateBefore {
                 continue
+            } else {
+                break
             }
         }
     }

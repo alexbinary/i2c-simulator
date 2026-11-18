@@ -79,14 +79,27 @@ class I2CMasterController: I2CController {
     }
     
     
-    override func _updateBusControl(x: CGFloat) {
+    override func initState(x: CGFloat, levelSCL: LineLevel, levelSDA: LineLevel) {
+        
+        transmissionFSM.reset(levelSCL: levelSCL, levelSDA: levelSDA)
+        initTransmissionState()
+    }
+    
+    
+    override func updateBusControl(after event: I2CBusEvent) {
 
-        currentX = x
+        switch event {
+        case .timeStep(let step):
+            currentX += step
+        case .lineChange:
+            break
+        }
+        
         printState()
 
         if activeTransmission == nil {
 
-            if let entry = scheduledTransmissions.sorted(by: { a, b in a.x < b.x }).first, entry.x <= x {
+            if let entry = scheduledTransmissions.sorted(by: { a, b in a.x < b.x }).first, entry.x <= currentX {
 
                 scheduledTransmissions.removeAll(where: { $0.transmission.id == entry.transmission.id })
                 activeTransmission = entry.transmission
@@ -99,7 +112,7 @@ class I2CMasterController: I2CController {
 
         if activeTransmission != nil {
 
-            transmissionFSM.update(x: x, updatedBusFSM: busFSM,
+            transmissionFSM.update(after: event,
                 onBitClocked: onBitClocked,
                 onDone: onDone,
                 onAborted: {
@@ -121,7 +134,7 @@ class I2CMasterController: I2CController {
         
         let readSuccess = self.activeTransmission!.mode == .read && addressAcked
         self.activeTransmission = nil
-        transmissionFSM.reset()
+        transmissionFSM.reset(levelSCL: bus.lineSCL.currentLevel, levelSDA: bus.lineSDA.currentLevel)
         printState()
         if readSuccess {
             onReadSuccess?(readBytes)
@@ -131,13 +144,13 @@ class I2CMasterController: I2CController {
 
     private func updateControls(for transmissionFSM: I2CTransmissionFSM) {
 
-        switch transmissionFSM.currentState {
+        switch transmissionFSM.currentTransmissionState {
         case .waitingStart:
 
             switch transmissionFSM.startFSM.currentState {
             case .waitingIdle:
 
-                if busFSM.lineLevels.SDA == .low {
+                if bus.lineSDA.isLow {
                     self.pullingSDA = false
                     return
                 }
@@ -146,7 +159,7 @@ class I2CMasterController: I2CController {
                     return
                 }
                 
-                if busFSM.lineLevels.SCL == .low {
+                if bus.lineSCL.isLow {
                     self.pullingSCL = false
                     return
                 }
@@ -172,23 +185,23 @@ class I2CMasterController: I2CController {
                     return
                 }
 
-                if busFSM.lineLevels.SCL == .high {
+                if bus.lineSCL.isHigh {
                     self.pullingSCL = true
                     nextBitClockHighStartsAfterX = currentX + xWaitBeforeBitClockHigh
                     return
                 }
 
                 if sendingStop {
-                    if busFSM.lineLevels.SDA == .high {
+                    if bus.lineSDA.isHigh {
                         self.pullingSDA = true
                         return
                     }
                 } else if writingBit {
-                    if nextBitToWrite == .zero && busFSM.lineLevels.SDA == .high {
+                    if nextBitToWrite == .zero && bus.lineSDA.isHigh {
                         self.pullingSDA = true
                         return
                     }
-                    if nextBitToWrite == .one && busFSM.lineLevels.SDA == .low {
+                    if nextBitToWrite == .one && bus.lineSDA.isLow {
                         self.pullingSDA = false
                         return
                     }
@@ -267,7 +280,7 @@ class I2CMasterController: I2CController {
 
             if !ack || byteIndex == (activeTransmission!.bytes.count-1) {
                 sendingStop = true
-                holdingBus = true
+//                holdingBus = true
             }
         }
 

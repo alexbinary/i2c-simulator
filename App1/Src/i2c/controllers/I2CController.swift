@@ -27,36 +27,24 @@ class I2CController {
     
     let id = UUID()
 
-    var busFSM = I2CBusFSM()
+    var bus: I2CBus!
 
     var pullingSDA = false
     var pullingSCL = false
     
     
+    func connect(to bus: I2CBus) {
+        
+        self.bus = bus
+    }
+    
+    
     func initState(x: CGFloat, levelSCL: LineLevel, levelSDA: LineLevel) {
 
-        busFSM.reset(levelSCL: levelSCL, levelSDA: levelSDA)
-
-        _initState()
-    }
-
-
-    func _initState() {
-
     }
     
     
-    func updateBusControl(x: CGFloat, changedLine: I2CBusLineEnum?) {
+    func updateBusControl(after event: I2CBusEvent) {
         
-        if let line = changedLine {
-            busFSM.update(changedLine: line)
-        }
-
-        _updateBusControl(x: x)
-    }
-
-
-    func _updateBusControl(x: CGFloat) {
-           
     }
 }

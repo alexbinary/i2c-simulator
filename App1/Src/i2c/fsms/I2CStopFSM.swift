@@ -28,7 +28,7 @@ class I2CStopFSM {
     }
 
 
-    func update(x: CGFloat, updatedBusFSM: I2CBusFSM, onSuccess: () -> (), onError: () -> ()) {
+    func update(afterLineChange changedLine: I2CBusLineEnum, updatedBusState: I2CBusFSMState, onSuccess: () -> (), onError: () -> ()) {
 
         while true {
 
@@ -50,15 +50,15 @@ class I2CStopFSM {
             switch currentState {
             case .waitingConditions:
 
-                if updatedBusFSM.currentState == .started_LH || updatedBusFSM.currentState == .transmitting_LH {
+                if updatedBusState == .started_LH || updatedBusState == .transmitting_LH {
                     nextState = .releasingSDA
                 }
 
             case .releasingSDA:
 
-                if updatedBusFSM.currentState == .idle_HH {
+                if updatedBusState == .idle_HH {
                     success()
-                } else if updatedBusFSM.currentState != .started_LH && updatedBusFSM.currentState != .transmitting_LH {
+                } else if updatedBusState != .started_LH && updatedBusState != .transmitting_LH {
                     error()
                 }
             }

@@ -51,15 +51,16 @@ class I2CSlaveController: I2CController {
     }
 
 
-    override func _initState() {
+    override func initState(x: CGFloat, levelSCL: LineLevel, levelSDA: LineLevel) {
 
+        transmissionFSM.reset(levelSCL: levelSCL, levelSDA: levelSDA)
         resetTransmission()
     }
 
 
-    override func _updateBusControl(x: CGFloat) {
+    override func updateBusControl(after event: I2CBusEvent) {
 
-        transmissionFSM.update(x: x, updatedBusFSM: busFSM,
+        transmissionFSM.update(after: event,
             onBitClocked: onBitClocked,
             onDone: { readBytes in
                 print("-- SLAVE TRANSMISSION DONE --")
@@ -78,7 +79,7 @@ class I2CSlaveController: I2CController {
         )
         printState()
         
-        switch transmissionFSM.currentState {
+        switch transmissionFSM.currentTransmissionState {
         case .waitingStart:
             break
 

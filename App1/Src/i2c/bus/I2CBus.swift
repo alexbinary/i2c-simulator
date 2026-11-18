@@ -3,6 +3,13 @@ import SwiftUI
 
 
 
+enum I2CBusEvent {
+    
+    case timeStep(step: CGFloat)
+    case lineChange(line: I2CBusLineEnum)
+}
+
+
 class I2CBus {
     
     
@@ -34,12 +41,13 @@ class I2CBus {
     func connect(_ controller: I2CController) {
         
         controllers.append(controller)
+        controller.connect(to: self)
     }
     
     
     func connect(_ equipment: Equipment) {
         
-        controllers.append(equipment.i2cController)
+        connect(equipment.i2cController)
     }
     
     
@@ -69,20 +77,28 @@ class I2CBus {
 
         var changedLines: [I2CBusLineEnum] = []
         
+        var previousX = currentX
+        
         while currentX < endX {
 
-            let changedLineCalls: [I2CBusLineEnum?] = changedLines.count > 0 ? changedLines.shuffled() : [nil]
-            for changedLine in changedLineCalls {
+            let xStep = currentX - previousX
+            
+            let events: [I2CBusEvent] =
+            xStep > 0 ? [.timeStep(step: xStep)] : []
+            + changedLines.map { .lineChange(line: $0) }
+            
+            for event in events {
 
                 print("")
-                if let changedLine = changedLine {    
+                switch event {
+                case .lineChange(let changedLine):
                     print("-- TRANSITION: \(changedLine) \(line(changedLine).currentLevel) --")
-                } else {
-                    print("-- CLOCK TICK: \(currentX) --")
+                case .timeStep(let x):
+                    print("-- CLOCK TICK: \(x) --")
                 }
 
                 for controller in controllers {
-                    controller.updateBusControl(x: currentX, changedLine: changedLine)
+                    controller.updateBusControl(after: event)
                     if controller.pullingSDA {
                         lineSDA.addPuller(controller)
                     } else {
@@ -95,6 +111,8 @@ class I2CBus {
                     }
                 }
             }
+            
+            previousX = currentX
 
             advanceX(by: minimumComputeX)
             

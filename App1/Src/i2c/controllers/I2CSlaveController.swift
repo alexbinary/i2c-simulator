@@ -87,16 +87,11 @@ class I2CSlaveController: I2CController {
             case .waitingSDADrop:
                 break
                 
-            case .started:
+            case .bitClockLow:
+                self.pullingSDA = pullNextBit
                 
-                switch transmissionFSM.currentBitClockState {
-                case .low:
-                    
-                    self.pullingSDA = pullNextBit
-                    
-                case .high:
-                    break
-                }
+            case .bitClockHigh:
+                break
             }
             
         case .timeStep:

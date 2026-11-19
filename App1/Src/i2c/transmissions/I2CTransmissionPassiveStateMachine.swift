@@ -10,7 +10,8 @@ class I2CTransmissionPassiveStateMachine {
         
         case waitingIdle
         case waitingSDADrop
-        case started
+        case bitClockLow
+        case bitClockHigh
     }
     
     
@@ -26,7 +27,6 @@ class I2CTransmissionPassiveStateMachine {
     var currentMicroState: MicroState = .waitingIdle
     var currentMacroState: MacroState = .transmittingAddressByte
     
-    var currentBitClockState: I2CLineLevel = .low
     var stopPreConditionMet = false
     
     var currentLineLevels: I2CBusLineLevels = .init(SCL: .high, SDA: .high)
@@ -46,7 +46,6 @@ class I2CTransmissionPassiveStateMachine {
         currentMicroState = .waitingIdle
         currentMacroState = .transmittingAddressByte
         
-        currentBitClockState = .low
         stopPreConditionMet = false
         
         currentLineLevels = lineLevels
@@ -88,49 +87,37 @@ class I2CTransmissionPassiveStateMachine {
         case .waitingSDADrop:
             
             if currentLineLevels.match(SCL: .high, SDA: .low) {
-                currentMicroState = .started
+                currentMicroState = .bitClockLow
             } else {
                 currentMicroState = .waitingIdle
             }
             
-        case .started:
+        case .bitClockLow:
             
-            switch currentBitClockState {
-            case .low:
-                
-                if currentLineLevels.SCL == .high {
-                    currentBitClockState = .high
-                }
-                
-            case .high:
-                
-                if currentLineLevels.SCL == .high {
-                    lastReadBit = currentLineLevels.SDA.bit
-                } else {
-                    let bit = lastReadBit!
-                    let macroState = currentMacroState
-                    let byteIndex = currentByteIndex
-                    currentBitClockState = .low
-                    updateMacroState()
-                    onBitClocked(bit, macroState, byteIndex)
-                }
+            if currentLineLevels.SCL == .high {
+                currentMicroState = .bitClockHigh
             }
             
-            if !stopPreConditionMet {
+        case .bitClockHigh:
+            
+            if currentLineLevels.SCL == .low {
                 
-                if currentLineLevels.match(SCL: .high, SDA: .low) {
-                    stopPreConditionMet = true
-                }
+                let bit = lastReadBit!
+                let macroState = currentMacroState
+                let byteIndex = currentByteIndex
+                currentMicroState = .bitClockLow
+                updateMacroState()
+                onBitClocked(bit, macroState, byteIndex)
+            
+            } else if changedLine == .SDA && currentLineLevels.SDA == .high {
+                    
+                let bytes = readDataBytes
+                reset()
+                onDone(bytes)
                 
             } else {
                 
-                if currentLineLevels.match(SCL: .high, SDA: .high) {
-                    let bytes = readDataBytes
-                    reset()
-                    onDone(bytes)
-                } else {
-                    stopPreConditionMet = false
-                }
+                lastReadBit = currentLineLevels.SDA.bit
             }
         }
     }

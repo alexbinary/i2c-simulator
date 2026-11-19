@@ -176,79 +176,73 @@ class I2CMasterController: I2CController {
             self.pullingSDA = true
             nextBitSetupStartsAfterX = currentX + xWaitAfterStart
             
-        case .started:
+        case .bitClockLow:
             
-            switch transmissionFSM.currentBitClockState {
-            case .low:
-                
-                if currentX < nextBitSetupStartsAfterX {
-                    return
-                }
-                
-                if bus.lineSCL.isHigh {
-                    self.pullingSCL = true
-                    nextBitClockHighStartsAfterX = currentX + xWaitBeforeBitClockHigh
-                    return
-                }
-                
-                if sendingStop {
-                    if bus.lineSDA.isHigh {
-                        self.pullingSDA = true
-                        return
-                    }
-                } else if writingBit {
-                    if nextBitToWrite == .zero && bus.lineSDA.isHigh {
-                        self.pullingSDA = true
-                        return
-                    }
-                    if nextBitToWrite == .one && bus.lineSDA.isLow {
-                        self.pullingSDA = false
-                        return
-                    }
-                } else {
-                    self.pullingSDA = false
-                }
-                
-                if currentX < nextBitClockHighStartsAfterX {
-                    return
-                }
-                
-                if holdingBus {
-                    onTransmissionDone(readBytes: transmissionFSM.readDataBytes)
-                } else {
-                    self.pullingSCL = false
-                    
-                    nextBitClockHighEndsAfterX = currentX + xWaitDuringBitClockHigh
-                    transmissionStopStartsAfterX = currentX + xWaitBeforeStop
-                }
-                
-            case .high:
-                
-                if sendingStop {
-                    
-                    if currentX < transmissionStopStartsAfterX {
-                        return
-                    }
-                    
-                    self.pullingSDA = false
-                    
-                    transmissionStopEndsAtX = currentX + xWaitAfterStop
-                    nextTransmissionStartReleasesSCLAfterX = transmissionStopEndsAtX! + xWaitBeforeStartSCLRelease
-                    
-                } else {
-                    
-                    if currentX < nextBitClockHighEndsAfterX {
-                        return
-                    }
-                    
-                    self.pullingSCL = true
-                    
-                    nextBitSetupStartsAfterX = currentX + xWaitAfterBitClockHigh
-                    nextBitClockHighStartsAfterX = nextBitSetupStartsAfterX + xWaitBeforeBitClockHigh
-                }
+            if currentX < nextBitSetupStartsAfterX {
+                return
             }
             
-            return
+            if bus.lineSCL.isHigh {
+                self.pullingSCL = true
+                nextBitClockHighStartsAfterX = currentX + xWaitBeforeBitClockHigh
+                return
+            }
+            
+            if sendingStop {
+                if bus.lineSDA.isHigh {
+                    self.pullingSDA = true
+                    return
+                }
+            } else if writingBit {
+                if nextBitToWrite == .zero && bus.lineSDA.isHigh {
+                    self.pullingSDA = true
+                    return
+                }
+                if nextBitToWrite == .one && bus.lineSDA.isLow {
+                    self.pullingSDA = false
+                    return
+                }
+            } else {
+                self.pullingSDA = false
+            }
+            
+            if currentX < nextBitClockHighStartsAfterX {
+                return
+            }
+            
+            if holdingBus {
+                onTransmissionDone(readBytes: transmissionFSM.readDataBytes)
+            } else {
+                self.pullingSCL = false
+                
+                nextBitClockHighEndsAfterX = currentX + xWaitDuringBitClockHigh
+                transmissionStopStartsAfterX = currentX + xWaitBeforeStop
+            }
+            
+        case .bitClockHigh:
+            
+            if sendingStop {
+                
+                if currentX < transmissionStopStartsAfterX {
+                    return
+                }
+                
+                self.pullingSDA = false
+                
+                transmissionStopEndsAtX = currentX + xWaitAfterStop
+                nextTransmissionStartReleasesSCLAfterX = transmissionStopEndsAtX! + xWaitBeforeStartSCLRelease
+                
+            } else {
+                
+                if currentX < nextBitClockHighEndsAfterX {
+                    return
+                }
+                
+                self.pullingSCL = true
+                
+                nextBitSetupStartsAfterX = currentX + xWaitAfterBitClockHigh
+                nextBitClockHighStartsAfterX = nextBitSetupStartsAfterX + xWaitBeforeBitClockHigh
+            }
         }
     }
 

@@ -8,7 +8,7 @@ struct LineRenderParams {
     let yLow: CGFloat
     let yHigh: CGFloat
     
-    func y(for level: I2CLineLevel) -> CGFloat {
+    func y(for level: I2CBusLineLevel) -> CGFloat {
         switch level {
         case .high: return yHigh
         case .low: return yLow
@@ -17,19 +17,16 @@ struct LineRenderParams {
 }
 
 
-
 class RenderLine {
     
-    let sceneLine: RenderSceneLine
+    let sceneLine: I2CBusLine
     let slot: Int
     let color: Color
     let lineWidth: CGFloat
-    
-    var currentLevel: I2CLineLevel
     var path: Path
     
     init(
-        sceneLine: RenderSceneLine,
+        sceneLine: I2CBusLine,
         slot: Int,
         color: Color,
         lineWidth: CGFloat
@@ -38,8 +35,6 @@ class RenderLine {
         self.slot = slot
         self.color = color
         self.lineWidth = lineWidth
-        
-        self.currentLevel = sceneLine.initialLevel
         self.path = Path()
     }
 }
@@ -100,7 +95,7 @@ class Renderer {
     }
     
     
-    func move(_ line: RenderLine, toY y: CGFloat, at x: CGFloat) {
+    func set(_ line: RenderLine, toY y: CGFloat, at x: CGFloat) {
         
         let sx = toScreen(x)
         
@@ -112,19 +107,12 @@ class Renderer {
     }
     
     
-    func bring(_ line: RenderLine, to level: I2CLineLevel, at x: CGFloat) {
+    func set(_ line: RenderLine, to level: I2CBusLineLevel, at x: CGFloat) {
         
         let params = params(forLineSlot: line.slot)
         let y = params.y(for: level)
         
-        move(line, toY: y, at: x)
-        line.currentLevel = level
-    }
-    
-    
-    func transition(_ line: RenderLine, at x: CGFloat) {
-        
-        bring(line, to: line.currentLevel.opposite, at: x)
+        set(line, toY: y, at: x)
     }
     
     
@@ -132,9 +120,8 @@ class Renderer {
         
         let lineWidth: CGFloat = 2
         
-        let renderLineSCL = RenderLine(sceneLine: scene.lineSCL, slot: 0, color: .orange, lineWidth: lineWidth)
-        let renderLineSDA = RenderLine(sceneLine: scene.lineSDA, slot: 1, color: .white, lineWidth: lineWidth)
-        
+        let renderLineSCL = RenderLine(sceneLine: scene.bus.lineSCL, slot: 0, color: .orange, lineWidth: lineWidth)
+        let renderLineSDA = RenderLine(sceneLine: scene.bus.lineSDA, slot: 1, color: .white, lineWidth: lineWidth)
         let renderLines: [RenderLine] = [renderLineSCL, renderLineSDA]
         
         let screenMinX: CGFloat = 0
@@ -145,17 +132,23 @@ class Renderer {
         
         for line in renderLines {
             
-            var currentX = margin
-            
             let params = params(forLineSlot: line.slot)
-            line.path.move(to: CGPoint(x: toScreen(min(currentX, worldMinX)), y: params.y(for: line.currentLevel)))
             
-            for x in line.sceneLine.transitions {
-                self.transition(line, at: x)
+            let capturedLevelsSorted = line.sceneLine.capturedLevels.sorted(by: { $0.x < $1.x })
+            
+            var currentX: CGFloat = capturedLevelsSorted.first?.x ?? margin
+            var currentLineLevel: I2CBusLineLevel = capturedLevelsSorted.first?.level ?? .high
+            
+            line.path.move(to: CGPoint(x: toScreen(min(currentX, worldMinX)), y: params.y(for: currentLineLevel)))
+                
+            for (x, level) in capturedLevelsSorted {
                 currentX = x
+                line.path.addLine(to: CGPoint(x: toScreen(currentX), y: params.y(for: currentLineLevel)))
+                currentLineLevel = level
+                line.path.addLine(to: CGPoint(x: toScreen(currentX), y: params.y(for: currentLineLevel)))
             }
             
-            line.path.addLine(to: CGPoint(x: toScreen(max(currentX, worldMaxX)), y: params.y(for: line.currentLevel)))
+            line.path.addLine(to: CGPoint(x: toScreen(max(currentX, worldMaxX)), y: params.y(for: currentLineLevel)))
             context.stroke(line.path, with: .color(line.color), lineWidth: line.lineWidth)
         }
         

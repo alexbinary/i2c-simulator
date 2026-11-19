@@ -3,11 +3,11 @@ import SwiftUI
 
 
 
-enum I2CLineLevel {
+enum I2CBusLineLevel {
     
     case high, low
     
-    var opposite: I2CLineLevel {
+    var opposite: I2CBusLineLevel {
         switch self {
         case .high: return .low
         case .low: return .high
@@ -18,28 +18,6 @@ enum I2CLineLevel {
         switch self {
         case .high: return .one
         case .low: return .zero
-        }
-    }
-}
-
-
-struct I2CBusLineLevels: Equatable {
-    
-    let SCL: I2CLineLevel
-    let SDA: I2CLineLevel
-    
-    func match(SCL: I2CLineLevel, SDA: I2CLineLevel) -> Bool {
-        
-        return self.SCL == SCL && self.SDA == SDA
-    }
- 
-    func updated(afterLineChange changedLine: I2CBusLineEnum) -> I2CBusLineLevels {
-        
-        switch changedLine {
-        case .SCL:
-            return I2CBusLineLevels(SCL: SCL.opposite, SDA: SDA)
-        case .SDA:
-            return I2CBusLineLevels(SCL: SCL, SDA: SDA.opposite)
         }
     }
 }
@@ -81,7 +59,7 @@ enum Bit {
         self.init(value != 0)
     }
     
-    var lineLevel: I2CLineLevel {
+    var lineLevel: I2CBusLineLevel {
         switch self {
         case .zero: return .low
         case .one: return .high

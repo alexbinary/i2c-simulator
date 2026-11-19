@@ -3,25 +3,22 @@ import SwiftUI
 
 
 
-enum I2CBusLineEnum {
-
-    case SCL, SDA
-}
-
-
 class I2CBusLine {
     
-    let identity: I2CBusLineEnum
-    var currentLevel: I2CLineLevel = .high
+    enum Identity { case SCL, SDA }
+
+    let identity: Identity
+    var currentLevel: I2CBusLineLevel = .high
     
     var isLow: Bool { return currentLevel == .low }
     var isHigh: Bool { return currentLevel == .high }
     
     var pullers: Set<UUID> = []
-    var transitions: [CGFloat] = []
+    var capturedLevels: [(x: CGFloat, level :I2CBusLineLevel)] = []
 
 
-    init(_ identity: I2CBusLineEnum) {
+    init(_ identity: Identity) {
+        
         self.identity = identity
     }
 
@@ -30,44 +27,20 @@ class I2CBusLine {
 
         currentLevel = .high
         pullers = []
-        transitions = []
+        capturedLevels = []
     }
     
     
-    func addPuller(_ controller: I2CController) {
-
-        pullers.insert(controller.id)
-    }
-
-    
-    func removePuller(_ controller: I2CController) {
-
-        pullers.remove(controller.id)
-    }
-
-    
-    func removeAllPullers() {
-
-        pullers.removeAll()
-    }
-
-    
-    @discardableResult func updateLevel() -> Bool {
-
-        let updatedLevel: I2CLineLevel = pullers.count == 0 ? .high : .low
-        if updatedLevel != currentLevel {
-            
-            currentLevel = updatedLevel
-            return true
-        }
+    func setPullers(_ controllers: [I2CController]) {
         
-        return false
+        pullers = Set(controllers.map { $0.id })
+        
+        currentLevel = pullers.count == 0 ? .high : .low
     }
     
     
-    func registerTransition(at x: CGFloat) {
+    func captureLevel(at x: CGFloat) {
         
-        transitions.append(x)
-        transitions.sort()
+        capturedLevels.append((x: x, level: currentLevel))
     }
 }

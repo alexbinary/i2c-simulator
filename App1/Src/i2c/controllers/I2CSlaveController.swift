@@ -63,71 +63,64 @@ class I2CSlaveController: I2CController {
     }
 
 
-    override func updateBusControl(after event: I2CBusEvent) {
+    override func updateBusControl(x: CGFloat) {
 
-        switch event {
-        case .lineChange(let changedLine):
-            
-            passiveTransmissionMonitor.update(
-                afterLineChange: changedLine,
-                
-                onReadAddressByte: { addressByte in
-                    
-                    let address = (addressByte >> 1)
-                    let rwBit = Bit(addressByte & 1)
-                    let rw: ReadWrite = rwBit == .zero ? .write : .read
-                    
-                    let addressMatch = address == self.address
-                    let acceptRW = (rw == .write && acceptWrites || rw == .read && acceptReads)
-                    
-                    if addressMatch && acceptRW {
-                        transmissionMode = rw
-                    } else {
-                        currentTransmissionInterractionState = .ignored
-                    }
-                },
-                onReadAddressAck: { _ in
-                },
-                onReadDataByte: { _ in
-                },
-                onReadDataAck: { _ in
-                },
-                onReadBit: { bit in
-                    guard currentTransmissionInterractionState == .engaged else { return }
-                    prepareNextBit()
-                },
-                onDone: { readBytes in
-                    let writeSuccess = currentTransmissionInterractionState == .engaged && transmissionMode == .write
-                    resetTransmissionState()
-                    printState()
-                    if writeSuccess {
-                        onWriteSuccess?(readBytes)
-                    }
-                },
-                onAborted: {
-                    resetTransmissionState()
-                    printState()
-                }
-            )
-            printState()
-            
-//            switch passiveTransmissionMonitor.currentTransmissionState {
-//            case .waitingIdle:
-//                break
+//        passiveTransmissionMonitor.update(
+//            afterLineChange: changedLine,
+//            
+//            onReadAddressByte: { addressByte in
 //                
-//            case .waitingSDADrop:
-//                break
+//                let address = (addressByte >> 1)
+//                let rwBit = Bit(addressByte & 1)
+//                let rw: ReadWrite = rwBit == .zero ? .write : .read
 //                
-//            case .bitClockLow:
-//                self.pullingSDA = pullNextBit
+//                let addressMatch = address == self.address
+//                let acceptRW = (rw == .write && acceptWrites || rw == .read && acceptReads)
 //                
-//            case .bitClockHigh:
-//                break
+//                if addressMatch && acceptRW {
+//                    transmissionMode = rw
+//                } else {
+//                    currentTransmissionInterractionState = .ignored
+//                }
+//            },
+//            onReadAddressAck: { _ in
+//            },
+//            onReadDataByte: { _ in
+//            },
+//            onReadDataAck: { _ in
+//            },
+//            onReadBit: { bit in
+//                guard currentTransmissionInterractionState == .engaged else { return }
+//                prepareNextBit()
+//            },
+//            onDone: { readBytes in
+//                let writeSuccess = currentTransmissionInterractionState == .engaged && transmissionMode == .write
+//                resetTransmissionState()
+//                printState()
+//                if writeSuccess {
+//                    onWriteSuccess?(readBytes)
+//                }
+//            },
+//            onAborted: {
+//                resetTransmissionState()
+//                printState()
 //            }
-            
-        case .timeStep:
-            break
-        }
+//        )
+//        printState()
+        
+        //            switch passiveTransmissionMonitor.currentTransmissionState {
+        //            case .waitingIdle:
+        //                break
+        //
+        //            case .waitingSDADrop:
+        //                break
+        //
+        //            case .bitClockLow:
+        //                self.pullingSDA = pullNextBit
+        //
+        //            case .bitClockHigh:
+        //                break
+        //            }
     }
 
 

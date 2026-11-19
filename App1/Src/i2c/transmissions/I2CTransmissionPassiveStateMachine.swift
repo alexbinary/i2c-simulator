@@ -28,7 +28,7 @@ class I2CTransmissionPassiveStateMachine {
     var currentTransmissionState: State = .waitingStart
     var currentTransmissionStep: Step = .transmittingAddressByte
     
-    var currentLineLevels: I2CBusLineLevels = .init(SCL: .high, SDA: .high)
+    var currentLineLevels: (SCL: I2CBusLineLevel, SDA: I2CBusLineLevel) = (SCL: .high, SDA: .high)
     
     var lastReadBit: Bit? = nil
     var lastReadByte: UInt8? = nil
@@ -41,7 +41,7 @@ class I2CTransmissionPassiveStateMachine {
     var currentByteBitIndex: Int { currentByteReadBits.count }
     
     
-    func reset(lineLevels: I2CBusLineLevels) {
+    func reset(lineLevels: (SCL: I2CBusLineLevel, SDA: I2CBusLineLevel)) {
         
         currentTransmissionState = .waitingStart
         currentTransmissionStep = .transmittingAddressByte
@@ -67,7 +67,7 @@ class I2CTransmissionPassiveStateMachine {
     
     func update(
         
-        afterLineChange changedLine: I2CBusLineEnum,
+//        afterLineChange changedLine: I2CBusLineIdentity,
         
         onReadAddressByte: (Byte) -> (),
         onReadAddressAck: (Ack) -> (),
@@ -79,12 +79,14 @@ class I2CTransmissionPassiveStateMachine {
     
     ) {
         
-        currentLineLevels = currentLineLevels.updated(afterLineChange: changedLine)
+//        currentLineLevels = currentLineLevels.updated(afterLineChange: changedLine)
+        
+        let changedLine: I2CBusLine.Identity = .SDA
         
         switch currentTransmissionState {
         case .waitingStart:
             
-            if changedLine == .SDA && currentLineLevels.match(SCL: .high, SDA: .low) {
+            if changedLine == .SDA && currentLineLevels == (SCL: .high, SDA: .low) {
                 currentTransmissionState = .started
             }
             

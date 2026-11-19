@@ -3,79 +3,105 @@ import SwiftUI
 
 
 
-struct ScheduledTransmission {
-    
-    let transmission: I2CTransmission
-    let x: CGFloat
-}
-
-
-
 class I2CMasterController: I2CController {
     
-    
-    enum TransmissionDriveState {
+    enum TransmissionControlState {
         case start_waitingBeforeReleasingSDA
         case start_releasingSDA
         case start_waitingBeforeReleasingSCL
         case start_releasingSCL
-        case start_waitingBeforeSDADrop
-        case start_droppingSDA
-        case start_waitingAfterSDADrop
+        case start_waitingBeforePullingSDA
+        case start_pullingSDA
+        case start_waitingAfterPullingSDA
         case bitSetup_waitingBeforePullingSCL
         case bitSetup_pullingSCL
         case bitSetup_waitingBeforeAssertingSDA
         case bitSetup_assertingSDA
-        case bitSetup_waitingBeforeBitClock
+        case bitSetup_waitingBeforeReleasingSCL
         case bitSetup_releasingSCL
-        case bitClock_waitingDuringBitClock
+        case bitClock_waitingBeforePullingSCL
         case bitClock_pullingSCL
-        case bitClock_waitingAfterBitClock
+        case bitClock_waitingAfterPullingSCL
         case stop_waitingBeforeReleasingSCL
         case stop_releasingSCL
         case stop_waitingBeforeReleasingSDA
         case stop_releasingSDA
-        case stop_waitingAfterSDARelease
+        case stop_waitingAfterReleasingSDA
     }
     
+    enum TransmissionState {
+        case waitingStart
+        case started
+        case bitClockLow
+        case bitClockHigh
+    }
     
-    let onReadSuccess: (([UInt8])->())?
+    enum TransmissionStep {
+        case transmittingAddressByte
+        case transmittingAddressAck
+        case transmittingDataByte
+        case transmittingDataAck
+    }
     
-    var scheduledTransmissions: [ScheduledTransmission] = []
+    enum TransmissionResult {
+        case success(readBytes: [Byte])
+        case addressNack
+        case error
+    }
+    
+    var currentTransmissionControlState: TransmissionControlState = .start_waitingBeforeReleasingSDA
+    var currentTransmissionState: TransmissionState = .waitingStart
+    var currentTransmissionStep: TransmissionStep = .transmittingAddressByte
+    var currentTransmissionResult: TransmissionResult?
+    
+    var currentLineLevels: (SCL: I2CBusLineLevel, SDA: I2CBusLineLevel) = (SCL: .high, SDA: .high)
+
+    let xWaitBeforeStartSDARelease: CGFloat = 10
+    let xWaitBeforeStartSCLRelease: CGFloat = 10
+    let xWaitBeforeStartSDAPull: CGFloat = 10
+    let xWaitAfterStartSDAPull: CGFloat = 10
+    let xWaitBeforeBitSetupSCLPull: CGFloat = 10
+    let xWaitBeforeBitSetupSDAAssert: CGFloat = 10
+    let xWaitBeforeBitSetupSCLRelease: CGFloat = 10
+    let xWaitBeforeBitClockSCLPull: CGFloat = 10
+    let xWaitAfterBitClockSCLPull: CGFloat = 10
+    let xWaitBeforeStopSCLRelease: CGFloat = 10
+    let xWaitBeforeStopSDARelease: CGFloat = 10
+    let xWaitAfterStopSDARelease: CGFloat = 100
+    
+    var nextStartSDAReleaseMinX: CGFloat = 0
+    var nextStartSCLReleaseMinX: CGFloat = 0
+    var nextStartSDAPullMinX: CGFloat = 0
+    var nextStartEndMinX: CGFloat = 0
+    var nextBitSetupSCLPullMinX: CGFloat = 0
+    var nextBitSetupSDAAssertMinX: CGFloat = 0
+    var nextBitSetupSCLReleaseMinX: CGFloat = 0
+    var nextBitClockSCLPullMinX: CGFloat = 0
+    var nextBitClockEndMinX: CGFloat = 0
+    var nextStopSCLReleaseMinX: CGFloat = 0
+    var nextStopSDAReleaseMinX: CGFloat = 0
+    var nextStopEndMinX: CGFloat = 0
+    
+    var scheduledTransmissions: [(x: CGFloat, transmission: I2CTransmission)] = []
     var activeTransmission: I2CTransmission? = nil
     var addressAcked: Bool = false
-
+    
     var sendingStop = false
     var holdingBus = false
     var writingBit = false
     var nextBitToWrite: Bit?
     
-    var passiveTransmissionMonitor = I2CTransmissionPassiveStateMachine()
-    var currentTransmissionDriveState: TransmissionDriveState = .start_releasingSDA
-
-    let xWaitBeforeStartSDARelease: CGFloat = 10
-    let xWaitBeforeStartSCLRelease: CGFloat = 10
-    let xWaitBeforeStartSDAPull: CGFloat = 10
-    let xWaitAfterStart: CGFloat = 10
-    let xWaitBeforeBitClockHigh: CGFloat = 10
-    let xWaitDuringBitClockHigh: CGFloat = 10
-    let xWaitAfterBitClockHigh: CGFloat = 10
-    let xWaitBeforeStop: CGFloat = 10
-    let xWaitAfterStop: CGFloat = 100
+    var lastReadBit: Bit? = nil
+    var lastReadByte: UInt8? = nil
     
-    var currentX: CGFloat = 0
-    var nextTransmissionStartSDAReleaseMinX: CGFloat = 0
-    var nextTransmissionStartSCLReleaseMinX: CGFloat = 0
-    var nextTransmissionStartSDAPullMinX: CGFloat = 0
-    var nextTransmissionStartEndMinX: CGFloat = 0
-    var nextBitSetupSCLPullMinX: CGFloat = 0
-    var nextBitSetupSDAAssertMinX: CGFloat = 0
-    var nextBitClockSCLReleaseMinX: CGFloat = 0
-    var nextBitClockSCLPullMinX: CGFloat = 0
-    var nextBitClockEndMinX: CGFloat = 0
-    var nextTransmissionStopSCLReleaseMinX: CGFloat = 0
-    var nextTransmissionStopSDAReleaseMinX: CGFloat = 0
-    var nextTransmissionStopEndMinX: CGFloat = 0
+    var readAddressByte: UInt8? = nil
+    var readDataBytes: [UInt8] = []
+    var currentByteReadBits: [Bit] = []
+    
+    var currentByteIndex: Int = 0
+    var currentByteBitIndex: Int { currentByteReadBits.count }
+    
+    let onReadSuccess: (([UInt8])->())?
     
     
     init(onReadSuccess: (([UInt8])->())?) {
@@ -86,110 +112,98 @@ class I2CMasterController: I2CController {
     
     func scheduleTransmission(at x: CGFloat, _ transmission: I2CTransmission) {
         
-        self.scheduledTransmissions.append(ScheduledTransmission(transmission: transmission, x: x))
-    }
-
-
-    func printState() {
-
-//        print("")
-//        print("-- MASTER UPDATED STATE --")
-//        print("timer: \(xTimerCurrent)")
-//        print("bus state: \(busFSM.currentState)")
-//        print("activeTransmission: \(activeTransmission)")
-//        print("transmission state: \(transmissionFSM.currentState)")
-//        print("transmission result: \(transmissionFSM.result)")
-//        print("start state: \(transmissionFSM.startFSM.currentState)")
-//        print("stop state: \(transmissionFSM.stopFSM.currentState)")
-//        print("bit state: \(transmissionFSM.bitFSM.currentState)")
-//        print("sendingStop: \(sendingStop)")
-//        print("writingBit: \(writingBit)")
-//        print("nextBitToWrite: \(nextBitToWrite)")
+        self.scheduledTransmissions.append((x: x, transmission: transmission))
     }
     
     
     override func initState(x: CGFloat) {
-        
-        currentX = x
-        
-        resetTransmissionState()
+    
     }
     
     
-    override func updateBusControl(after event: I2CBusEvent) {
+    override func updateBusControl(x: CGFloat) {
 
-        switch event {
-        case .timeStep(let step):
+        if activeTransmission == nil {
             
-            currentX += step
-            
-            if activeTransmission == nil {
+            if let entry = scheduledTransmissions.sorted(by: { a, b in a.x < b.x }).first, entry.x <= x {
                 
-                if let entry = scheduledTransmissions.sorted(by: { a, b in a.x < b.x }).first, entry.x <= currentX {
-                    
-                    scheduledTransmissions.removeAll(where: { $0.transmission.id == entry.transmission.id })
-                    activeTransmission = entry.transmission
-                    
-                    resetTransmissionState()
-                    printState()
-                }
-            }
-            
-        case .lineChange(let changedLine):
-            
-            if activeTransmission != nil {
+                scheduledTransmissions.removeAll(where: { $0.transmission.id == entry.transmission.id })
+                activeTransmission = entry.transmission
                 
-                passiveTransmissionMonitor.update(
-                    afterLineChange: changedLine,
-                    onReadAddressByte: { _ in
-                    },
-                    onReadAddressAck: { ack in
-                        switch ack {
-                        case .ack:
-                            addressAcked = true
-                        case .nack:
-                            sendingStop = true
-                        }
-                    },
-                    onReadDataByte: { _ in
-                    },
-                    onReadDataAck: { ack in
-                        if ack == .nack {
-                            sendingStop = true
-                        }
-                    },
-                    onReadBit: { bit in
-                        prepareNextBit()
-                        if nextBitToWrite == nil {
-                            sendingStop = true
-                        }
-                    },
-                    onDone: { readBytes in
-                        let readSuccess = self.activeTransmission!.mode == .read && addressAcked
-                        clearActiveTransmission()
-                        printState()
-                        if readSuccess {
-                            onReadSuccess?(readBytes)
-                        }
-                    },
-                    onAborted: {
-                        clearActiveTransmission()
-                        printState()
-                    }
-                )
-                printState()
+                resetTransmissionState(x: x)
             }
-            
-            if activeTransmission != nil {
-                
-                updateDriveState()
-                updateControls()
-            }
-            
-            break
         }
         
-        printState()
+        if activeTransmission != nil {
+            
+            updateTransmissionDriveState(afterTimeChanged: x)
+            
+            let previousLineLevels = currentLineLevels
+            currentLineLevels = bus.currentLineLevels
+            
+            if currentLineLevels.SCL != previousLineLevels.SCL {
+                updateTransmissionDriveState(afterLineChanged: .SCL, at: x)
+                updateTransmissionState(afterLineChanged: .SCL)
+            }
+            if currentLineLevels.SDA != previousLineLevels.SDA {
+                updateTransmissionDriveState(afterLineChanged: .SDA, at: x)
+                updateTransmissionState(afterLineChanged: .SDA)
+            }
+            
+            if currentTransmissionState == .bitClockHigh {
+                lastReadBit = currentLineLevels.SDA.bit
+            }
+        
+            stabilizeTransmissionDriveState(x: x)
+            updateControls()
+        }
+    }
+    
+    
+    func onReadAddressByte(byte: Byte) {
+    }
+    
+    
+    func onReadAddressAck(ack: Ack) {
+        switch ack {
+        case .ack:
+            addressAcked = true
+        case .nack:
+            sendingStop = true
+        }
+    }
+    
+    
+    func onReadDataByte(byte: Byte) {
+    }
+    
+    
+    func onReadDataAck(ack: Ack) {
+        if ack == .nack {
+            sendingStop = true
+        }
+    }
+    
+    
+    func onReadBit(bit: Bit) {
+        prepareNextBit()
+        if nextBitToWrite == nil {
+            sendingStop = true
+        }
+    }
+    
+    
+    func onDone(readBytes: [Byte]) {
+        let readSuccess = self.activeTransmission!.mode == .read && addressAcked
+        clearActiveTransmission()
+        if readSuccess {
+            onReadSuccess?(readBytes)
+        }
+    }
+    
+
+    func onAborted() {
+        clearActiveTransmission()
     }
     
     
@@ -199,192 +213,129 @@ class I2CMasterController: I2CController {
     }
     
     
-    func resetTransmissionState() {
+    func resetTransmissionState(x: CGFloat) {
         
-        passiveTransmissionMonitor.reset(lineLevels: bus.currentLineLevels)
-        currentTransmissionDriveState = .start_releasingSDA
+        initTransmissionDriveState()
+        
+        currentTransmissionStep = .transmittingAddressByte
+        currentTransmissionResult = nil
         
         sendingStop = false
         holdingBus = false
-        addressAcked = false
         
-        nextTransmissionStartSDAReleaseMinX = currentX + xWaitBeforeStartSDARelease
+        nextStartSDAReleaseMinX = x + xWaitBeforeStartSDARelease
+        nextStartSCLReleaseMinX = x + xWaitBeforeStartSCLRelease
+        nextStartSDAPullMinX = x + xWaitBeforeStartSDAPull
         
         prepareNextBit()
     }
     
     
-    func updateDriveState() {
+    func transmissionError() {
         
-        switch currentTransmissionDriveState {
+        clearActiveTransmission()
+    }
+    
+    
+    func initTransmissionDriveState() {
         
+        switch bus.currentLineLevels {
+        case (SCL: .high, SDA: .high):
+            currentTransmissionControlState = .start_waitingBeforePullingSDA
+        case (SCL: .high, SDA: .low):
+            currentTransmissionControlState = .start_waitingBeforeReleasingSDA
+        case (SCL: .low, SDA: .high):
+            currentTransmissionControlState = .start_waitingBeforeReleasingSCL
+        case (SCL: .low, SDA: .low):
+            currentTransmissionControlState = .start_waitingBeforeReleasingSDA
+        }
+    }
+    
+    
+    func updateTransmissionDriveState(afterTimeChanged x: CGFloat) {
+        
+        switch currentTransmissionControlState {
+            
         case .start_waitingBeforeReleasingSDA:
             
-            if passiveTransmissionMonitor.currentTransmissionState != .waitingStart {
-                return
+            if x >= nextStartSDAReleaseMinX {
+                currentTransmissionControlState = .start_releasingSDA
             }
-            
-            if currentX < nextTransmissionStartSDAReleaseMinX {
-                return
-            }
-            
-            currentTransmissionDriveState = .start_releasingSDA
             
         case .start_releasingSDA:
-            
-            if bus.lineSDA.isLow {
-                return
-            }
-            
-            currentTransmissionDriveState = .start_waitingBeforeReleasingSCL
+            break
             
         case .start_waitingBeforeReleasingSCL:
             
-            if currentX < nextTransmissionStartSCLReleaseMinX {
-                return
+            if x >= nextStartSCLReleaseMinX {
+                currentTransmissionControlState = .start_releasingSCL
             }
-            
-            currentTransmissionDriveState = .start_releasingSCL
             
         case .start_releasingSCL:
+            break
             
-            if bus.lineSCL.isHigh {
-                return
+        case .start_waitingBeforePullingSDA:
+            
+            if x >= nextStartSDAPullMinX {
+                currentTransmissionControlState = .start_pullingSDA
             }
             
-            currentTransmissionDriveState = .start_waitingBeforeSDADrop
-            nextTransmissionStartSDAPullMinX = currentX + xWaitBeforeStartSDAPull
+        case .start_pullingSDA:
+            break
             
-        case .start_waitingBeforeSDADrop:
+        case .start_waitingAfterPullingSDA:
             
-            if currentX < nextTransmissionStartSDAPullMinX {
-                return
+            if x >= nextStartEndMinX {
+                currentTransmissionControlState = .bitSetup_waitingBeforePullingSCL
             }
-            
-            currentTransmissionDriveState = .start_droppingSDA
-            
-        case .start_droppingSDA:
-            
-            if bus.lineSDA.isHigh {
-                return
-            }
-            
-            currentTransmissionDriveState = .start_waitingAfterSDADrop
-//            nextBitSetupStartMinX = currentX + xWaitAfterStart
-            
-        case .start_waitingAfterSDADrop:
-            
-            if passiveTransmissionMonitor.currentTransmissionState != .started {
-                return
-            }
-            
-            if currentX < nextTransmissionStartEndMinX {
-                return
-            }
-            
-            currentTransmissionDriveState = .bitSetup_waitingBeforePullingSCL
             
         case .bitSetup_waitingBeforePullingSCL:
             
-            if currentX < nextBitSetupSCLPullMinX {
-                return
-            } else {
-                currentTransmissionDriveState = .bitSetup_pullingSCL
+            if x >= nextBitSetupSCLPullMinX {
+                currentTransmissionControlState = .bitSetup_pullingSCL
             }
             
         case .bitSetup_pullingSCL:
-            
-            if bus.lineSCL.isHigh {
-                self.pullingSCL = true
-            } else {
-                currentTransmissionDriveState = .bitSetup_assertingSDA
-//                nextBitClockStartMinX = currentX + xWaitBeforeBitClockHigh
-            }
+            break
             
         case .bitSetup_waitingBeforeAssertingSDA:
             
-            if currentX < nextBitSetupSDAAssertMinX {
-                return
-            } else {
-                currentTransmissionDriveState = .bitSetup_assertingSDA
+            if x >= nextBitSetupSDAAssertMinX {
+                currentTransmissionControlState = .bitSetup_assertingSDA
             }
             
         case .bitSetup_assertingSDA:
+            break
             
-            if sendingStop {
-                if bus.lineSDA.isHigh {
-                    self.pullingSDA = true
-                    return
-                }
-            } else if writingBit {
-                if nextBitToWrite == .zero && bus.lineSDA.isHigh {
-                    self.pullingSDA = true
-                    return
-                }
-                if nextBitToWrite == .one && bus.lineSDA.isLow {
-                    self.pullingSDA = false
-                    return
-                }
-            } else {
-                self.pullingSDA = false
-            }
+        case .bitSetup_waitingBeforeReleasingSCL:
             
-            currentTransmissionDriveState = .bitSetup_waitingBeforeBitClock
-            
-        case .bitSetup_waitingBeforeBitClock:
-            
-            if currentX < nextBitClockSCLReleaseMinX {
-                return
-            } else {
-                currentTransmissionDriveState = .bitSetup_releasingSCL
+            if x >= nextBitSetupSCLReleaseMinX {
+                currentTransmissionControlState = .bitSetup_releasingSCL
             }
             
         case .bitSetup_releasingSCL:
+            break
             
-            if bus.lineSCL.isLow {
-                self.pullingSCL = false
-            } else {
-                if sendingStop {
-                    currentTransmissionDriveState = .stop_waitingBeforeReleasingSDA
-                    nextTransmissionStopSCLReleaseMinX = currentX + xWaitBeforeStop
-                } else {
-                    currentTransmissionDriveState = .bitClock_waitingDuringBitClock
-                    nextBitClockEndMinX = currentX + xWaitDuringBitClockHigh
-                }
-            }
+        case .bitClock_waitingBeforePullingSCL:
             
-        case .bitClock_waitingDuringBitClock:
-            
-            if currentX < nextBitClockSCLPullMinX {
-                return
-            } else {
-                currentTransmissionDriveState = .bitClock_pullingSCL
+            if x >= nextBitClockSCLPullMinX {
+                currentTransmissionControlState = .bitClock_pullingSCL
             }
             
         case .bitClock_pullingSCL:
+            break
             
-            if bus.lineSCL.isHigh {
-                self.pullingSCL = true
-            } else {
-                currentTransmissionDriveState = .bitClock_waitingAfterBitClock
-//                nextBitSetupStartMinX = currentX + xWaitAfterBitClockHigh
-//                nextBitClockStartMinX = nextBitSetupStartMinX + xWaitBeforeBitClockHigh
-            }
+        case .bitClock_waitingAfterPullingSCL:
             
-        case .bitClock_waitingAfterBitClock:
-            
-            if currentX < nextBitClockEndMinX {
-                return
-            } else {
-                currentTransmissionDriveState = .bitSetup_waitingBeforeAssertingSDA
+            if x >= nextBitClockEndMinX {
+                currentTransmissionControlState = .bitSetup_waitingBeforeAssertingSDA
+                if writingBit
             }
             
         case .stop_waitingBeforeReleasingSCL:
             
-            if currentX < nextTransmissionStopSCLReleaseMinX {
-                return
-            } else {
-                currentTransmissionDriveState = .stop_releasingSCL
+            if x >= nextStopSCLReleaseMinX {
+                currentTransmissionControlState = .stop_releasingSCL
             }
             
         case .stop_releasingSCL:
@@ -392,28 +343,230 @@ class I2CMasterController: I2CController {
             
         case .stop_waitingBeforeReleasingSDA:
             
-            if currentX < nextTransmissionStopSDAReleaseMinX {
-                return
-            } else {
-                currentTransmissionDriveState = .stop_releasingSDA
+            if x >= nextStopSDAReleaseMinX {
+                currentTransmissionControlState = .stop_releasingSDA
             }
             
         case .stop_releasingSDA:
+            break
             
-            if bus.lineSDA.isHigh {
-                self.pullingSDA = false
+        case .stop_waitingAfterReleasingSDA:
+            
+            if x >= nextStopEndMinX {
+                initTransmissionDriveState()
+            }
+        }
+    }
+    
+    
+    func updateTransmissionDriveState(afterLineChanged changedLine: I2CBusLine.Identity, at x: CGFloat) {
+        
+        switch currentTransmissionControlState {
+        
+        case .start_waitingBeforeReleasingSDA:
+            transmissionError()
+            
+        case .start_releasingSDA:
+            
+            if changedLine == .SDA {
+                currentTransmissionControlState = .start_waitingBeforeReleasingSCL
+                nextStartSCLReleaseMinX = x + xWaitBeforeStartSCLRelease
             } else {
-                currentTransmissionDriveState = .stop_waitingAfterSDARelease
-                nextTransmissionStopEndMinX = currentX + xWaitAfterStop
-//                nextTransmissionStartSCLReleaseMinX = nextTransmissionStopEndMinX! + xWaitBeforeStartSCLRelease
+                transmissionError()
+            }
+        
+        case .start_waitingBeforeReleasingSCL:
+            transmissionError()
+            
+        case .start_releasingSCL:
+            
+            if changedLine == .SCL {
+                currentTransmissionControlState = .start_waitingBeforePullingSDA
+                nextStartSDAPullMinX = x + xWaitBeforeStartSDAPull
+            } else {
+                transmissionError()
             }
             
-        case .stop_waitingAfterSDARelease:
+        case .start_waitingBeforePullingSDA:
+            transmissionError()
             
-            if currentX < nextTransmissionStopEndMinX {
-                return
+        case .start_pullingSDA:
+            
+            if changedLine == .SDA {
+                currentTransmissionControlState = .start_waitingAfterPullingSDA
+                nextStartEndMinX = x + xWaitAfterStartSDAPull
+                nextBitSetupSCLPullMinX = x + xWaitBeforeBitSetupSCLPull
             } else {
-                currentTransmissionDriveState = .start_waitingBeforeReleasingSDA
+                transmissionError()
+            }
+            
+        case .start_waitingAfterPullingSDA:
+            transmissionError()
+            
+        case .bitSetup_waitingBeforePullingSCL:
+            transmissionError()
+            
+        case .bitSetup_pullingSCL:
+            
+            if changedLine == .SCL {
+                if writingBit {
+                    currentTransmissionControlState = .bitSetup_assertingSDA
+                    nextBitSetupSDAAssertMinX = x + xWaitBeforeBitSetupSDAAssert
+                } else {
+                    currentTransmissionControlState = .bitSetup_waitingBeforeReleasingSCL
+                    nextBitSetupSCLReleaseMinX = x + xWaitBeforeBitSetupSCLRelease
+                }
+            } else {
+                transmissionError()
+            }
+            
+        case .bitSetup_waitingBeforeAssertingSDA:
+            transmissionError()
+            
+        case .bitSetup_assertingSDA:
+            if changedLine == .SCL {
+                transmissionError()
+            }
+            
+        case .bitSetup_waitingBeforeReleasingSCL:
+            if changedLine == .SCL {
+                transmissionError()
+            }
+            
+        case .bitSetup_releasingSCL:
+            
+            if changedLine == .SCL {
+                currentTransmissionControlState = .bitClock_waitingBeforePullingSCL
+                nextBitClockSCLPullMinX = x + xWaitBeforeBitClockSCLPull
+            } else {
+                transmissionError()
+            }
+                
+        case .bitClock_waitingBeforePullingSCL:
+            if writingBit || changedLine == .SCL {
+                transmissionError()
+            }
+            
+        case .bitClock_pullingSCL:
+            
+            if changedLine == .SCL {
+                currentTransmissionControlState = .bitClock_waitingAfterPullingSCL
+                nextBitClockEndMinX = x + xWaitAfterBitClockSCLPull
+            } else {
+                transmissionError()
+            }
+            
+        case .bitClock_waitingAfterPullingSCL:
+            if writingBit || changedLine == .SCL {
+                transmissionError()
+            }
+            
+        case .stop_waitingBeforeReleasingSCL:
+            transmissionError()
+            
+        case .stop_releasingSCL:
+            
+            if changedLine == .SCL {
+                currentTransmissionControlState = .stop_waitingBeforeReleasingSDA
+                nextStopSDAReleaseMinX = x + xWaitBeforeStopSDARelease
+            }
+            
+        case .stop_waitingBeforeReleasingSDA:
+            break
+            
+        case .stop_releasingSDA:
+            
+            if changedLine == .SDA {
+                currentTransmissionControlState = .stop_waitingAfterReleasingSDA
+                nextStopEndMinX = x + xWaitAfterStopSDARelease
+            }
+            
+        case .stop_waitingAfterReleasingSDA:
+            break
+        }
+    }
+    
+    
+    func stabilizeTransmissionDriveState(x: CGFloat) {
+        
+        while true {
+            
+            let previousState = currentTransmissionControlState
+            
+            switch currentTransmissionControlState {
+                
+            case .start_waitingBeforeReleasingSDA:
+                break
+                
+            case .start_releasingSDA:
+                break
+                
+            case .start_waitingBeforeReleasingSCL:
+                break
+                
+            case .start_releasingSCL:
+                break
+                
+            case .start_waitingBeforePullingSDA:
+                break
+                
+            case .start_pullingSDA:
+                break
+                
+            case .start_waitingAfterPullingSDA:
+                break
+                
+            case .bitSetup_waitingBeforePullingSCL:
+                break
+                
+            case .bitSetup_pullingSCL:
+                break
+                
+            case .bitSetup_waitingBeforeAssertingSDA:
+                break
+                
+            case .bitSetup_assertingSDA:
+                
+                if (nextBitToWrite == .zero && bus.lineSDA.isLow) || (nextBitToWrite == .one && bus.lineSDA.isHigh) {
+                    currentTransmissionControlState = .bitSetup_waitingBeforeReleasingSCL
+                    nextBitSetupSCLReleaseMinX = x + xWaitBeforeBitSetupSCLRelease
+                }
+                
+            case .bitSetup_waitingBeforeReleasingSCL:
+                break
+                
+            case .bitSetup_releasingSCL:
+                break
+                
+            case .bitClock_waitingBeforePullingSCL:
+                break
+                
+            case .bitClock_pullingSCL:
+                break
+                
+            case .bitClock_waitingAfterPullingSCL:
+                break
+                
+            case .stop_waitingBeforeReleasingSCL:
+                break
+                
+            case .stop_releasingSCL:
+                break
+                
+            case .stop_waitingBeforeReleasingSDA:
+                break
+                
+            case .stop_releasingSDA:
+                break
+                
+            case .stop_waitingAfterReleasingSDA:
+                break
+            }
+            
+            if currentTransmissionControlState != previousState {
+                continue
+            } else {
+                break
             }
         }
     }
@@ -421,7 +574,7 @@ class I2CMasterController: I2CController {
     
     func updateControls() {
         
-        switch currentTransmissionDriveState {
+        switch currentTransmissionControlState {
             
         case .start_waitingBeforeReleasingSDA:
             break
@@ -435,13 +588,13 @@ class I2CMasterController: I2CController {
         case .start_releasingSCL:
             self.pullingSCL = false
             
-        case .start_waitingBeforeSDADrop:
+        case .start_waitingBeforePullingSDA:
             break
             
-        case .start_droppingSDA:
+        case .start_pullingSDA:
             self.pullingSDA = true
             
-        case .start_waitingAfterSDADrop:
+        case .start_waitingAfterPullingSDA:
             break
             
         case .bitSetup_waitingBeforePullingSCL:
@@ -456,19 +609,19 @@ class I2CMasterController: I2CController {
         case .bitSetup_assertingSDA:
             self.pullingSDA = (writingBit && nextBitToWrite == .zero)
             
-        case .bitSetup_waitingBeforeBitClock:
+        case .bitSetup_waitingBeforeReleasingSCL:
             break
             
         case .bitSetup_releasingSCL:
             self.pullingSCL = false
             
-        case .bitClock_waitingDuringBitClock:
+        case .bitClock_waitingBeforePullingSCL:
             break
             
         case .bitClock_pullingSCL:
             self.pullingSCL = true
             
-        case .bitClock_waitingAfterBitClock:
+        case .bitClock_waitingAfterPullingSCL:
             break
             
         case .stop_waitingBeforeReleasingSCL:
@@ -483,8 +636,91 @@ class I2CMasterController: I2CController {
         case .stop_releasingSDA:
             self.pullingSDA = false
             
-        case .stop_waitingAfterSDARelease:
+        case .stop_waitingAfterReleasingSDA:
             break
+        }
+    }
+    
+    
+    func updateTransmissionState(afterLineChanged changedLine: I2CBusLine.Identity) {
+        
+        switch currentTransmissionState {
+        case .waitingStart:
+            
+            if changedLine == .SDA && currentLineLevels == (SCL: .high, SDA: .low) {
+                currentTransmissionState = .started
+            }
+            
+        case .started:
+            
+            if changedLine == .SCL {
+                currentTransmissionState = .bitClockLow
+            }
+            
+        case .bitClockLow:
+            
+            if changedLine == .SCL {
+                currentTransmissionState = .bitClockHigh
+            }
+            
+        case .bitClockHigh:
+            
+            if changedLine == .SCL {
+                
+                let bit = lastReadBit!
+                currentTransmissionState = .bitClockLow
+                updateTransmissionStep()
+                onReadBit(bit: bit)
+                
+            } else if changedLine == .SDA && currentLineLevels.SDA == .high {
+                
+                let bytes = readDataBytes
+                onDone(readBytes: bytes)
+            }
+        }
+    }
+    
+    
+    private func updateTransmissionStep() {
+        
+        if currentTransmissionStep == .transmittingAddressAck || currentTransmissionStep == .transmittingDataAck {
+            
+            let ack = Ack(from: lastReadBit!)
+            let step = currentTransmissionStep
+            
+            currentTransmissionStep = .transmittingDataByte
+            
+            if step == .transmittingAddressAck {
+                onReadAddressAck(ack: ack)
+            }
+            
+            if step == .transmittingDataAck {
+                currentByteIndex += 1
+                onReadDataAck(ack: ack)
+            }
+        }
+        
+        if currentTransmissionStep == .transmittingAddressByte || currentTransmissionStep == .transmittingDataByte {
+            
+            currentByteReadBits.append(lastReadBit!)
+            if currentByteReadBits.count == 8 {
+                
+                let byte = Byte(from: currentByteReadBits)
+                currentByteReadBits = []
+                lastReadByte = byte
+                
+                if currentTransmissionStep == .transmittingAddressByte {
+                    readAddressByte = byte
+                    currentTransmissionStep = .transmittingAddressAck
+                    onReadAddressByte(byte: byte)
+                    
+                }
+                if currentTransmissionStep == .transmittingDataByte {
+                    readDataBytes.append(byte)
+                    currentTransmissionStep = .transmittingDataAck
+                    onReadDataByte(byte: byte)
+                }
+            }
         }
     }
 
@@ -493,7 +729,7 @@ class I2CMasterController: I2CController {
 
         writingBit = false
         
-        switch passiveTransmissionMonitor.currentTransmissionStep {
+        switch currentTransmissionStep {
         
         case .transmittingAddressByte:
             
@@ -514,7 +750,7 @@ class I2CMasterController: I2CController {
         
             if activeTransmission!.mode == .read {
                 writingBit = true
-                let ack = passiveTransmissionMonitor.currentByteIndex < activeTransmission!.numBytes-1
+                let ack = currentByteIndex < activeTransmission!.numBytes-1
                 nextBitToWrite = ack ? .zero : .one
             }
         }
@@ -524,16 +760,15 @@ class I2CMasterController: I2CController {
     var nextAddressBitToWrite: Bit {
 
         let byte = activeTransmission!.addressRW
-        return byte.bit(atIndex: passiveTransmissionMonitor.currentByteBitIndex)
+        return byte.bit(atIndex: currentByteBitIndex)
     }
 
 
     var nextDataBitToWrite: Bit? {
 
-        let byteIndex = passiveTransmissionMonitor.currentByteIndex
-        if byteIndex < activeTransmission!.bytes.count {
-            let byte = activeTransmission!.bytes[byteIndex]
-            return byte.bit(atIndex: passiveTransmissionMonitor.currentByteBitIndex)
+        if currentByteIndex < activeTransmission!.bytes.count {
+            let byte = activeTransmission!.bytes[currentByteIndex]
+            return byte.bit(atIndex: currentByteBitIndex)
         } else {
             return nil
         }

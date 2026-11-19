@@ -8,10 +8,11 @@ class I2CTransmissionPassiveStateMachine {
     
     enum State {
         
-        case waitingIdle
-        case waitingSDADrop
+        case waitingStart
+        case started
         case bitClockLow
         case bitClockHigh
+        case stopped
     }
     
     
@@ -24,7 +25,7 @@ class I2CTransmissionPassiveStateMachine {
     }
     
     
-    var currentTransmissionState: State = .waitingIdle
+    var currentTransmissionState: State = .waitingStart
     var currentTransmissionStep: Step = .transmittingAddressByte
     
     var currentLineLevels: I2CBusLineLevels = .init(SCL: .high, SDA: .high)
@@ -42,7 +43,7 @@ class I2CTransmissionPassiveStateMachine {
     
     func reset(lineLevels: I2CBusLineLevels) {
         
-        currentTransmissionState = .waitingIdle
+        currentTransmissionState = .waitingStart
         currentTransmissionStep = .transmittingAddressByte
         
         currentLineLevels = lineLevels
@@ -81,29 +82,27 @@ class I2CTransmissionPassiveStateMachine {
         currentLineLevels = currentLineLevels.updated(afterLineChange: changedLine)
         
         switch currentTransmissionState {
-        case .waitingIdle:
+        case .waitingStart:
             
-            if currentLineLevels.match(SCL: .high, SDA: .high) {
-                currentTransmissionState = .waitingSDADrop
+            if changedLine == .SDA && currentLineLevels.match(SCL: .high, SDA: .low) {
+                currentTransmissionState = .started
             }
             
-        case .waitingSDADrop:
+        case .started:
             
-            if currentLineLevels.match(SCL: .high, SDA: .low) {
+            if changedLine == .SCL {
                 currentTransmissionState = .bitClockLow
-            } else {
-                currentTransmissionState = .waitingIdle
             }
             
         case .bitClockLow:
             
-            if currentLineLevels.SCL == .high {
+            if changedLine == .SCL {
                 currentTransmissionState = .bitClockHigh
             }
             
         case .bitClockHigh:
             
-            if currentLineLevels.SCL == .low {
+            if changedLine == .SCL {
                 
                 let bit = lastReadBit!
                 currentTransmissionState = .bitClockLow
@@ -118,13 +117,16 @@ class I2CTransmissionPassiveStateMachine {
             } else if changedLine == .SDA && currentLineLevels.SDA == .high {
                     
                 let bytes = readDataBytes
-                reset()
+                currentTransmissionState = .stopped
                 onDone(bytes)
                 
             } else {
                 
                 lastReadBit = currentLineLevels.SDA.bit
             }
+            
+        case .stopped:
+            break
         }
     }
     

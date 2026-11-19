@@ -22,7 +22,7 @@ class I2CSlaveController: I2CController {
     
     var bytes: [UInt8] = [0x01, 0x02]
 
-    var transmissionMonitor = I2CTransmissionPassiveStateMachine()
+    var passiveTransmissionMonitor = I2CTransmissionPassiveStateMachine()
     var currentTransmissionInterractionState: TransmissionInterractionState = .engaged
     var transmissionMode: ReadWrite = .write
 
@@ -68,7 +68,7 @@ class I2CSlaveController: I2CController {
         switch event {
         case .lineChange(let changedLine):
             
-            transmissionMonitor.update(
+            passiveTransmissionMonitor.update(
                 afterLineChange: changedLine,
                 
                 onReadAddressByte: { addressByte in
@@ -111,19 +111,19 @@ class I2CSlaveController: I2CController {
             )
             printState()
             
-            switch transmissionMonitor.currentTransmissionState {
-            case .waitingIdle:
-                break
-                
-            case .waitingSDADrop:
-                break
-                
-            case .bitClockLow:
-                self.pullingSDA = pullNextBit
-                
-            case .bitClockHigh:
-                break
-            }
+//            switch passiveTransmissionMonitor.currentTransmissionState {
+//            case .waitingIdle:
+//                break
+//                
+//            case .waitingSDADrop:
+//                break
+//                
+//            case .bitClockLow:
+//                self.pullingSDA = pullNextBit
+//                
+//            case .bitClockHigh:
+//                break
+//            }
             
         case .timeStep:
             break
@@ -133,7 +133,7 @@ class I2CSlaveController: I2CController {
 
     func resetTransmissionState() {
 
-        transmissionMonitor.reset(lineLevels: bus.currentLineLevels)
+        passiveTransmissionMonitor.reset(lineLevels: bus.currentLineLevels)
         currentTransmissionInterractionState = .engaged
         
         prepareNextBit()
@@ -144,7 +144,7 @@ class I2CSlaveController: I2CController {
 
         pullNextBit = false
         
-        switch transmissionMonitor.currentTransmissionStep {
+        switch passiveTransmissionMonitor.currentTransmissionStep {
             
         case .transmittingAddressByte:
             break
@@ -159,7 +159,7 @@ class I2CSlaveController: I2CController {
             
         case .transmittingDataAck:
             if transmissionMode == .write {
-                let ack = Ack(ackIf: maxWrites == nil || transmissionMonitor.currentByteIndex < maxWrites!)
+                let ack = Ack(ackIf: maxWrites == nil || passiveTransmissionMonitor.currentByteIndex < maxWrites!)
                 pullNextBit = ack.bit == .zero
             }
         }
@@ -168,7 +168,7 @@ class I2CSlaveController: I2CController {
     
     var nextDataBitToWrite: Bit {
         
-        if transmissionMonitor.currentByteIndex < bytes.count {
+        if passiveTransmissionMonitor.currentByteIndex < bytes.count {
             
             var nextBytes = nextBytesForMasterRead?() ?? []
             if nextBytes.isEmpty {
@@ -179,7 +179,7 @@ class I2CSlaveController: I2CController {
             }
         }
         
-        let byte = bytes[transmissionMonitor.currentByteIndex]
-        return byte.bit(atIndex: transmissionMonitor.currentByteBitIndex)
+        let byte = bytes[passiveTransmissionMonitor.currentByteIndex]
+        return byte.bit(atIndex: passiveTransmissionMonitor.currentByteBitIndex)
     }
 }

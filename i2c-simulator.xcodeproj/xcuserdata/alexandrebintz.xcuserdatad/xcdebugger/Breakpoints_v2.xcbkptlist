@@ -142,10 +142,10 @@
             filePath = "App1/Src/i2c/controllers/I2CMasterController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "316"
-            endingLineNumber = "316"
-            landmarkName = "I2CMasterController"
-            landmarkType = "3">
+            startingLineNumber = "521"
+            endingLineNumber = "521"
+            landmarkName = "prepareNextBit()"
+            landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
    </Breakpoints>

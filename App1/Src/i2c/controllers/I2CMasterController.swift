@@ -149,41 +149,37 @@ class I2CMasterController: I2CController {
     func updateControls() {
         
         switch transmissionFSM.currentMicroState {
-        case .waitingStart:
+        case .waitingIdle:
             
-            switch transmissionFSM.startFSM.currentState {
-            case .waitingPreCondition:
-                
-                if bus.lineSDA.isLow {
-                    self.pullingSDA = false
-                    return
-                }
-                
-                if currentX < nextTransmissionStartReleasesSCLAfterX {
-                    return
-                }
-                
-                if bus.lineSCL.isLow {
-                    self.pullingSCL = false
-                    return
-                }
-                
-                nextTransmissionStartPullsSDAAfterX = currentX + xWaitBeforeStartSDAPull
-                
-            case .waitingSDADrop:
-                
-                if currentX < nextTransmissionStartPullsSDAAfterX {
-                    return
-                }
-                
-                self.pullingSDA = true
-                nextBitSetupStartsAfterX = currentX + xWaitAfterStart
+            if bus.lineSDA.isLow {
+                self.pullingSDA = false
+                return
             }
+            
+            if currentX < nextTransmissionStartReleasesSCLAfterX {
+                return
+            }
+            
+            if bus.lineSCL.isLow {
+                self.pullingSCL = false
+                return
+            }
+            
+            nextTransmissionStartPullsSDAAfterX = currentX + xWaitBeforeStartSDAPull
+            
+        case .waitingSDADrop:
+            
+            if currentX < nextTransmissionStartPullsSDAAfterX {
+                return
+            }
+            
+            self.pullingSDA = true
+            nextBitSetupStartsAfterX = currentX + xWaitAfterStart
             
         case .started:
             
-            switch transmissionFSM.bitFSM.currentState {
-            case .setup:
+            switch transmissionFSM.currentBitClockState {
+            case .low:
                 
                 if currentX < nextBitSetupStartsAfterX {
                     return
@@ -226,7 +222,7 @@ class I2CMasterController: I2CController {
                     transmissionStopStartsAfterX = currentX + xWaitBeforeStop
                 }
                 
-            case .clocking:
+            case .high:
                 
                 if sendingStop {
                     

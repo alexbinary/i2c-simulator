@@ -81,17 +81,20 @@ class I2CSlaveController: I2CController {
             printState()
             
             switch transmissionFSM.currentMicroState {
-            case .waitingStart:
+            case .waitingIdle:
+                break
+                
+            case .waitingSDADrop:
                 break
                 
             case .started:
                 
-                switch transmissionFSM.bitFSM.currentState {
-                case .setup:
+                switch transmissionFSM.currentBitClockState {
+                case .low:
                     
                     self.pullingSDA = pullNextBit
                     
-                case .clocking:
+                case .high:
                     break
                 }
             }

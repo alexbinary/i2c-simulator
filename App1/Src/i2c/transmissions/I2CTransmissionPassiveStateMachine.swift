@@ -8,7 +8,8 @@ class I2CTransmissionPassiveStateMachine {
     
     enum MicroState {
         
-        case waitingStart
+        case waitingIdle
+        case waitingSDADrop
         case started
     }
     
@@ -22,22 +23,13 @@ class I2CTransmissionPassiveStateMachine {
     }
     
     
-    enum Result {
-        
-        case success
-        case addressNack
-    }
-    
-    
-    var currentMicroState: MicroState = .waitingStart
+    var currentMicroState: MicroState = .waitingIdle
     var currentMacroState: MacroState = .transmittingAddressByte
-    var transmissionsResult: Result = .success
+    
+    var currentBitClockState: I2CLineLevel = .low
+    var stopPreConditionMet = false
     
     var currentLineLevels: I2CBusLineLevels = .init(SCL: .high, SDA: .high)
-
-    var startFSM = I2CStartFSM()
-    var stopFSM = I2CStopFSM()
-    var bitFSM = I2CBitFSM()
     
     var lastReadBit: Bit? = nil
     var lastReadByte: UInt8? = nil
@@ -51,15 +43,13 @@ class I2CTransmissionPassiveStateMachine {
     
     func reset(lineLevels: I2CBusLineLevels) {
         
-        currentMicroState = .waitingStart
+        currentMicroState = .waitingIdle
         currentMacroState = .transmittingAddressByte
-        transmissionsResult = .success
+        
+        currentBitClockState = .low
+        stopPreConditionMet = false
         
         currentLineLevels = lineLevels
-        
-        startFSM.reset(lineLevels: lineLevels)
-        stopFSM.reset(lineLevels: lineLevels)
-        bitFSM.reset(lineLevels: lineLevels)
         
         lastReadBit = nil
         lastReadByte = nil
@@ -89,43 +79,65 @@ class I2CTransmissionPassiveStateMachine {
         currentLineLevels = currentLineLevels.updated(afterLineChange: changedLine)
         
         switch currentMicroState {
-        case .waitingStart:
+        case .waitingIdle:
             
-            startFSM.update(
-                afterLineChange: changedLine,
-                onStart: {
-                    currentMicroState = .started
-                }
-            )
+            if currentLineLevels.match(SCL: .high, SDA: .high) {
+                currentMicroState = .waitingSDADrop
+            }
+            
+        case .waitingSDADrop:
+            
+            if currentLineLevels.match(SCL: .high, SDA: .low) {
+                currentMicroState = .started
+            } else {
+                currentMicroState = .waitingIdle
+            }
             
         case .started:
             
-            bitFSM.update(
-                afterLineChange: changedLine,
-                onBitClocked: { bit in
+            switch currentBitClockState {
+            case .low:
+                
+                if currentLineLevels.SCL == .high {
+                    currentBitClockState = .high
+                }
+                
+            case .high:
+                
+                if currentLineLevels.SCL == .high {
+                    lastReadBit = currentLineLevels.SDA.bit
+                } else {
+                    let bit = lastReadBit!
                     let macroState = currentMacroState
                     let byteIndex = currentByteIndex
-                    updateMacroState(bit)
+                    currentBitClockState = .low
+                    updateMacroState()
                     onBitClocked(bit, macroState, byteIndex)
                 }
-            )
+            }
             
-            stopFSM.update(
-                afterLineChange: changedLine,
-                onStop: {
+            if !stopPreConditionMet {
+                
+                if currentLineLevels.match(SCL: .high, SDA: .low) {
+                    stopPreConditionMet = true
+                }
+                
+            } else {
+                
+                if currentLineLevels.match(SCL: .high, SDA: .high) {
                     let bytes = readDataBytes
                     reset()
                     onDone(bytes)
+                } else {
+                    stopPreConditionMet = false
                 }
-            )
+            }
         }
     }
     
     
-    private func updateMacroState(_ bit: Bit) {
+    private func updateMacroState() {
 
-        lastReadBit = bit
-        
         if currentMacroState == .transmittingAddressAck || currentMacroState == .transmittingDataAck {
             currentMacroState = .transmittingDataByte
             
@@ -136,7 +148,7 @@ class I2CTransmissionPassiveStateMachine {
         
         if currentMacroState == .transmittingAddressByte || currentMacroState == .transmittingDataByte {
 
-            currentByteReadBits.append(bit)
+            currentByteReadBits.append(lastReadBit!)
             if currentByteReadBits.count == 8 {
              
                 let byte = Byte(from: currentByteReadBits)

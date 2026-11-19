@@ -34,6 +34,7 @@ class I2CTransmissionPassiveStateMachine {
     var lastReadBit: Bit? = nil
     var lastReadByte: UInt8? = nil
     
+    var readAddressByte: UInt8? = nil
     var readDataBytes: [UInt8] = []
     var currentByteReadBits: [Bit] = []
     
@@ -53,6 +54,7 @@ class I2CTransmissionPassiveStateMachine {
         lastReadBit = nil
         lastReadByte = nil
         
+        readAddressByte = nil
         readDataBytes = []
         currentByteReadBits = []
         
@@ -70,8 +72,13 @@ class I2CTransmissionPassiveStateMachine {
         
         afterLineChange changedLine: I2CBusLineEnum,
         
-        onBitClocked: (Bit, MacroState, Int) -> (),
-        onDone: ([UInt8]) -> (), onAborted: () -> ()
+        onReadAddressByte: (Byte) -> (),
+        onReadAddressAck: (Ack) -> (),
+        onReadDataByte: (Byte) -> (),
+        onReadDataAck: (Ack) -> (),
+        onReadBit: (Bit) -> (),
+        onDone: ([UInt8]) -> (),
+        onAborted: () -> ()
     
     ) {
         
@@ -103,11 +110,14 @@ class I2CTransmissionPassiveStateMachine {
             if currentLineLevels.SCL == .low {
                 
                 let bit = lastReadBit!
-                let macroState = currentMacroState
-                let byteIndex = currentByteIndex
                 currentMicroState = .bitClockLow
-                updateMacroState()
-                onBitClocked(bit, macroState, byteIndex)
+                updateMacroState(
+                    onReadAddressByte: onReadAddressByte,
+                    onReadAddressAck: onReadAddressAck,
+                    onReadDataByte: onReadDataByte,
+                    onReadDataAck: onReadDataAck
+                )
+                onReadBit(bit)
             
             } else if changedLine == .SDA && currentLineLevels.SDA == .high {
                     
@@ -123,13 +133,29 @@ class I2CTransmissionPassiveStateMachine {
     }
     
     
-    private func updateMacroState() {
+    private func updateMacroState(
+        
+        onReadAddressByte: (Byte) -> (),
+        onReadAddressAck: (Ack) -> (),
+        onReadDataByte: (Byte) -> (),
+        onReadDataAck: (Ack) -> (),
+        
+    ) {
 
         if currentMacroState == .transmittingAddressAck || currentMacroState == .transmittingDataAck {
+            
+            let ack = Ack(from: lastReadBit!)
+            let state = currentMacroState
+            
             currentMacroState = .transmittingDataByte
+            
+            if currentMacroState == .transmittingAddressAck {
+                onReadAddressAck(ack)
+            }
             
             if currentMacroState == .transmittingDataAck {
                 currentByteIndex += 1
+                onReadDataAck(ack)
             }
         }
         
@@ -143,11 +169,15 @@ class I2CTransmissionPassiveStateMachine {
                 lastReadByte = byte
 
                 if currentMacroState == .transmittingAddressByte {
+                    readAddressByte = byte
                     currentMacroState = .transmittingAddressAck
+                    onReadAddressByte(byte)
+                    
                 }
                 if currentMacroState == .transmittingDataByte {
                     readDataBytes.append(byte)
                     currentMacroState = .transmittingDataAck
+                    onReadDataByte(byte)
                 }
             }
         }

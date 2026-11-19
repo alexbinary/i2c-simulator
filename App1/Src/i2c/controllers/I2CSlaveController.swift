@@ -6,6 +6,12 @@ import SwiftUI
 class I2CSlaveController: I2CController {
     
     
+    enum TransmissionInterractionState {
+        case engaged
+        case ignored
+    }
+    
+    
     let address: UInt8
     let acceptWrites: Bool
     let acceptReads: Bool
@@ -16,8 +22,8 @@ class I2CSlaveController: I2CController {
     
     var bytes: [UInt8] = [0x01, 0x02]
 
-    var transmissionFSM = I2CTransmissionPassiveStateMachine()
-    var transmissionIsAddressedToSelf = true
+    var transmissionMonitor = I2CTransmissionPassiveStateMachine()
+    var currentTransmissionInterractionState: TransmissionInterractionState = .engaged
     var transmissionMode: ReadWrite = .write
 
     private var pullNextBit = false
@@ -62,11 +68,36 @@ class I2CSlaveController: I2CController {
         switch event {
         case .lineChange(let changedLine):
             
-            transmissionFSM.update(
+            transmissionMonitor.update(
                 afterLineChange: changedLine,
-                onBitClocked: onBitClocked,
+                
+                onReadAddressByte: { addressByte in
+                    
+                    let address = (addressByte >> 1)
+                    let rwBit = Bit(addressByte & 1)
+                    let rw: ReadWrite = rwBit == .zero ? .write : .read
+                    
+                    let addressMatch = address == self.address
+                    let acceptRW = (rw == .write && acceptWrites || rw == .read && acceptReads)
+                    
+                    if addressMatch && acceptRW {
+                        transmissionMode = rw
+                    } else {
+                        currentTransmissionInterractionState = .ignored
+                    }
+                },
+                onReadAddressAck: { _ in
+                },
+                onReadDataByte: { _ in
+                },
+                onReadDataAck: { _ in
+                },
+                onReadBit: { bit in
+                    guard currentTransmissionInterractionState == .engaged else { return }
+                    prepareNextBit()
+                },
                 onDone: { readBytes in
-                    let writeSuccess = transmissionIsAddressedToSelf && transmissionMode == .write
+                    let writeSuccess = currentTransmissionInterractionState == .engaged && transmissionMode == .write
                     resetTransmissionState()
                     printState()
                     if writeSuccess {
@@ -80,7 +111,7 @@ class I2CSlaveController: I2CController {
             )
             printState()
             
-            switch transmissionFSM.currentMicroState {
+            switch transmissionMonitor.currentMicroState {
             case .waitingIdle:
                 break
                 
@@ -102,17 +133,10 @@ class I2CSlaveController: I2CController {
 
     func resetTransmissionState() {
 
-        transmissionFSM.reset(lineLevels: bus.currentLineLevels)
-        transmissionIsAddressedToSelf = true
+        transmissionMonitor.reset(lineLevels: bus.currentLineLevels)
+        currentTransmissionInterractionState = .engaged
+        
         prepareNextBit()
-    }
-
-
-    func onBitClocked(bit: Bit, transmissionMacroState: I2CTransmissionPassiveStateMachine.MacroState, byteIndex: Int) {
-
-        if transmissionIsAddressedToSelf {
-            prepareNextBit()
-        }
     }
 
 
@@ -120,40 +144,23 @@ class I2CSlaveController: I2CController {
 
         pullNextBit = false
         
-        switch transmissionFSM.currentMacroState {
+        switch transmissionMonitor.currentMacroState {
             
         case .transmittingAddressByte:
             break
             
         case .transmittingAddressAck:
-            
-            let addressByte = transmissionFSM.lastReadByte!
-            
-            let address = (addressByte >> 1)
-            let rwBit = Bit(addressByte & 1)
-            let rw: ReadWrite = rwBit == .zero ? .write : .read
-            
-            let addressMatch = address == self.address
-            let acceptRW = (rw == .write && acceptWrites || rw == .read && acceptReads)
-            
-            if addressMatch && acceptRW {
-                pullNextBit = true
-                transmissionMode = rw
-            } else {
-                transmissionIsAddressedToSelf = false
-            }
-            
+            pullNextBit = true
             
         case .transmittingDataByte:
-            
             if transmissionMode == .read {
                 pullNextBit = nextDataBitToWrite == .zero
             }
             
         case .transmittingDataAck:
-            
             if transmissionMode == .write {
-                pullNextBit = maxWrites == nil || transmissionFSM.currentByteIndex < maxWrites!
+                let ack = Ack(ackIf: maxWrites == nil || transmissionMonitor.currentByteIndex < maxWrites!)
+                pullNextBit = ack.bit == .zero
             }
         }
     }
@@ -161,7 +168,7 @@ class I2CSlaveController: I2CController {
     
     var nextDataBitToWrite: Bit {
         
-        if transmissionFSM.currentByteIndex < bytes.count {
+        if transmissionMonitor.currentByteIndex < bytes.count {
             
             var nextBytes = nextBytesForMasterRead?() ?? []
             if nextBytes.isEmpty {
@@ -172,7 +179,7 @@ class I2CSlaveController: I2CController {
             }
         }
         
-        let byte = bytes[transmissionFSM.currentByteIndex]
-        return byte.bit(atIndex: transmissionFSM.currentByteBitIndex)
+        let byte = bytes[transmissionMonitor.currentByteIndex]
+        return byte.bit(atIndex: transmissionMonitor.currentByteBitIndex)
     }
 }

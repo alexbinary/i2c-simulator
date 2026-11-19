@@ -23,7 +23,7 @@ class I2CMasterController: I2CController {
     var sendingStop = false
     var holdingBus = false
     var writingBit = false
-    var nextBitToWrite: Bit = .zero
+    var nextBitToWrite: Bit?
     
     var transmissionFSM = I2CTransmissionPassiveStateMachine()
 
@@ -112,8 +112,37 @@ class I2CMasterController: I2CController {
                 
                 transmissionFSM.update(
                     afterLineChange: changedLine,
-                    onBitClocked: onBitClocked,
-                    onDone: onTransmissionDone,
+                    onReadAddressByte: { _ in
+                    },
+                    onReadAddressAck: { ack in
+                        switch ack {
+                        case .ack:
+                            addressAcked = true
+                        case .nack:
+                            sendingStop = true
+                        }
+                    },
+                    onReadDataByte: { _ in
+                    },
+                    onReadDataAck: { ack in
+                        if ack == .nack {
+                            sendingStop = true
+                        }
+                    },
+                    onReadBit: { bit in
+                        prepareNextBit()
+                        if nextBitToWrite == nil {
+                            sendingStop = true
+                        }
+                    },
+                    onDone: { readBytes in
+                        let readSuccess = self.activeTransmission!.mode == .read && addressAcked
+                        clearActiveTransmission()
+                        printState()
+                        if readSuccess {
+                            onReadSuccess?(readBytes)
+                        }
+                    },
                     onAborted: {
                         self.activeTransmission = nil
                         printState()
@@ -130,19 +159,6 @@ class I2CMasterController: I2CController {
         }
         
         printState()
-    }
-    
-    
-    func onTransmissionDone(readBytes: [UInt8]) {
-        
-        let readSuccess = self.activeTransmission!.mode == .read && addressAcked
-        
-        clearActiveTransmission()
-        printState()
-        
-        if readSuccess {
-            onReadSuccess?(readBytes)
-        }
     }
     
     
@@ -211,7 +227,8 @@ class I2CMasterController: I2CController {
             }
             
             if holdingBus {
-                onTransmissionDone(readBytes: transmissionFSM.readDataBytes)
+                // onTransmissionDone(readBytes: transmissionFSM.readDataBytes)
+                // TODO
             } else {
                 self.pullingSCL = false
                 
@@ -267,32 +284,6 @@ class I2CMasterController: I2CController {
     }
 
 
-    func onBitClocked(bit: Bit, transmissionMacroState: I2CTransmissionPassiveStateMachine.MacroState, byteIndex: Int) {
-
-        sendingStop = false
-        holdingBus = false
-        
-        if transmissionMacroState == .transmittingAddressAck || transmissionMacroState == .transmittingDataAck {
-            
-            let ackBit = bit
-            let ack = ackBit == .zero
-            
-            if ack && transmissionMacroState == .transmittingAddressAck {
-                addressAcked = true
-            }
-
-            if !ack || byteIndex == (activeTransmission!.bytes.count-1) {
-                sendingStop = true
-//                holdingBus = true
-            }
-        }
-
-        if !sendingStop {
-            prepareNextBit()
-        }
-    }
-
-
     private func prepareNextBit() {
 
         writingBit = false
@@ -332,9 +323,13 @@ class I2CMasterController: I2CController {
     }
 
 
-    var nextDataBitToWrite: Bit {
+    var nextDataBitToWrite: Bit? {
 
-        let byte = activeTransmission!.bytes[transmissionFSM.currentByteIndex]
-        return byte.bit(atIndex: transmissionFSM.currentByteBitIndex)
+        if transmissionFSM.currentByteIndex < activeTransmission!.bytes.count {
+            let byte = activeTransmission!.bytes[transmissionFSM.currentByteIndex]
+            return byte.bit(atIndex: transmissionFSM.currentByteBitIndex)
+        } else {
+            return nil
+        }
     }
 }

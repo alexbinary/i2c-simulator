@@ -6,7 +6,7 @@ import SwiftUI
 class I2CTransmissionPassiveStateMachine {
     
     
-    enum MicroState {
+    enum State {
         
         case waitingIdle
         case waitingSDADrop
@@ -15,7 +15,7 @@ class I2CTransmissionPassiveStateMachine {
     }
     
     
-    enum MacroState {
+    enum Step {
         
         case transmittingAddressByte
         case transmittingAddressAck
@@ -24,10 +24,8 @@ class I2CTransmissionPassiveStateMachine {
     }
     
     
-    var currentMicroState: MicroState = .waitingIdle
-    var currentMacroState: MacroState = .transmittingAddressByte
-    
-    var stopPreConditionMet = false
+    var currentTransmissionState: State = .waitingIdle
+    var currentTransmissionStep: Step = .transmittingAddressByte
     
     var currentLineLevels: I2CBusLineLevels = .init(SCL: .high, SDA: .high)
     
@@ -44,10 +42,8 @@ class I2CTransmissionPassiveStateMachine {
     
     func reset(lineLevels: I2CBusLineLevels) {
         
-        currentMicroState = .waitingIdle
-        currentMacroState = .transmittingAddressByte
-        
-        stopPreConditionMet = false
+        currentTransmissionState = .waitingIdle
+        currentTransmissionStep = .transmittingAddressByte
         
         currentLineLevels = lineLevels
         
@@ -84,25 +80,25 @@ class I2CTransmissionPassiveStateMachine {
         
         currentLineLevels = currentLineLevels.updated(afterLineChange: changedLine)
         
-        switch currentMicroState {
+        switch currentTransmissionState {
         case .waitingIdle:
             
             if currentLineLevels.match(SCL: .high, SDA: .high) {
-                currentMicroState = .waitingSDADrop
+                currentTransmissionState = .waitingSDADrop
             }
             
         case .waitingSDADrop:
             
             if currentLineLevels.match(SCL: .high, SDA: .low) {
-                currentMicroState = .bitClockLow
+                currentTransmissionState = .bitClockLow
             } else {
-                currentMicroState = .waitingIdle
+                currentTransmissionState = .waitingIdle
             }
             
         case .bitClockLow:
             
             if currentLineLevels.SCL == .high {
-                currentMicroState = .bitClockHigh
+                currentTransmissionState = .bitClockHigh
             }
             
         case .bitClockHigh:
@@ -110,8 +106,8 @@ class I2CTransmissionPassiveStateMachine {
             if currentLineLevels.SCL == .low {
                 
                 let bit = lastReadBit!
-                currentMicroState = .bitClockLow
-                updateMacroState(
+                currentTransmissionState = .bitClockLow
+                updateTransmissionStep(
                     onReadAddressByte: onReadAddressByte,
                     onReadAddressAck: onReadAddressAck,
                     onReadDataByte: onReadDataByte,
@@ -133,7 +129,7 @@ class I2CTransmissionPassiveStateMachine {
     }
     
     
-    private func updateMacroState(
+    private func updateTransmissionStep(
         
         onReadAddressByte: (Byte) -> (),
         onReadAddressAck: (Ack) -> (),
@@ -142,24 +138,24 @@ class I2CTransmissionPassiveStateMachine {
         
     ) {
 
-        if currentMacroState == .transmittingAddressAck || currentMacroState == .transmittingDataAck {
+        if currentTransmissionStep == .transmittingAddressAck || currentTransmissionStep == .transmittingDataAck {
             
             let ack = Ack(from: lastReadBit!)
-            let state = currentMacroState
+            let step = currentTransmissionStep
             
-            currentMacroState = .transmittingDataByte
+            currentTransmissionStep = .transmittingDataByte
             
-            if currentMacroState == .transmittingAddressAck {
+            if step == .transmittingAddressAck {
                 onReadAddressAck(ack)
             }
             
-            if currentMacroState == .transmittingDataAck {
+            if step == .transmittingDataAck {
                 currentByteIndex += 1
                 onReadDataAck(ack)
             }
         }
         
-        if currentMacroState == .transmittingAddressByte || currentMacroState == .transmittingDataByte {
+        if currentTransmissionStep == .transmittingAddressByte || currentTransmissionStep == .transmittingDataByte {
 
             currentByteReadBits.append(lastReadBit!)
             if currentByteReadBits.count == 8 {
@@ -168,15 +164,15 @@ class I2CTransmissionPassiveStateMachine {
                 currentByteReadBits = []
                 lastReadByte = byte
 
-                if currentMacroState == .transmittingAddressByte {
+                if currentTransmissionStep == .transmittingAddressByte {
                     readAddressByte = byte
-                    currentMacroState = .transmittingAddressAck
+                    currentTransmissionStep = .transmittingAddressAck
                     onReadAddressByte(byte)
                     
                 }
-                if currentMacroState == .transmittingDataByte {
+                if currentTransmissionStep == .transmittingDataByte {
                     readDataBytes.append(byte)
-                    currentMacroState = .transmittingDataAck
+                    currentTransmissionStep = .transmittingDataAck
                     onReadDataByte(byte)
                 }
             }

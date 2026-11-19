@@ -164,7 +164,7 @@ class I2CMasterController: I2CController {
     
     func updateControls() {
         
-        switch transmissionFSM.currentMicroState {
+        switch transmissionFSM.currentTransmissionState {
         case .waitingIdle:
             
             if bus.lineSDA.isLow {
@@ -288,7 +288,7 @@ class I2CMasterController: I2CController {
 
         writingBit = false
         
-        switch transmissionFSM.currentMacroState {
+        switch transmissionFSM.currentTransmissionStep {
         
         case .transmittingAddressByte:
             

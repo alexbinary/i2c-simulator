@@ -111,7 +111,7 @@ class I2CSlaveController: I2CController {
             )
             printState()
             
-            switch transmissionMonitor.currentMicroState {
+            switch transmissionMonitor.currentTransmissionState {
             case .waitingIdle:
                 break
                 
@@ -144,7 +144,7 @@ class I2CSlaveController: I2CController {
 
         pullNextBit = false
         
-        switch transmissionMonitor.currentMacroState {
+        switch transmissionMonitor.currentTransmissionStep {
             
         case .transmittingAddressByte:
             break

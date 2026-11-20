@@ -11,7 +11,7 @@ class I2CBus {
     var currentLineLevels: (SCL: I2CBusLineLevel, SDA: I2CBusLineLevel) { (SCL: lineSCL.currentLevel, SDA: lineSDA.currentLevel) }
     
     var controllers: [I2CController] = []
-    var minimumComputeX: CGFloat = 1
+    var simStepX: CGFloat = 1
 
 
     func reset() {
@@ -54,7 +54,7 @@ class I2CBus {
                 controller.updateBusControl(x: currentX)
             }
             
-            currentX += minimumComputeX
+            currentX += simStepX
             
             for line in [lineSCL, lineSDA] {
                 line.setPullers(controllers.filter { $0.pulling(line.identity) })

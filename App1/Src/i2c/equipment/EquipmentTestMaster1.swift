@@ -20,9 +20,16 @@ class EquipmentTestMaster1: Equipment {
     
     init() {
         self.master = I2CMasterController(
-            onReadSuccess: { readBytes in
-                print("-- EquipmentTestMaster1 READ DONE --")
-                print("read bytes: \(readBytes)")
+            onTransmissionEnded: { status in
+                print("-- EquipmentTestMaster1 TRANSMISSION ENDED --")
+                switch status {
+                case .success(let readBytes):
+                    print("success, read bytes: \(readBytes)")
+                case .addressNack:
+                    print("address nack")
+                case .aborted:
+                    print("aborted")
+                }
             }
         )
         

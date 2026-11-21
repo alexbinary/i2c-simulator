@@ -20,9 +20,9 @@ class RenderScene {
         
         bus.connect(EquipmentTestMaster1())
         bus.connect(EquipmentTestSlave1())
-//        bus.connect(EquipmentTestSlave2())
+        bus.connect(EquipmentTestSlave2())
 //        bus.connect(I2CPerturbatorController())
         
-        bus.simulate(from: 0, to: 5000)
+        bus.simulate(from: 0, to: 9000)
     }
 }

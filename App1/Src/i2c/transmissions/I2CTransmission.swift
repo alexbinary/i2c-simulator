@@ -16,8 +16,8 @@ class I2CTransmission {
     let address: UInt8
     let mode: ReadWrite
     var addressRW: UInt8 { (address << 1) + (mode == .readFromSlave ? 1 : 0) }
-    var isRead: Bool { return mode == .readFromSlave }
-    var isWrite: Bool { return mode == .writeToSlave }
+    var isReadFromSlave: Bool { return mode == .readFromSlave }
+    var isWriteToSlave: Bool { return mode == .writeToSlave }
 
     let bytes: [UInt8]
     let numBytes: Int

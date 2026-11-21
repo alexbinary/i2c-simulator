@@ -3,6 +3,23 @@
    version = "1.0">
    <ContextStates>
       <ContextState
+         contextName = "GLOBAL">
+         <PersistentStrings>
+            <PersistentString
+               value = "self.currentTransmissionState">
+            </PersistentString>
+            <PersistentString
+               value = "self.address">
+            </PersistentString>
+            <PersistentString
+               value = "self.currentTransmissionStatus">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "I2CMasterController.prepareNextBit():I2CMasterController.swift">
+      </ContextState>
+      <ContextState
          contextName = "I2CMasterController.updateTransmissionDriveState(afterTimeChanged:):I2CMasterController.swift">
       </ContextState>
       <ContextState
@@ -14,7 +31,31 @@
          </PersistentStrings>
       </ContextState>
       <ContextState
-         contextName = "I2CMasterController.prepareNextBit():I2CMasterController.swift">
+         contextName = "I2CSlaveController.bitClockHighPhaseEnded():I2CSlaveController.swift">
+         <PersistentStrings>
+            <PersistentString
+               value = "currentTransmissionState">
+            </PersistentString>
+            <PersistentString
+               value = "currentTransmissionStatus">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "I2CSlaveController.transmittedByte():I2CSlaveController.swift">
+         <PersistentStrings>
+            <PersistentString
+               value = "self.address">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "I2CSlaveController.update(x:):I2CSlaveController.swift">
+         <PersistentStrings>
+            <PersistentString
+               value = "currentTransmissionState">
+            </PersistentString>
+         </PersistentStrings>
       </ContextState>
    </ContextStates>
 </VariablesViewState>

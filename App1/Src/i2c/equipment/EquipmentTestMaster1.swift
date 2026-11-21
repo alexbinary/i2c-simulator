@@ -25,10 +25,10 @@ class EquipmentTestMaster1: Equipment {
                 switch status {
                 case .addressNack:
                     print("address nack")
-                case .success(let writtenBytes, let readBytes):
-                    print("success, written: \(writtenBytes), read: \(readBytes)")
-                case .dataNack(let writtenBytes, let readBytes):
-                    print("data nack, written: \(writtenBytes), read: \(readBytes)")
+                case .success(let bytesWrittenToSlave, let bytesReadFromSlave):
+                    print("success, bytesWrittenToSlave: \(bytesWrittenToSlave), bytesReadFromSlave: \(bytesReadFromSlave)")
+                case .dataNack(let bytesWrittenToSlave, let bytesReadFromSlave):
+                    print("data nack, bytesWrittenToSlave: \(bytesWrittenToSlave), bytesReadFromSlave: \(bytesReadFromSlave)")
                 case .aborted:
                     print("aborted")
                 }

@@ -16,12 +16,12 @@ class EquipmentTestSlave1: Equipment {
             onTransmissionEnded: { status in
                 print("-- EquipmentTestSlave1 TRANSMISSION ENDED --")
                 switch status {
-                case .success(let bytesWrittenToSlave, let bytesReadFromSlave):
-                    print("success, bytesWrittenToSlave: \(bytesWrittenToSlave), bytesReadFromSlave: \(bytesReadFromSlave)")
-                case .dataNack(let bytesWrittenToSlave, let bytesReadFromSlave):
-                    print("data nack, bytesWrittenToSlave: \(bytesWrittenToSlave), bytesReadFromSlave: \(bytesReadFromSlave)")
-                case .aborted:
-                    print("aborted")
+                case .success(let transmittedBytes):
+                    print("success, transmittedBytes: \(transmittedBytes)")
+                case .dataNack(let transmittedBytes):
+                    print("data nack, transmittedBytes: \(transmittedBytes)")
+                case .aborted(let transmittedBytes):
+                    print("aborted, transmittedBytes: \(transmittedBytes)")
                 }
             }
         )

@@ -75,8 +75,6 @@ enum Bit {
 typealias Byte = UInt8
 extension Byte {
     
-    enum Nature { case address, data }
-    
     init(from bits:[Bit]) {
         self = bits
             .map { $0 == .zero ? 0 : 1 }

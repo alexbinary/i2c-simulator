@@ -23,10 +23,12 @@ class EquipmentTestMaster1: Equipment {
             onTransmissionEnded: { status in
                 print("-- EquipmentTestMaster1 TRANSMISSION ENDED --")
                 switch status {
-                case .success(let writtenBytes, let readBytes):
-                    print("success, written: \(writtenBytes), read: \(readBytes)")
                 case .addressNack:
                     print("address nack")
+                case .success(let writtenBytes, let readBytes):
+                    print("success, written: \(writtenBytes), read: \(readBytes)")
+                case .dataNack(let writtenBytes, let readBytes):
+                    print("data nack, written: \(writtenBytes), read: \(readBytes)")
                 case .aborted:
                     print("aborted")
                 }

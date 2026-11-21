@@ -34,15 +34,19 @@ class I2CMasterController: I2CController {
         case transmittingDataAck
         case completed
         case addressNacked
+        case dataNacked
         
         var isTransmittingAck: Bool { return self == .transmittingAddressAck || self == .transmittingDataAck }
         var isTransmittingByte: Bool { return self == .transmittingAddressByte || self == .transmittingDataByte }
+        var ackTarget: Byte.Nature? { self == .transmittingAddressAck ? .address : self == .transmittingDataAck ? .data : nil }
+        var byteNature: Byte.Nature? { self == .transmittingAddressByte ? .address : self == .transmittingDataByte ? .data : nil }
         var phase: Phase? { (self == .transmittingAddressByte || self == .transmittingDataByte) ? .byte : (self == .transmittingAddressAck || self == .transmittingDataAck) ? .ack : nil  }
     }
     
     enum TransmissionResult {
-        case success(writtenBytes: [Byte], readBytes: [Byte])
         case addressNack
+        case dataNack(writtenBytes: [Byte], readBytes: [Byte])
+        case success(writtenBytes: [Byte], readBytes: [Byte])
         case aborted
     }
     
@@ -69,7 +73,6 @@ class I2CMasterController: I2CController {
     var activeTransmission: I2CTransmission?
     
     var holdingBus = false
-    var nextBitToWrite: Bit?
     
     var lastTransmittedBit: Bit?
     var lastTransmittedAck: Ack?
@@ -365,7 +368,6 @@ class I2CMasterController: I2CController {
     
     func initiateNextBit() {
         
-        prepareNextBit()
         currentTransmissionControlState = nextControlStateToStartBit
     }
     
@@ -399,32 +401,38 @@ class I2CMasterController: I2CController {
     func bitClockHighPhaseEnded() {
         
         switch currentTransmissionStatus.phase! {
-        
         case .ack:
             
             lastTransmittedAck = Ack(from: lastTransmittedBit!)
-            if lastTransmittedAck == .ack {
+            switch lastTransmittedAck! {
+            case .ack:
                 
                 let hasMoreBytes = (currentTransmittedByteIndex+1) < activeTransmission!.numBytes
-                if hasMoreBytes {
+                switch hasMoreBytes {
+                case true:
                     
-                    if currentTransmissionStatus == .transmittingAddressAck {
+                    switch currentTransmissionStatus.ackTarget! {
+                    case .address:
                         currentTransmittedByteIndex = 0
-                    }
-                    if currentTransmissionStatus == .transmittingDataAck {
+                    case .data:
                         currentTransmittedByteIndex += 1
                     }
                     
                     initiateNextDataByte()
-                } else {
+                
+                case false:
+                    
                     currentTransmissionStatus = .completed
                     initiateStop()
                 }
                 
-            } else {
+            case .nack:
                 
-                if currentTransmissionStatus == .transmittingAddressAck {
+                switch currentTransmissionStatus.ackTarget! {
+                case .address:
                     currentTransmissionStatus = .addressNacked
+                case .data:
+                    currentTransmissionStatus = .dataNacked
                 }
                 initiateStop()
             }
@@ -434,18 +442,16 @@ class I2CMasterController: I2CController {
             currentTransmittedByteReadBits.append(lastTransmittedBit!)
             if currentTransmittedByteReadBits.count == 8 {
                 
-                if currentTransmissionStatus == .transmittingAddressByte {
+                switch currentTransmissionStatus.byteNature! {
+                case .address:
                     currentTransmissionStatus = .transmittingAddressAck
-                }
-                if currentTransmissionStatus == .transmittingDataByte {
+                case .data:
                     let byte = Byte(from: currentTransmittedByteReadBits)
                     transmittedDataBytes.append(byte)
                     currentTransmissionStatus = .transmittingDataAck
                 }
-                
                 currentTransmittedByteReadBits = []
             }
-            
             initiateNextBit()
         }
     }
@@ -468,13 +474,11 @@ class I2CMasterController: I2CController {
         case .addressNacked:
             lastTransmissionResult = .addressNack
             
+        case .dataNacked:
+            setResultDataNack()
+        
         case .completed:
-            let isWrite = activeTransmission!.isWrite
-            let isRead = activeTransmission!.isRead
-            lastTransmissionResult = .success(
-                writtenBytes: isWrite ? transmittedDataBytes : [],
-                readBytes: isRead ? transmittedDataBytes : []
-            )
+            setResultSuccess()
         }
         
         let result = lastTransmissionResult
@@ -485,36 +489,56 @@ class I2CMasterController: I2CController {
     }
     
     
-    private func prepareNextBit() {
-
-        nextBitToWrite = nil
+    func setResultSuccess() {
         
+        let isWrite = activeTransmission!.isWrite
+        let isRead = activeTransmission!.isRead
+        lastTransmissionResult = .success(
+            writtenBytes: isWrite ? transmittedDataBytes : [],
+            readBytes: isRead ? transmittedDataBytes : []
+        )
+    }
+    
+    
+    func setResultDataNack() {
+        
+        let isWrite = activeTransmission!.isWrite
+        let isRead = activeTransmission!.isRead
+        lastTransmissionResult = .dataNack(
+            writtenBytes: isWrite ? transmittedDataBytes : [],
+            readBytes: isRead ? transmittedDataBytes : []
+        )
+    }
+     
+    
+    var nextBitToWrite: Bit? {
+
         switch currentTransmissionStatus {
         
         case .ready,
-             .starting:
-            break
+             .starting,
+             .completed,
+             .addressNacked,
+             .dataNacked,
+             .transmittingAddressAck:
+            return nil
             
         case .transmittingAddressByte:
-            nextBitToWrite = nextAddressBitToWrite
+            return nextAddressBitToWrite
         
-        case .transmittingAddressAck:
-            break
-            
         case .transmittingDataByte:
-            if activeTransmission!.mode == .writeToSlave {
-                nextBitToWrite = nextDataBitToWrite
+            switch activeTransmission!.mode {
+            case .writeToSlave: return nextDataBitToWrite
+            case .readFromSlave: return nil
             }
         
         case .transmittingDataAck:
-            if activeTransmission!.mode == .readFromSlave {
-                let ack = Ack(ackIf: currentTransmittedByteIndex < activeTransmission!.numBytes-1)
-                nextBitToWrite = ack.bit
+            switch activeTransmission!.mode {
+            case .writeToSlave:
+                return nil
+            case .readFromSlave:
+                return Bit(for: Ack(ackIf: currentTransmittedByteIndex < activeTransmission!.numBytes-1))
             }
-            
-        case .completed,
-             .addressNacked:
-            break
         }
     }
 

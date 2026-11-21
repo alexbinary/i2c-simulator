@@ -59,6 +59,10 @@ enum Bit {
         self.init(value != 0)
     }
     
+    init(for ack: Ack) {
+        self = ack.bit
+    }
+    
     var lineLevel: I2CBusLineLevel {
         switch self {
         case .zero: return .low

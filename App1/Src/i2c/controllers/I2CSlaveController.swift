@@ -22,8 +22,8 @@ class I2CSlaveController: I2CController {
         case transmittingAddressAck
         case transmittingDataByte
         case transmittingDataAck
-        case completed
         case addressNacked
+        case dataNacked
         
         var isTransmittingAck: Bool { return self == .transmittingAddressAck || self == .transmittingDataAck }
         var isTransmittingByte: Bool { return self == .transmittingAddressByte || self == .transmittingDataByte }
@@ -34,6 +34,7 @@ class I2CSlaveController: I2CController {
     
     enum TransmissionResult {
         case success(writtenBytes: [Byte], readBytes: [Byte])
+        case dataNack(writtenBytes: [Byte], readBytes: [Byte])
         case aborted
     }
     
@@ -173,8 +174,8 @@ class I2CSlaveController: I2CController {
             
         case .waitingStart,
              .transmittingAddressByte,
-             .completed,
-             .addressNacked:
+             .addressNacked,
+             .dataNacked:
             self.pullingSDA = false
             
         case .transmittingAddressAck,
@@ -274,7 +275,7 @@ class I2CSlaveController: I2CController {
             currentTransmissionStatus = .transmittingDataByte
             
         case (.nack, .data):
-            currentTransmissionStatus = .completed
+            currentTransmissionStatus = .dataNacked
         }
     }
     
@@ -289,17 +290,14 @@ class I2CSlaveController: I2CController {
             
         case .transmittingAddressByte,
              .transmittingAddressAck,
-             .transmittingDataByte,
              .transmittingDataAck:
             lastTransmissionResult = .aborted
             
-        case .completed:
-            let isWrite = currentTransmissionMode == .writeToSlave
-            let isRead = currentTransmissionMode == .readFromSlave
-            lastTransmissionResult = .success(
-                writtenBytes: isWrite ? transmittedDataBytes : [],
-                readBytes: isRead ? transmittedDataBytes : []
-            )
+        case .transmittingDataByte:
+            setResultSuccess()
+        
+        case .dataNacked:
+            setResultDataNack()
         }
         
         let result = lastTransmissionResult
@@ -307,6 +305,28 @@ class I2CSlaveController: I2CController {
         if let result = result {
             onTransmissionEnded?(result)
         }
+    }
+    
+    
+    func setResultSuccess() {
+        
+        let isWrite = currentTransmissionMode == .writeToSlave
+        let isRead = currentTransmissionMode == .readFromSlave
+        lastTransmissionResult = .success(
+            writtenBytes: isWrite ? transmittedDataBytes : [],
+            readBytes: isRead ? transmittedDataBytes : []
+        )
+    }
+    
+    
+    func setResultDataNack() {
+        
+        let isWrite = currentTransmissionMode == .writeToSlave
+        let isRead = currentTransmissionMode == .readFromSlave
+        lastTransmissionResult = .dataNack(
+            writtenBytes: isWrite ? transmittedDataBytes : [],
+            readBytes: isRead ? transmittedDataBytes : []
+        )
     }
     
     

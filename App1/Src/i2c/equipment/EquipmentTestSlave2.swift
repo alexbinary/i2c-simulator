@@ -20,6 +20,8 @@ class EquipmentTestSlave2: Equipment {
                 switch status {
                 case .success(let writtenBytes, let readBytes):
                     print("success, written: \(writtenBytes), read: \(readBytes)")
+                case .dataNack(let writtenBytes, let readBytes):
+                    print("data nack, written: \(writtenBytes), read: \(readBytes)")
                 case .aborted:
                     print("aborted")
                 }

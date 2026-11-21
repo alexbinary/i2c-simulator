@@ -23,6 +23,9 @@ class I2CMasterController: I2CController {
     }
     
     enum TransmissionStatus {
+        
+        enum Phase { case byte, ack }
+        
         case ready
         case starting
         case transmittingAddressByte
@@ -31,8 +34,10 @@ class I2CMasterController: I2CController {
         case transmittingDataAck
         case completed
         case addressNacked
+        
         var isTransmittingAck: Bool { return self == .transmittingAddressAck || self == .transmittingDataAck }
         var isTransmittingByte: Bool { return self == .transmittingAddressByte || self == .transmittingDataByte }
+        var phase: Phase? { (self == .transmittingAddressByte || self == .transmittingDataByte) ? .byte : (self == .transmittingAddressAck || self == .transmittingDataAck) ? .ack : nil  }
     }
     
     enum TransmissionResult {
@@ -393,7 +398,9 @@ class I2CMasterController: I2CController {
     
     func bitClockHighPhaseEnded() {
         
-        if currentTransmissionStatus.isTransmittingAck {
+        switch currentTransmissionStatus.phase! {
+        
+        case .ack:
             
             lastTransmittedAck = Ack(from: lastTransmittedBit!)
             if lastTransmittedAck == .ack {
@@ -421,9 +428,8 @@ class I2CMasterController: I2CController {
                 }
                 initiateStop()
             }
-        }
-            
-        if currentTransmissionStatus.isTransmittingByte {
+        
+        case .byte:
             
             currentTransmittedByteReadBits.append(lastTransmittedBit!)
             if currentTransmittedByteReadBits.count == 8 {

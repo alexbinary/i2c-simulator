@@ -12,6 +12,7 @@ class EquipmentTestSlave1: Equipment {
             address: 0x2a,
             acceptWrites: true,
             acceptReads: false,
+            maxWrites: 1,
             onTransmissionEnded: { status in
                 print("-- EquipmentTestSlave1 TRANSMISSION ENDED --")
                 switch status {

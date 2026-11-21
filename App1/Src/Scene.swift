@@ -19,7 +19,7 @@ class RenderScene {
         bus.reset()
         
         bus.connect(EquipmentTestMaster1())
-//        bus.connect(EquipmentTestSlave1())
+        bus.connect(EquipmentTestSlave1())
 //        bus.connect(EquipmentTestSlave2())
 //        bus.connect(I2CPerturbatorController())
         

@@ -5,7 +5,7 @@ import SwiftUI
 
 enum ReadWrite {
 
-    case read, write
+    case writeToSlave, readFromSlave
 }
 
 
@@ -15,8 +15,9 @@ class I2CTransmission {
     
     let address: UInt8
     let mode: ReadWrite
-    var addressRW: UInt8 { (address << 1) + (mode == .read ? 1 : 0) }
-    var isRead: Bool { return mode == .read }
+    var addressRW: UInt8 { (address << 1) + (mode == .readFromSlave ? 1 : 0) }
+    var isRead: Bool { return mode == .readFromSlave }
+    var isWrite: Bool { return mode == .writeToSlave }
 
     let bytes: [UInt8]
     let numBytes: Int
@@ -24,14 +25,14 @@ class I2CTransmission {
     
     init(writeTo address: UInt8, bytes: [UInt8]) {
         self.address = address
-        self.mode = .write
+        self.mode = .writeToSlave
         self.bytes = bytes
         self.numBytes = bytes.count
     }
 
     init(readFrom address: UInt8, bytes: Int) {
         self.address = address
-        self.mode = .read
+        self.mode = .readFromSlave
         self.bytes = []
         self.numBytes = bytes
     }

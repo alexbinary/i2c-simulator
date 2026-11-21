@@ -12,9 +12,14 @@ class EquipmentTestSlave1: Equipment {
             address: 0x2a,
             acceptWrites: true,
             acceptReads: false,
-            onWriteSuccess: { writtenBytes in
-                print("-- EquipmentTestSlave1 WRITE DONE --")
-                print("written bytes: \(writtenBytes)")
+            onTransmissionEnded: { status in
+                print("-- EquipmentTestSlave1 TRANSMISSION ENDED --")
+                switch status {
+                case .success(let writtenBytes, let readBytes):
+                    print("success, written: \(writtenBytes), read: \(readBytes)")
+                case .aborted:
+                    print("aborted")
+                }
             }
         )
         super.init(i2cController: slave)

@@ -12,8 +12,17 @@ class EquipmentTestSlave2: Equipment {
             address: 0x61,
             acceptWrites: true,
             acceptReads: true,
-            nextBytesForMasterRead: {
+            nextBytesToBeRead: {
                 return []
+            },
+            onTransmissionEnded: { status in
+                print("-- EquipmentTestSlave2 TRANSMISSION ENDED --")
+                switch status {
+                case .success(let writtenBytes, let readBytes):
+                    print("success, written: \(writtenBytes), read: \(readBytes)")
+                case .aborted:
+                    print("aborted")
+                }
             }
         )
         super.init(i2cController: slave)

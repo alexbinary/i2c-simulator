@@ -38,12 +38,12 @@ class I2CController {
     }
     
     
-    func initState(x: CGFloat) {
+    func reset(x: CGFloat) {
 
     }
     
     
-    func updateBusControl(x: CGFloat) {
+    func update(x: CGFloat) {
         
     }
 }

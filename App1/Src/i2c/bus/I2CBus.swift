@@ -43,7 +43,7 @@ class I2CBus {
         }
         
         for controller in controllers {
-            controller.initState(x: currentX)
+            controller.reset(x: currentX)
         }
 
         while currentX < endX {
@@ -51,7 +51,7 @@ class I2CBus {
             print("-- CLOCK TICK: \(currentX) --")
             
             for controller in controllers {
-                controller.updateBusControl(x: currentX)
+                controller.update(x: currentX)
             }
             
             currentX += simStepX

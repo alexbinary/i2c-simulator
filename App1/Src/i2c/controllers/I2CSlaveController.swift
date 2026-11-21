@@ -16,9 +16,9 @@ class I2CSlaveController: I2CController {
         case transmittingAddressAck
         case transmittingDataByte
         case transmittingDataAck
-        case completedSuccess
+        case completedWithoutError
+        case completedWithDataWriteNackedBySlave
         case transmissionNotAddressedToSelf
-        case completedDataWriteNackedBySlave
         
         enum ByteOrAck { case byte, ack }
         var transmittingByteOrAck: ByteOrAck? { (self == .transmittingAddressByte || self == .transmittingDataByte) ? .byte : (self == .transmittingAddressAck || self == .transmittingDataAck) ? .ack : nil }
@@ -37,7 +37,6 @@ class I2CSlaveController: I2CController {
     var currentTransmissionState: TransmissionState?
     var currentTransmissionStatus: TransmissionStatus?
     var lastTransmissionResult: TransmissionResult?
-    let onTransmissionEnded: ((TransmissionResult)->())?
     
     var lastKnownLineLevels: (SCL: I2CBusLineLevel, SDA: I2CBusLineLevel) = (SCL: .high, SDA: .high)
     
@@ -61,6 +60,8 @@ class I2CSlaveController: I2CController {
     
     var bytesToBeRead: [Byte] = []
     let nextBytesToBeRead: (() -> [Byte])?
+    
+    let onTransmissionEnded: ((TransmissionResult)->())?
 
 
     init(
@@ -129,7 +130,11 @@ class I2CSlaveController: I2CController {
                     }
                 }
                 
-                if currentTransmissionState != previousState { continue } else { break }
+                if currentTransmissionState != previousState {
+                    continue
+                } else {
+                    break
+                }
             }
             
             lastKnownLineLevels = bus.currentLineLevels
@@ -167,8 +172,8 @@ class I2CSlaveController: I2CController {
         switch currentTransmissionStatus! {
             
         case .transmissionNotAddressedToSelf,
-             .completedSuccess,
-             .completedDataWriteNackedBySlave,
+             .completedWithoutError,
+             .completedWithDataWriteNackedBySlave,
              .transmittingAddressByte:
             self.pullingSDA = false
             
@@ -278,8 +283,8 @@ class I2CSlaveController: I2CController {
             
         case (.nack, .data):
             switch currentTransmissionMode! {
-            case .writeToSlave: currentTransmissionStatus = .completedDataWriteNackedBySlave
-            case .readFromSlave: currentTransmissionStatus = .completedSuccess
+            case .writeToSlave: currentTransmissionStatus = .completedWithDataWriteNackedBySlave
+            case .readFromSlave: currentTransmissionStatus = .completedWithoutError
             }
         }
         
@@ -314,10 +319,10 @@ class I2CSlaveController: I2CController {
             case .transmissionNotAddressedToSelf:
                 break
                 
-            case .completedSuccess, .transmittingDataByte:
+            case .completedWithoutError, .transmittingDataByte:
                 lastTransmissionResult = .success(transmittedBytes: transmittedDataBytes)
                 
-            case .completedDataWriteNackedBySlave:
+            case .completedWithDataWriteNackedBySlave:
                 lastTransmissionResult = .dataNack(transmittedBytes: transmittedDataBytes)
             
             case .transmittingAddressByte, .transmittingAddressAck, .transmittingDataAck:

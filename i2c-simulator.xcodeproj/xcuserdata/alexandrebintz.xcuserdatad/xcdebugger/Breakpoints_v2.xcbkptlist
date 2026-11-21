@@ -126,8 +126,8 @@
             filePath = "App1/Src/i2c/controllers/I2CSlaveController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "137"
-            endingLineNumber = "137"
+            startingLineNumber = "142"
+            endingLineNumber = "142"
             landmarkName = "update(x:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -142,26 +142,10 @@
             filePath = "App1/Src/i2c/controllers/I2CMasterController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "542"
-            endingLineNumber = "542"
+            startingLineNumber = "528"
+            endingLineNumber = "528"
             landmarkName = "nextBitToWrite"
             landmarkType = "24">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            uuid = "6F57382A-D255-4C17-8D80-416C12578F51"
-            shouldBeEnabled = "No"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "App1/Src/i2c/controllers/I2CMasterController.swift"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "151"
-            endingLineNumber = "151"
-            landmarkName = "update(x:)"
-            landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -174,8 +158,8 @@
             filePath = "App1/Src/i2c/controllers/I2CMasterController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "180"
-            endingLineNumber = "180"
+            startingLineNumber = "170"
+            endingLineNumber = "170"
             landmarkName = "updateTransmissionControlState(x:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -190,8 +174,8 @@
             filePath = "App1/Src/i2c/controllers/I2CSlaveController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "180"
-            endingLineNumber = "180"
+            startingLineNumber = "185"
+            endingLineNumber = "185"
             landmarkName = "bitSetupPhaseStarted()"
             landmarkType = "7">
          </BreakpointContent>
@@ -206,8 +190,8 @@
             filePath = "App1/Src/i2c/controllers/I2CSlaveController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "173"
-            endingLineNumber = "173"
+            startingLineNumber = "178"
+            endingLineNumber = "178"
             landmarkName = "bitSetupPhaseStarted()"
             landmarkType = "7">
          </BreakpointContent>
@@ -222,8 +206,8 @@
             filePath = "App1/Src/i2c/controllers/I2CSlaveController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "229"
-            endingLineNumber = "229"
+            startingLineNumber = "234"
+            endingLineNumber = "234"
             landmarkName = "transmittedByte()"
             landmarkType = "7">
          </BreakpointContent>
@@ -238,8 +222,8 @@
             filePath = "App1/Src/i2c/controllers/I2CSlaveController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "239"
-            endingLineNumber = "239"
+            startingLineNumber = "244"
+            endingLineNumber = "244"
             landmarkName = "transmittedByte()"
             landmarkType = "7">
          </BreakpointContent>
@@ -254,8 +238,8 @@
             filePath = "App1/Src/i2c/controllers/I2CSlaveController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "241"
-            endingLineNumber = "241"
+            startingLineNumber = "246"
+            endingLineNumber = "246"
             landmarkName = "transmittedByte()"
             landmarkType = "7">
          </BreakpointContent>
@@ -270,8 +254,8 @@
             filePath = "App1/Src/i2c/controllers/I2CSlaveController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "272"
-            endingLineNumber = "272"
+            startingLineNumber = "277"
+            endingLineNumber = "277"
             landmarkName = "transmittedAck()"
             landmarkType = "7">
          </BreakpointContent>
@@ -287,9 +271,9 @@
             filePath = "App1/Src/i2c/controllers/I2CMasterController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "239"
-            endingLineNumber = "239"
-            landmarkName = "updateControls(x:)"
+            startingLineNumber = "224"
+            endingLineNumber = "224"
+            landmarkName = "updateBusControls(x:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -303,8 +287,8 @@
             filePath = "App1/Src/i2c/controllers/I2CMasterController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "158"
-            endingLineNumber = "158"
+            startingLineNumber = "151"
+            endingLineNumber = "151"
             landmarkName = "updateTransmissionControlState(x:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -313,6 +297,22 @@
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
             uuid = "8E7D17C1-9E0C-4EF9-905A-A36455767B69"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "App1/Src/i2c/controllers/I2CMasterController.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "115"
+            endingLineNumber = "115"
+            landmarkName = "update(x:)"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "A97DCBBB-60E4-4756-AC5B-E67DE58BA7B5"
             shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
@@ -328,22 +328,6 @@
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "A97DCBBB-60E4-4756-AC5B-E67DE58BA7B5"
-            shouldBeEnabled = "No"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "App1/Src/i2c/controllers/I2CMasterController.swift"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "122"
-            endingLineNumber = "122"
-            landmarkName = "update(x:)"
-            landmarkType = "7">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
             uuid = "27CE7796-A8A9-4937-81C3-F2E2289F03F7"
             shouldBeEnabled = "No"
             ignoreCount = "0"
@@ -351,24 +335,8 @@
             filePath = "App1/Src/i2c/controllers/I2CMasterController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "144"
-            endingLineNumber = "144"
-            landmarkName = "update(x:)"
-            landmarkType = "7">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            uuid = "24654331-6F5C-47C6-969B-CE9EC8408CA6"
-            shouldBeEnabled = "No"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "App1/Src/i2c/controllers/I2CMasterController.swift"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "150"
-            endingLineNumber = "150"
+            startingLineNumber = "137"
+            endingLineNumber = "137"
             landmarkName = "update(x:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -383,8 +351,8 @@
             filePath = "App1/Src/i2c/controllers/I2CMasterController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "160"
-            endingLineNumber = "160"
+            startingLineNumber = "153"
+            endingLineNumber = "153"
             landmarkName = "updateTransmissionControlState(x:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -399,8 +367,8 @@
             filePath = "App1/Src/i2c/controllers/I2CMasterController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "162"
-            endingLineNumber = "162"
+            startingLineNumber = "155"
+            endingLineNumber = "155"
             landmarkName = "updateTransmissionControlState(x:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -415,8 +383,8 @@
             filePath = "App1/Src/i2c/controllers/I2CMasterController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "302"
-            endingLineNumber = "302"
+            startingLineNumber = "284"
+            endingLineNumber = "284"
             landmarkName = "assertWriteBit()"
             landmarkType = "7">
          </BreakpointContent>
@@ -431,8 +399,8 @@
             filePath = "App1/Src/i2c/controllers/I2CMasterController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "308"
-            endingLineNumber = "308"
+            startingLineNumber = "290"
+            endingLineNumber = "290"
             landmarkName = "clearActiveTransmission()"
             landmarkType = "7">
          </BreakpointContent>
@@ -447,8 +415,8 @@
             filePath = "App1/Src/i2c/controllers/I2CMasterController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "327"
-            endingLineNumber = "327"
+            startingLineNumber = "309"
+            endingLineNumber = "309"
             landmarkName = "startActiveTransmission(x:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -463,9 +431,9 @@
             filePath = "App1/Src/i2c/controllers/I2CMasterController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "337"
-            endingLineNumber = "337"
-            landmarkName = "nextControlStateToStart"
+            startingLineNumber = "319"
+            endingLineNumber = "319"
+            landmarkName = "nextControlStateForStart"
             landmarkType = "24">
          </BreakpointContent>
       </BreakpointProxy>
@@ -479,8 +447,8 @@
             filePath = "App1/Src/i2c/controllers/I2CMasterController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "358"
-            endingLineNumber = "358"
+            startingLineNumber = "340"
+            endingLineNumber = "340"
             landmarkName = "initiateAddress()"
             landmarkType = "7">
          </BreakpointContent>
@@ -495,8 +463,8 @@
             filePath = "App1/Src/i2c/controllers/I2CMasterController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "365"
-            endingLineNumber = "365"
+            startingLineNumber = "347"
+            endingLineNumber = "347"
             landmarkName = "initiateNextDataByte()"
             landmarkType = "7">
          </BreakpointContent>
@@ -511,9 +479,9 @@
             filePath = "App1/Src/i2c/controllers/I2CMasterController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "372"
-            endingLineNumber = "372"
-            landmarkName = "nextControlStateToStartBit"
+            startingLineNumber = "354"
+            endingLineNumber = "354"
+            landmarkName = "nextControlStateForBit"
             landmarkType = "24">
          </BreakpointContent>
       </BreakpointProxy>
@@ -527,9 +495,9 @@
             filePath = "App1/Src/i2c/controllers/I2CMasterController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "387"
-            endingLineNumber = "387"
-            landmarkName = "nextControlStateToStop"
+            startingLineNumber = "369"
+            endingLineNumber = "369"
+            landmarkName = "nextControlStateForStop"
             landmarkType = "24">
          </BreakpointContent>
       </BreakpointProxy>
@@ -543,8 +511,8 @@
             filePath = "App1/Src/i2c/controllers/I2CMasterController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "414"
-            endingLineNumber = "414"
+            startingLineNumber = "397"
+            endingLineNumber = "397"
             landmarkName = "bitClockHighPhaseEnded()"
             landmarkType = "7">
          </BreakpointContent>
@@ -559,8 +527,8 @@
             filePath = "App1/Src/i2c/controllers/I2CMasterController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "408"
-            endingLineNumber = "408"
+            startingLineNumber = "390"
+            endingLineNumber = "390"
             landmarkName = "bitClockHighPhaseActive()"
             landmarkType = "7">
          </BreakpointContent>
@@ -576,8 +544,8 @@
             filePath = "App1/Src/i2c/controllers/I2CSlaveController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "199"
-            endingLineNumber = "199"
+            startingLineNumber = "204"
+            endingLineNumber = "204"
             landmarkName = "bitClockHighPhaseEnded()"
             landmarkType = "7">
          </BreakpointContent>
@@ -593,8 +561,8 @@
             filePath = "App1/Src/i2c/controllers/I2CSlaveController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "312"
-            endingLineNumber = "312"
+            startingLineNumber = "317"
+            endingLineNumber = "317"
             landmarkName = "transmissionStopped()"
             landmarkType = "7">
          </BreakpointContent>
@@ -609,8 +577,8 @@
             filePath = "App1/Src/i2c/controllers/I2CSlaveController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "243"
-            endingLineNumber = "243"
+            startingLineNumber = "248"
+            endingLineNumber = "248"
             landmarkName = "transmittedByte()"
             landmarkType = "7">
          </BreakpointContent>
@@ -625,8 +593,8 @@
             filePath = "App1/Src/i2c/controllers/I2CSlaveController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "252"
-            endingLineNumber = "252"
+            startingLineNumber = "257"
+            endingLineNumber = "257"
             landmarkName = "transmittedByte()"
             landmarkType = "7">
          </BreakpointContent>
@@ -641,8 +609,8 @@
             filePath = "App1/Src/i2c/controllers/I2CSlaveController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "281"
-            endingLineNumber = "281"
+            startingLineNumber = "286"
+            endingLineNumber = "286"
             landmarkName = "transmittedAck()"
             landmarkType = "7">
          </BreakpointContent>
@@ -657,8 +625,8 @@
             filePath = "App1/Src/i2c/controllers/I2CSlaveController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "282"
-            endingLineNumber = "282"
+            startingLineNumber = "287"
+            endingLineNumber = "287"
             landmarkName = "transmittedAck()"
             landmarkType = "7">
          </BreakpointContent>
@@ -673,8 +641,8 @@
             filePath = "App1/Src/i2c/controllers/I2CSlaveController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "143"
-            endingLineNumber = "143"
+            startingLineNumber = "148"
+            endingLineNumber = "148"
             landmarkName = "resetTransmissionState()"
             landmarkType = "7">
          </BreakpointContent>
@@ -689,8 +657,8 @@
             filePath = "App1/Src/i2c/controllers/I2CSlaveController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "159"
-            endingLineNumber = "159"
+            startingLineNumber = "164"
+            endingLineNumber = "164"
             landmarkName = "transmissionStarted()"
             landmarkType = "7">
          </BreakpointContent>
@@ -705,8 +673,8 @@
             filePath = "App1/Src/i2c/controllers/I2CSlaveController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "111"
-            endingLineNumber = "111"
+            startingLineNumber = "112"
+            endingLineNumber = "112"
             landmarkName = "update(x:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -721,8 +689,8 @@
             filePath = "App1/Src/i2c/controllers/I2CSlaveController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "142"
-            endingLineNumber = "142"
+            startingLineNumber = "147"
+            endingLineNumber = "147"
             landmarkName = "resetTransmissionState()"
             landmarkType = "7">
          </BreakpointContent>
@@ -737,8 +705,8 @@
             filePath = "App1/Src/i2c/controllers/I2CSlaveController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "158"
-            endingLineNumber = "158"
+            startingLineNumber = "163"
+            endingLineNumber = "163"
             landmarkName = "transmissionStarted()"
             landmarkType = "7">
          </BreakpointContent>
@@ -753,8 +721,8 @@
             filePath = "App1/Src/i2c/controllers/I2CSlaveController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "165"
-            endingLineNumber = "165"
+            startingLineNumber = "170"
+            endingLineNumber = "170"
             landmarkName = "bitSetupPhaseStarted()"
             landmarkType = "7">
          </BreakpointContent>
@@ -769,8 +737,8 @@
             filePath = "App1/Src/i2c/controllers/I2CSlaveController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "187"
-            endingLineNumber = "187"
+            startingLineNumber = "192"
+            endingLineNumber = "192"
             landmarkName = "bitClockHighPhaseStarted()"
             landmarkType = "7">
          </BreakpointContent>
@@ -785,8 +753,8 @@
             filePath = "App1/Src/i2c/controllers/I2CSlaveController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "144"
-            endingLineNumber = "144"
+            startingLineNumber = "149"
+            endingLineNumber = "149"
             landmarkName = "resetTransmissionState()"
             landmarkType = "7">
          </BreakpointContent>
@@ -801,8 +769,8 @@
             filePath = "App1/Src/i2c/controllers/I2CSlaveController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "160"
-            endingLineNumber = "160"
+            startingLineNumber = "165"
+            endingLineNumber = "165"
             landmarkName = "transmissionStarted()"
             landmarkType = "7">
          </BreakpointContent>
@@ -817,8 +785,8 @@
             filePath = "App1/Src/i2c/controllers/I2CSlaveController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "167"
-            endingLineNumber = "167"
+            startingLineNumber = "172"
+            endingLineNumber = "172"
             landmarkName = "bitSetupPhaseStarted()"
             landmarkType = "7">
          </BreakpointContent>
@@ -833,8 +801,8 @@
             filePath = "App1/Src/i2c/controllers/I2CSlaveController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "188"
-            endingLineNumber = "188"
+            startingLineNumber = "193"
+            endingLineNumber = "193"
             landmarkName = "bitClockHighPhaseStarted()"
             landmarkType = "7">
          </BreakpointContent>

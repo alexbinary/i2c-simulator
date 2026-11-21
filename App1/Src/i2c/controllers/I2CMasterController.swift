@@ -45,17 +45,17 @@ class I2CMasterController: I2CController {
     var lastKnownLineLevels: (SCL: I2CBusLineLevel, SDA: I2CBusLineLevel) = (SCL: .high, SDA: .high)
     var busBusy = false
 
-    var lastLineChangeX: CGFloat = 0
-    var lastIdleReachedX: CGFloat = 0
-    var lastBitClockHighStartX: CGFloat = 0
-    var lastBitClockLowStartX: CGFloat = 0
-    var lastStopX: CGFloat = 0
+    var lastLineChangeX: CGFloat?
+    var lastIdleReachedX: CGFloat?
+    var lastBitClockHighStartX: CGFloat?
+    var lastBitClockLowStartX: CGFloat?
+    var lastStopX: CGFloat?
     
-    let xWaitAfterLineChange: CGFloat = 10
+    let xWaitAfterStop: CGFloat = 100
     let xWaitBeforeStart: CGFloat = 30
     let xBitClockHighDuration: CGFloat = 30
     let xBitClockLowDuration: CGFloat = 30
-    let xWaitAfterStop: CGFloat = 100
+    let xWaitAfterLineChange: CGFloat = 10
     
     var scheduledTransmissions: [(x: CGFloat, transmission: I2CTransmission)] = []
     var activeTransmission: I2CTransmission?
@@ -166,7 +166,7 @@ class I2CMasterController: I2CController {
                 }
                 
             case .bit_setup_assertingSDA:
-                if (nextBitToWrite == nil && self.pullingSDA == false) || (bus.lineSDA.currentLevel.bit == nextBitToWrite && self.pullingSDA == (nextBitToWrite == .zero)) {
+                if nextBitToWrite == nil || bus.lineSDA.currentLevel.bit == nextBitToWrite {
                     currentTransmissionControlState = .bit_clock_assertingSCLHigh
                 }
                 
@@ -207,9 +207,13 @@ class I2CMasterController: I2CController {
     }
     
     
-    func waited(_ duration: CGFloat, relativeTo ref: CGFloat, x: CGFloat) -> Bool {
+    func waited(_ duration: CGFloat, relativeTo ref: CGFloat?, x: CGFloat) -> Bool {
         
-        return (x - ref) >= duration
+        if let ref = ref {
+            return (x - ref) >= duration
+        } else {
+            return true
+        }
     }
     
     
@@ -239,14 +243,16 @@ class I2CMasterController: I2CController {
                 self.pullingSCL = true
                 
             case .bit_setup_assertingSDA:
-                self.pullingSDA = nextBitToWrite == .zero
+                assertWriteBit()
                 
             case .bit_clock_assertingSCLHigh:
+                assertWriteBit()
                 if waited(xBitClockLowDuration, relativeTo: lastBitClockLowStartX, x: x) {
                     self.pullingSCL = false
                 }
                 
             case .bit_clock_sendingBit:
+                assertWriteBit()
                 if waited(xBitClockHighDuration, relativeTo: lastBitClockHighStartX, x: x) {
                     self.pullingSCL = true
                 }
@@ -268,6 +274,12 @@ class I2CMasterController: I2CController {
                 self.pullingSDA = false
             }
         }
+    }
+    
+    
+    func assertWriteBit() {
+        
+        self.pullingSDA = nextBitToWrite == .zero
     }
 
 

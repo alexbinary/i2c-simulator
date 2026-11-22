@@ -102,8 +102,8 @@ class I2CMasterController: I2CController {
         
         clearActiveTransmission()
         
-        self.pullingSCL = false
-        self.pullingSDA = false
+        releaseSCL()
+        releaseSDA()
     }
     
     
@@ -226,23 +226,23 @@ class I2CMasterController: I2CController {
             switch currentTransmissionControlState {
                 
             case .startSetup_assertingSCLLow:
-                self.pullingSCL = true
+                pullSCL()
                 
             case .startSetup_assertingSCLHigh:
-                self.pullingSCL = false
+                releaseSCL()
             
             case .startSetup_assertingSDAHigh:
-                self.pullingSDA = false
+                releaseSDA()
             
             case .start_pullingSDA:
                 if !busBusy,
                    waited(xWaitAfterStop, relativeTo: lastStopX, x: x),
                    waited(xWaitBeforeStart, relativeTo: lastIdleReachedX, x: x) {
-                    self.pullingSDA = true
+                    pullSDA()
                 }
                 
             case .bitSetup_assertingSCLLow:
-                self.pullingSCL = true
+                pullSCL()
                 
             case .bitSetup_assertingSDA:
                 assertWriteBit()
@@ -250,30 +250,30 @@ class I2CMasterController: I2CController {
             case .bitClock_assertingSCLHigh:
                 assertWriteBit()
                 if waited(xBitClockLowDuration, relativeTo: lastBitClockLowStartX, x: x) {
-                    self.pullingSCL = false
+                    releaseSCL()
                 }
                 
             case .bitClock_sendingBit:
                 assertWriteBit()
                 if waited(xBitClockHighDuration, relativeTo: lastBitClockHighStartX, x: x) {
-                    self.pullingSCL = true
+                    pullSCL()
                 }
                 
             case .stopSetup_assertingSCLLow:
-                self.pullingSCL = true
+                pullSCL()
                 
             case .stopSetup_assertingSCLHigh:
-                self.pullingSCL = false
+                releaseSCL()
             
             case .stopSetup_assertingSDALow:
-                self.pullingSDA = true
+                pullSDA()
             
             case .stop_releasingSDA:
-                self.pullingSDA = false
+                releaseSDA()
                 
             case .none:
-                self.pullingSCL = false
-                self.pullingSDA = false
+                releaseSCL()
+                releaseSDA()
             }
         }
     }
@@ -281,7 +281,11 @@ class I2CMasterController: I2CController {
     
     func assertWriteBit() {
         
-        self.pullingSDA = nextBitToWrite == .zero
+        if nextBitToWrite == .zero {
+            pullSDA()
+        } else {
+            releaseSDA()
+        }
     }
 
 

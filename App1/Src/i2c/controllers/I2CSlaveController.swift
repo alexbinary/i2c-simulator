@@ -86,8 +86,8 @@ class I2CSlaveController: I2CController {
         lastKnownLineLevels = bus.currentLineLevels
         resetTransmissionState()
         
-        self.pullingSCL = false
-        self.pullingSDA = false
+        releaseSCL()
+        releaseSDA()
     }
 
 
@@ -175,14 +175,22 @@ class I2CSlaveController: I2CController {
              .completedWithoutError,
              .completedWithDataWriteNackedBySlave,
              .transmittingAddressByte:
-            self.pullingSDA = false
+            releaseSDA()
             
         case .transmittingDataByte:
-            self.pullingSDA = currentTransmissionMode == .readFromSlave && currentDataBitToWrite == .zero
+            if currentTransmissionMode == .readFromSlave && currentDataBitToWrite == .zero {
+                pullSDA()
+            } else {
+                releaseSDA()
+            }
         
         case .transmittingAddressAck,
              .transmittingDataAck:
-            self.pullingSDA = currentAck == .ack
+            if currentAck == .ack {
+                pullSDA()
+            } else {
+                releaseSDA()
+            }
         }
     }
     
@@ -202,7 +210,7 @@ class I2CSlaveController: I2CController {
     func bitClockHighPhaseEnded() {
         
         currentTransmissionState = .started
-        self.pullingSDA = false
+        releaseSDA()
         
         switch currentTransmissionStatus!.transmittingByteOrAck {
 

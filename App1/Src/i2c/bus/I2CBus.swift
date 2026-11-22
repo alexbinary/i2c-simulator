@@ -8,6 +8,12 @@ class I2CBus {
     
     let lineSCL = I2CBusLine(.SCL)
     let lineSDA = I2CBusLine(.SDA)
+    func line(_ identity: I2CBusLine.Identity) -> I2CBusLine {
+        switch identity {
+        case .SCL: return lineSCL
+        case .SDA: return lineSDA
+        }
+    }
     var currentLineLevels: (SCL: I2CBusLineLevel, SDA: I2CBusLineLevel) { (SCL: lineSCL.currentLevel, SDA: lineSDA.currentLevel) }
     
     var controllers: [I2CController] = []
@@ -57,7 +63,6 @@ class I2CBus {
             currentX += simStepX
             
             for line in [lineSCL, lineSDA] {
-                line.setPullers(controllers.filter { $0.pulling(line.identity) })
                 line.captureLevel(at: currentX)
             }
         }

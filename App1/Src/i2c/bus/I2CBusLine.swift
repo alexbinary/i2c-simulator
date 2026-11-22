@@ -31,9 +31,21 @@ class I2CBusLine {
     }
     
     
-    func setPullers(_ controllers: [I2CController]) {
+    func addPuller(_ controller: I2CController) {
         
-        pullers = Set(controllers.map { $0.id })
+        pullers.insert(controller.id)
+        updateLevel()
+    }
+    
+    func removePuller(_ controller: I2CController) {
+        
+        pullers.remove(controller.id)
+        updateLevel()
+    }
+    
+    
+    func updateLevel() {
+        
         currentLevel = pullers.count == 0 ? .high : .low
     }
     

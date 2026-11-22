@@ -79,8 +79,6 @@ class I2CMasterController: I2CController {
     var currentTransmittedByteIndex: Int = 0
     var currentTransmittedByteBitIndex: Int { currentTransmittedByteReadBits.count }
     
-    var currentAck: Ack?
-    
     let onTransmissionEnded: ((TransmissionResult)->())?
     
     
@@ -303,8 +301,6 @@ class I2CMasterController: I2CController {
         lastTransmittedByte = nil
         transmittedDataBytes = []
         currentTransmittedByteReadBits = []
-
-        currentAck = nil
     }
     
     
@@ -463,11 +459,6 @@ class I2CMasterController: I2CController {
         case .data:
             transmittedDataBytes.append(lastTransmittedByte!)
             currentTransmissionStatus = .transmittingDataAck
-            if activeTransmission!.isReadFromSlave {
-                currentAck = Ack(ackIf: (currentTransmittedByteIndex+1) < activeTransmission!.numBytes)
-            } else {
-                currentAck = nil
-            }
         }
     }
     
@@ -515,11 +506,11 @@ class I2CMasterController: I2CController {
             return nil
             
         case .transmittingAddressByte:
-            return nextAddressBitToWrite
+            return currentAddressBitToWrite
         
         case .transmittingDataByte:
             switch activeTransmission!.mode {
-            case .writeToSlave: return nextDataBitToWrite
+            case .writeToSlave: return currentDataBitToWrite
             case .readFromSlave: return nil
             }
         
@@ -530,16 +521,25 @@ class I2CMasterController: I2CController {
             }
         }
     }
+    
+    
+    var currentAck: Ack? {
+        
+        if currentTransmissionStatus == .transmittingDataAck, activeTransmission!.isReadFromSlave {
+            return Ack(ackIf: (currentTransmittedByteIndex+1) < activeTransmission!.numBytes)
+        }
+        return nil
+    }
 
 
-    var nextAddressBitToWrite: Bit {
+    var currentAddressBitToWrite: Bit {
 
         let byte = activeTransmission!.addressRW
         return byte.bit(atIndex: currentTransmittedByteBitIndex)
     }
 
 
-    var nextDataBitToWrite: Bit {
+    var currentDataBitToWrite: Bit {
 
         let byte = activeTransmission!.bytes[currentTransmittedByteIndex]
         return byte.bit(atIndex: currentTransmittedByteBitIndex)

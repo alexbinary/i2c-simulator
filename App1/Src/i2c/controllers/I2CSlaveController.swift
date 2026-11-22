@@ -64,7 +64,6 @@ class I2CSlaveController: I2CController {
     
     var currentTransmissionAddress: Byte?
     var currentTransmissionMode: ReadWrite?
-    var currentAck: Ack?
     
     let respondsToAddresses: [Byte]
     let reportsTransmissionsNotAddressedToSelf: Bool
@@ -174,7 +173,6 @@ class I2CSlaveController: I2CController {
         currentTransmissionAddress = nil
         currentTransmissionMode = nil
         bytesToBeRead = []
-        currentAck = nil
     }
     
     
@@ -268,20 +266,11 @@ class I2CSlaveController: I2CController {
             currentTransmissionAddress = address
             currentTransmissionMode = rw
             
-            if acceptAddress && acceptRW {
-                currentAck = .ack
-            } else {
-                currentAck = .nack
-            }
             currentTransmissionStatus = .transmittingAddressAck
             
         case .data:
             
             transmittedDataBytes.append(lastTransmittedByte!)
-            switch currentTransmissionMode! {
-            case .writeToSlave: currentAck = Ack(ackIf: maxWrites == nil || transmittedDataBytes.count < maxWrites!)
-            case .readFromSlave: currentAck = nil
-            }
             currentTransmissionStatus = .transmittingDataAck
             
         case .none:
@@ -333,6 +322,30 @@ class I2CSlaveController: I2CController {
             if nextBytes.isEmpty { nextBytes.append(0xff) }
             bytesToBeRead.append(contentsOf: nextBytes)
         }
+    }
+    
+    
+    var currentAck: Ack? {
+        
+        switch currentTransmissionStatus {
+            
+        case .transmittingAddressAck:
+            if acceptAddress && acceptRW {
+                return .ack
+            } else {
+                return .nack
+            }
+            
+        case .transmittingDataAck:
+            if currentTransmissionMode == .writeToSlave {
+                return Ack(ackIf: maxWrites == nil || transmittedDataBytes.count < maxWrites!)
+            }
+            
+        default:
+            break
+        }
+        
+        return nil
     }
     
     

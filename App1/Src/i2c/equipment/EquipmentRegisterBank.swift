@@ -3,7 +3,7 @@ import SwiftUI
 
 
 
-class EquipmentTestSlave1: Equipment, I2CSlaveController.Delegate {
+class EquipmentRegisterBank: Equipment, I2CSlaveController.Delegate {
     
     let i2cAddress: Byte
     var i2cSlaveController: I2CSlaveController { self.i2cController as! I2CSlaveController }
@@ -22,6 +22,8 @@ class EquipmentTestSlave1: Equipment, I2CSlaveController.Delegate {
     override func reset(x: CGFloat) {
         super.reset(x: x)
         
+        registers[3] = 12
+        registers[4] = 1
     }
     
     
@@ -47,7 +49,7 @@ class EquipmentTestSlave1: Equipment, I2CSlaveController.Delegate {
     func onTransmissionEnded(result: I2CSlaveController.TransmissionResult) {
         
         print("")
-        print("-- EquipmentTestSlave1 TRANSMISSION ENDED --")
+        print("-- EquipmentRegisterBank:\(i2cAddress) TRANSMISSION ENDED --")
         print("\(result.type), address: \(result.address)+\(result.mode), transmittedBytes: \(result.transmittedBytes)")
         
         if result.isWriteSuccess {

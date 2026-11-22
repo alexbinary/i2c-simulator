@@ -62,6 +62,11 @@ class I2CMasterController: I2CController {
         let mode: ReadWrite?
         let transmittedBytes: [Byte]
         
+        var isSuccess: Bool { return type == .success }
+        
+        var isRead: Bool { return mode == .readFromSlave }
+        var isWrite: Bool { return mode == .writeToSlave }
+        
         var isWriteSuccess: Bool { return type == .success && mode == .writeToSlave }
         var isReadSuccess: Bool { return type == .success && mode == .readFromSlave }
     }

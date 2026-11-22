@@ -21,14 +21,14 @@ class RenderScene {
         let equipments = [
             EquipmentTestMaster1(),
             EquipmentTestSlave1(i2cAddress: 0x2a),
-            EquipmentBusMonitor(),
+//            EquipmentBusMonitor(),
         ]
         for equipment in equipments {
             equipment.i2cController!.connect(to: bus)
         }
         
         let startX: CGFloat = 0
-        let endX: CGFloat = 9000
+        let endX: CGFloat = 12000
         let simStepX: CGFloat = 1
         
         var currentX = startX

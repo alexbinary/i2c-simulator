@@ -3,6 +3,18 @@ import SwiftUI
 
 
 
+extension I2CMasterController{
+    
+    protocol Delegate {
+        func onTransmissionEnded(result: TransmissionResult)
+    }
+}
+
+extension I2CMasterController.Delegate {
+    func onTransmissionEnded(result: I2CSlaveController.TransmissionResult) {}
+}
+
+
 class I2CMasterController: I2CController {
     
     enum TransmissionControlState {
@@ -45,13 +57,13 @@ class I2CMasterController: I2CController {
             case addressNack
             case aborted
         }
-        struct Payload {
-            let address: Byte?
-            let mode: ReadWrite?
-            let transmittedBytes: [Byte]
-        }
         let type: `Type`
-        let payload: Payload
+        let address: Byte?
+        let mode: ReadWrite?
+        let transmittedBytes: [Byte]
+        
+        var isWriteSuccess: Bool { return type == .success && mode == .writeToSlave }
+        var isReadSuccess: Bool { return type == .success && mode == .readFromSlave }
     }
     
     var currentTransmissionControlState: TransmissionControlState?
@@ -88,12 +100,12 @@ class I2CMasterController: I2CController {
     var currentTransmittedByteIndex: Int = 0
     var currentTransmittedByteBitIndex: Int { currentTransmittedByteReadBits.count }
     
-    let onTransmissionEnded: ((TransmissionResult)->())?
+    var delegate: Delegate?
     
     
-    init(onTransmissionEnded: ((TransmissionResult)->())?) {
+    init(delegate: Delegate? = nil) {
         
-        self.onTransmissionEnded = onTransmissionEnded
+        self.delegate = delegate
     }
     
     
@@ -497,7 +509,7 @@ class I2CMasterController: I2CController {
             let result = lastTransmissionResult
             clearActiveTransmission()
             if let result = result {
-                onTransmissionEnded?(result)
+                delegate?.onTransmissionEnded(result: result)
             }
         }
     }
@@ -505,12 +517,12 @@ class I2CMasterController: I2CController {
     
     func makeTransmissionResult(withType type: TransmissionResult.`Type`) -> TransmissionResult {
         
-        let payload = TransmissionResult.Payload(
+        return TransmissionResult(
+            type: type,
             address: activeTransmission!.address,
             mode: activeTransmission!.mode,
             transmittedBytes: transmittedDataBytes
         )
-        return TransmissionResult(type: type, payload: payload)
     }
      
     

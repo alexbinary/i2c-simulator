@@ -3,6 +3,21 @@ import SwiftUI
 
 
 
+extension I2CSlaveController{
+    
+    protocol Delegate {
+        func nextBytesToBeRead() -> [Byte]
+        func onTransmissionEnded(result: TransmissionResult)
+    }
+}
+
+extension I2CSlaveController.Delegate {
+    
+    func nextBytesToBeRead() -> [Byte] { [] }
+    func onTransmissionEnded(result: I2CSlaveController.TransmissionResult) {}
+}
+
+
 class I2CSlaveController: I2CController {
     
     enum TransmissionState {
@@ -35,13 +50,13 @@ class I2CSlaveController: I2CController {
             case notAddressedToSelf
             case modeNotSupported
         }
-        struct Payload {
-            let address: Byte?
-            let mode: ReadWrite?
-            let transmittedBytes: [Byte]
-        }
         let type: `Type`
-        let payload: Payload
+        let address: Byte?
+        let mode: ReadWrite?
+        let transmittedBytes: [Byte]
+        
+        var isWriteSuccess: Bool { return type == .success && mode == .writeToSlave }
+        var isReadSuccess: Bool { return type == .success && mode == .readFromSlave }
     }
     
     var currentTransmissionState: TransmissionState?
@@ -73,9 +88,7 @@ class I2CSlaveController: I2CController {
     var acceptRW: Bool { currentTransmissionMode == .writeToSlave && acceptWrites || currentTransmissionMode == .readFromSlave && acceptReads }
     
     var bytesToBeRead: [Byte] = []
-    let nextBytesToBeRead: (() -> [Byte])?
-    
-    let onTransmissionEnded: ((TransmissionResult)->())?
+    var delegate: Delegate?
 
 
     init(
@@ -84,16 +97,14 @@ class I2CSlaveController: I2CController {
         acceptWrites: Bool = true,
         acceptReads: Bool = true,
         maxWrites: Int? = nil,
-        nextBytesToBeRead: (() -> [Byte])? = nil,
-        onTransmissionEnded: ((TransmissionResult)->())? = nil
+        delegate: Delegate? = nil
     ) {
         self.respondsToAddresses = respondsToAddresses
         self.reportsTransmissionsNotAddressedToSelf = reportsTransmissionsNotAddressedToSelf
         self.acceptWrites = acceptWrites
         self.acceptReads = acceptReads
         self.maxWrites = maxWrites
-        self.nextBytesToBeRead = nextBytesToBeRead
-        self.onTransmissionEnded = onTransmissionEnded
+        self.delegate = delegate
     }
 
 
@@ -310,7 +321,7 @@ class I2CSlaveController: I2CController {
     func sourceNextBytesToBeRead() {
         
         if currentTransmittedByteIndex == bytesToBeRead.count {
-            var nextBytes = nextBytesToBeRead?() ?? []
+            var nextBytes = delegate?.nextBytesToBeRead() ?? []
             if nextBytes.isEmpty { nextBytes.append(0xff) }
             bytesToBeRead.append(contentsOf: nextBytes)
         }
@@ -374,7 +385,7 @@ class I2CSlaveController: I2CController {
             let result = lastTransmissionResult
             resetTransmissionState()
             if let result = result {
-                onTransmissionEnded?(result)
+                delegate?.onTransmissionEnded(result: result)
             }
         }
     }
@@ -382,11 +393,11 @@ class I2CSlaveController: I2CController {
     
     func makeTransmissionResult(withType type: TransmissionResult.`Type`) -> TransmissionResult {
      
-        let payload = TransmissionResult.Payload(
+        return TransmissionResult(
+            type: type,
             address: currentTransmissionAddress,
             mode: currentTransmissionMode,
             transmittedBytes: transmittedDataBytes
         )
-        return TransmissionResult(type: type, payload: payload)
     }
 }

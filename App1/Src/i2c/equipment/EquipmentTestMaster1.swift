@@ -3,22 +3,26 @@ import SwiftUI
 
 
 
-class EquipmentTestMaster1: Equipment {
+class EquipmentTestMaster1: Equipment, I2CMasterController.Delegate {
     
     var i2cMasterController: I2CMasterController { self.i2cController as! I2CMasterController }
     
     var transmissions: [I2CTransmission] = [
         
-        I2CTransmission(writeTo: 0x2a, bytes: [0x01]),
-        I2CTransmission(readFrom: 0x2a, bytes: 2),
+        I2CTransmission(readFrom: 0x2a, bytes: 1),
         
-        I2CTransmission(writeTo: 0x2a, bytes: [0x03]),
-        I2CTransmission(readFrom: 0x2a, bytes: 5),
+        I2CTransmission(writeTo: 0x2a, bytes: [0x00, 0x01]),
+        I2CTransmission(writeTo: 0x2a, bytes: [0x00]),
+        I2CTransmission(readFrom: 0x2a, bytes: 1),
+        
+        I2CTransmission(writeTo: 0x2a, bytes: [0x02, 0x01, 0x02]),
+        I2CTransmission(writeTo: 0x2a, bytes: [0x02]),
+        I2CTransmission(readFrom: 0x2a, bytes: 3),
     ]
     
     override init() {
         super.init()
-        i2cController = I2CMasterController(onTransmissionEnded: onTransmissionEnded)
+        i2cController = I2CMasterController(delegate: self)
     }
     
     
@@ -47,7 +51,14 @@ class EquipmentTestMaster1: Equipment {
         
         print("")
         print("-- EquipmentTestMaster1 TRANSMISSION ENDED --")
-        print("\(result.type), address: \(result.payload.address)+\(result.payload.mode), transmittedBytes: \(result.payload.transmittedBytes)")
+        print("\(result.type), address: \(result.address)+\(result.mode), transmittedBytes: \(result.transmittedBytes)")
+        
+        if result.type == .success, result.mode == .writeToSlave {
+            print("sent command: \(result.transmittedBytes.first)")
+        }
+        if result.type == .success, result.mode == .readFromSlave {
+            print("read values: \(result.transmittedBytes)")
+        }
         
         self.activateNextTransmission()
     }

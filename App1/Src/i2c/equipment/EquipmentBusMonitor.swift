@@ -3,7 +3,7 @@ import SwiftUI
 
 
 
-class EquipmentBusMonitor: Equipment {
+class EquipmentBusMonitor: Equipment, I2CSlaveController.Delegate {
     
     var i2cSlaveController: I2CSlaveController { self.i2cController as! I2CSlaveController }
     
@@ -12,7 +12,7 @@ class EquipmentBusMonitor: Equipment {
         self.i2cController = I2CSlaveController(
             respondsToAddresses: [],
             reportsTransmissionsNotAddressedToSelf: true,
-            onTransmissionEnded: onTransmissionEnded
+            delegate: self
         )
     }
     
@@ -33,6 +33,6 @@ class EquipmentBusMonitor: Equipment {
         
         print("")
         print("-- EquipmentBusMonitor TRANSMISSION ENDED --")
-        print("\(result.type), address: \(result.payload.address)+\(result.payload.mode), transmittedBytes: \(result.payload.transmittedBytes)")
+        print("\(result.type), address: \(result.address)+\(result.mode), transmittedBytes: \(result.transmittedBytes)")
     }
 }

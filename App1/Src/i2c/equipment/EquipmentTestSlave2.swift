@@ -11,22 +11,16 @@ class EquipmentTestSlave2: Equipment {
     init(i2cAddress: Byte) {
         self.i2cAddress = i2cAddress
         super.init(i2cController: I2CSlaveController(
-            address: self.i2cAddress,
+            respondsToAddresses: [i2cAddress],
+            reportsTransmissionsNotAddressedToSelf: true,
             acceptWrites: false,
             acceptReads: true,
             nextBytesToBeRead: {
                 return []
             },
-            onTransmissionEnded: { status in
+            onTransmissionEnded: { result in
                 print("-- EquipmentTestSlave2 TRANSMISSION ENDED --")
-                switch status {
-                case .success(let transmittedBytes):
-                    print("success, transmittedBytes: \(transmittedBytes)")
-                case .dataNack(let transmittedBytes):
-                    print("data nack, transmittedBytes: \(transmittedBytes)")
-                case .aborted(let transmittedBytes):
-                    print("aborted, transmittedBytes: \(transmittedBytes)")
-                }
+                print("\(result.type), address: \(result.payload.address)+\(result.payload.mode), transmittedBytes: \(result.payload.transmittedBytes)")
             }
         ))
     }

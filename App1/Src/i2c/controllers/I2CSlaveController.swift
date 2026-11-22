@@ -19,6 +19,7 @@ class I2CSlaveController: I2CController {
         case completedWithoutError
         case completedWithDataWriteNackedBySlave
         case transmissionNotAddressedToSelf
+        case transmissionModeNotSupported
         
         enum ByteOrAck { case byte, ack }
         var transmittingByteOrAck: ByteOrAck? { (self == .transmittingAddressByte || self == .transmittingDataByte) ? .byte : (self == .transmittingAddressAck || self == .transmittingDataAck) ? .ack : nil }
@@ -28,10 +29,21 @@ class I2CSlaveController: I2CController {
         var currentAckTarget: AddressOrData? { self == .transmittingAddressAck ? .address : self == .transmittingDataAck ? .data : nil }
     }
     
-    enum TransmissionResult {
-        case success(transmittedBytes: [Byte])
-        case dataNack(transmittedBytes: [Byte])
-        case aborted(transmittedBytes: [Byte])
+    struct TransmissionResult {
+        enum `Type` {
+            case success
+            case dataNack
+            case aborted
+            case notAddressedToSelf
+            case modeNotSupported
+        }
+        struct Payload {
+            let address: Byte?
+            let mode: ReadWrite?
+            let transmittedBytes: [Byte]
+        }
+        let type: `Type`
+        let payload: Payload
     }
     
     var currentTransmissionState: TransmissionState?
@@ -50,13 +62,18 @@ class I2CSlaveController: I2CController {
     var currentTransmittedByteIndex: Int = 0
     var currentTransmittedByteBitIndex: Int { currentTransmittedByteReadBits.count }
     
+    var currentTransmissionAddress: Byte?
     var currentTransmissionMode: ReadWrite?
     var currentAck: Ack?
     
-    let address: Byte
+    let respondsToAddresses: [Byte]
+    let reportsTransmissionsNotAddressedToSelf: Bool
     let acceptWrites: Bool
     let acceptReads: Bool
     let maxWrites: Int?
+    
+    var acceptAddress: Bool { currentTransmissionAddress != nil && self.respondsToAddresses.contains(currentTransmissionAddress!) }
+    var acceptRW: Bool { currentTransmissionMode == .writeToSlave && acceptWrites || currentTransmissionMode == .readFromSlave && acceptReads }
     
     var bytesToBeRead: [Byte] = []
     let nextBytesToBeRead: (() -> [Byte])?
@@ -65,14 +82,16 @@ class I2CSlaveController: I2CController {
 
 
     init(
-        address: Byte,
+        respondsToAddresses: [Byte],
+        reportsTransmissionsNotAddressedToSelf: Bool = false,
         acceptWrites: Bool = true,
         acceptReads: Bool = true,
         maxWrites: Int? = nil,
         nextBytesToBeRead: (() -> [Byte])? = nil,
         onTransmissionEnded: ((TransmissionResult)->())? = nil
     ) {
-        self.address = address
+        self.respondsToAddresses = respondsToAddresses
+        self.reportsTransmissionsNotAddressedToSelf = reportsTransmissionsNotAddressedToSelf
         self.acceptWrites = acceptWrites
         self.acceptReads = acceptReads
         self.maxWrites = maxWrites
@@ -152,6 +171,7 @@ class I2CSlaveController: I2CController {
         lastTransmittedByte = nil
         transmittedDataBytes = []
         currentTransmittedByteReadBits = []
+        currentTransmissionAddress = nil
         currentTransmissionMode = nil
         bytesToBeRead = []
         currentAck = nil
@@ -172,6 +192,7 @@ class I2CSlaveController: I2CController {
         switch currentTransmissionStatus! {
             
         case .transmissionNotAddressedToSelf,
+             .transmissionModeNotSupported,
              .completedWithoutError,
              .completedWithDataWriteNackedBySlave,
              .transmittingAddressByte:
@@ -244,11 +265,10 @@ class I2CSlaveController: I2CController {
             let rwBit = Bit(addressByte & 1)
             let rw = ReadWrite(from: rwBit)
             
-            let addressMatch = address == self.address
-            let acceptRW = (rw == .writeToSlave && acceptWrites || rw == .readFromSlave && acceptReads)
+            currentTransmissionAddress = address
+            currentTransmissionMode = rw
             
-            if addressMatch && acceptRW {
-                currentTransmissionMode = rw
+            if acceptAddress && acceptRW {
                 currentAck = .ack
             } else {
                 currentAck = .nack
@@ -282,7 +302,11 @@ class I2CSlaveController: I2CController {
             currentTransmittedByteIndex = 0
             
         case (.nack, .address):
-            currentTransmissionStatus = .transmissionNotAddressedToSelf
+            if !acceptAddress {
+                currentTransmissionStatus = .transmissionNotAddressedToSelf
+            } else {
+                currentTransmissionStatus = .transmissionModeNotSupported
+            }
             transmissionStopped()
             
         case (.ack, .data):
@@ -325,16 +349,23 @@ class I2CSlaveController: I2CController {
             switch status {
                 
             case .transmissionNotAddressedToSelf:
-                break
+                if reportsTransmissionsNotAddressedToSelf {
+                    lastTransmissionResult = makeTransmissionResult(withType: .notAddressedToSelf)
+                }
+                
+            case .transmissionModeNotSupported:
+                if reportsTransmissionsNotAddressedToSelf {
+                    lastTransmissionResult = makeTransmissionResult(withType: .modeNotSupported)
+                }
                 
             case .completedWithoutError, .transmittingDataByte:
-                lastTransmissionResult = .success(transmittedBytes: transmittedDataBytes)
+                lastTransmissionResult = makeTransmissionResult(withType: .success)
                 
             case .completedWithDataWriteNackedBySlave:
-                lastTransmissionResult = .dataNack(transmittedBytes: transmittedDataBytes)
+                lastTransmissionResult = makeTransmissionResult(withType: .dataNack)
             
             case .transmittingAddressByte, .transmittingAddressAck, .transmittingDataAck:
-                lastTransmissionResult = .aborted(transmittedBytes: transmittedDataBytes)
+                lastTransmissionResult = makeTransmissionResult(withType: .aborted)
             }
             
             let result = lastTransmissionResult
@@ -343,5 +374,16 @@ class I2CSlaveController: I2CController {
                 onTransmissionEnded?(result)
             }
         }
+    }
+    
+    
+    func makeTransmissionResult(withType type: TransmissionResult.`Type`) -> TransmissionResult {
+     
+        let payload = TransmissionResult.Payload(
+            address: currentTransmissionAddress,
+            mode: currentTransmissionMode,
+            transmittedBytes: transmittedDataBytes
+        )
+        return TransmissionResult(type: type, payload: payload)
     }
 }

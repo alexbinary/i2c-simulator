@@ -5,11 +5,13 @@ import SwiftUI
 
 class EquipmentTestSlave2: Equipment {
     
-    let slave: I2CSlaveController
+    let i2cAddress: Byte
+    var i2cSlaveController: I2CSlaveController { self.i2cController as! I2CSlaveController }
     
-    init() {
-        self.slave = I2CSlaveController(
-            address: 0x61,
+    init(i2cAddress: Byte) {
+        self.i2cAddress = i2cAddress
+        super.init(i2cController: I2CSlaveController(
+            address: self.i2cAddress,
             acceptWrites: false,
             acceptReads: true,
             nextBytesToBeRead: {
@@ -26,7 +28,20 @@ class EquipmentTestSlave2: Equipment {
                     print("aborted, transmittedBytes: \(transmittedBytes)")
                 }
             }
-        )
-        super.init(i2cController: slave)
+        ))
+    }
+    
+    
+    override func reset(x: CGFloat) {
+        super.reset(x: x)
+        
+        print("-- EquipmentTestSlave2 RESET: \(x) --")
+    }
+    
+    
+    override func update(x: CGFloat) {
+        super.update(x: x)
+        
+        print("-- EquipmentTestSlave2 UPDATE: \(x) --")
     }
 }

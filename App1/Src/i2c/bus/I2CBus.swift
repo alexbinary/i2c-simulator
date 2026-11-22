@@ -15,9 +15,6 @@ class I2CBus {
         }
     }
     var currentLineLevels: (SCL: I2CBusLineLevel, SDA: I2CBusLineLevel) { (SCL: lineSCL.currentLevel, SDA: lineSDA.currentLevel) }
-    
-    var controllers: [I2CController] = []
-    var simStepX: CGFloat = 1
 
 
     func reset() {
@@ -25,46 +22,12 @@ class I2CBus {
         lineSCL.reset()
         lineSDA.reset()
     }
-
-
-    func connect(_ controller: I2CController) {
-        
-        controllers.append(controller)
-        controller.connect(to: self)
-    }
     
     
-    func connect(_ equipment: Equipment) {
-        
-        connect(equipment.i2cController)
-    }
-    
-    
-    func simulate(from startX: CGFloat, to endX: CGFloat) {
-
-        var currentX = startX
+    func captureLineLevels(at x: CGFloat) {
         
         for line in [lineSCL, lineSDA] {
-            line.captureLevel(at: currentX)
-        }
-        
-        for controller in controllers {
-            controller.reset(x: currentX)
-        }
-
-        while currentX < endX {
-            
-            print("-- CLOCK TICK: \(currentX) --")
-            
-            for controller in controllers {
-                controller.update(x: currentX)
-            }
-            
-            currentX += simStepX
-            
-            for line in [lineSCL, lineSDA] {
-                line.captureLevel(at: currentX)
-            }
+            line.captureLevel(at: x)
         }
     }
 }

@@ -9,9 +9,6 @@
                value = "self.currentTransmissionState">
             </PersistentString>
             <PersistentString
-               value = "self.address">
-            </PersistentString>
-            <PersistentString
                value = "self.currentTransmissionStatus">
             </PersistentString>
          </PersistentStrings>
@@ -38,6 +35,17 @@
             </PersistentString>
             <PersistentString
                value = "currentTransmissionStatus">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "I2CSlaveController.transmissionStopped():I2CSlaveController.swift">
+         <PersistentStrings>
+            <PersistentString
+               value = "respondsToAddresses">
+            </PersistentString>
+            <PersistentString
+               value = "reportsTransmissionsNotAddressedToSelf">
             </PersistentString>
          </PersistentStrings>
       </ContextState>

@@ -431,7 +431,7 @@ class I2CMasterController: I2CController {
         
         switch ackValue {
         case .ack:
-            let stillHaveBytesToSend = (currentTransmittedByteIndex+1) < activeTransmission!.numBytes
+            let stillHaveBytesToSend = transmittedDataBytes.count < activeTransmission!.numBytes
             switch stillHaveBytesToSend {
             case true:
                 switch currentTransmissionStatus!.currentAckTarget! {

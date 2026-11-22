@@ -11,29 +11,25 @@ class EquipmentTestSlave1: Equipment {
     init(i2cAddress: Byte) {
         self.i2cAddress = i2cAddress
         super.init()
-        self.i2cController = I2CSlaveController(
-            respondsToAddresses: [i2cAddress],
-            acceptWrites: true,
-            acceptReads: false,
-            //            maxWrites: 1,
-            onTransmissionEnded: { result in
-                print("-- EquipmentTestSlave1 TRANSMISSION ENDED --")
-                print("\(result.type), address: \(result.payload.address)+\(result.payload.mode), transmittedBytes: \(result.payload.transmittedBytes)")
-            }
-        )
+        self.i2cController = I2CSlaveController(respondsToAddresses: [i2cAddress], onTransmissionEnded: onTransmissionEnded)
     }
     
     
     override func reset(x: CGFloat) {
         super.reset(x: x)
         
-        print("-- EquipmentTestSlave1 RESET: \(x) --")
     }
     
     
     override func update(x: CGFloat) {
         super.update(x: x)
         
-        print("-- EquipmentTestSlave1 UPDATE: \(x) --")
+    }
+    
+    func onTransmissionEnded(result: I2CSlaveController.TransmissionResult) {
+        
+        print("")
+        print("-- EquipmentTestSlave1 TRANSMISSION ENDED --")
+        print("\(result.type), address: \(result.payload.address)+\(result.payload.mode), transmittedBytes: \(result.payload.transmittedBytes)")
     }
 }

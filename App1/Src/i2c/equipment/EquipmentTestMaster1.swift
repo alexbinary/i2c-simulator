@@ -9,13 +9,11 @@ class EquipmentTestMaster1: Equipment {
     
     var transmissions: [I2CTransmission] = [
         
-        I2CTransmission(writeTo: 0x2b, bytes: [0x01, 0x02]),
-        
-        I2CTransmission(writeTo: 0x2a, bytes: [0x01, 0x02]),
+        I2CTransmission(writeTo: 0x2a, bytes: [0x01]),
         I2CTransmission(readFrom: 0x2a, bytes: 2),
         
-        I2CTransmission(writeTo: 0x61, bytes: [0x03, 0x04]),
-        I2CTransmission(readFrom: 0x61, bytes: 5),
+        I2CTransmission(writeTo: 0x2a, bytes: [0x03]),
+        I2CTransmission(readFrom: 0x2a, bytes: 5),
     ]
     
     override init() {
@@ -27,16 +25,13 @@ class EquipmentTestMaster1: Equipment {
     override func reset(x: CGFloat) {
         super.reset(x: x)
         
-        print("-- EquipmentTestMaster1 RESET: \(x) --")
-        
         activateNextTransmission()
     }
     
     
     override func update(x: CGFloat) {
         super.update(x: x)
-        
-        print("-- EquipmentTestMaster1 UPDATE: \(x) --")
+
     }
     
     
@@ -50,6 +45,7 @@ class EquipmentTestMaster1: Equipment {
     
     func onTransmissionEnded(result: I2CMasterController.TransmissionResult) {
         
+        print("")
         print("-- EquipmentTestMaster1 TRANSMISSION ENDED --")
         print("\(result.type), address: \(result.payload.address)+\(result.payload.mode), transmittedBytes: \(result.payload.transmittedBytes)")
         

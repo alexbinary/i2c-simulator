@@ -18,8 +18,6 @@ class I2CSlaveController: I2CController {
         case transmittingDataAck
         case completedWithoutError
         case completedWithDataWriteNackedBySlave
-        case transmissionNotAddressedToSelf
-        case transmissionModeNotSupported
         
         enum ByteOrAck { case byte, ack }
         var transmittingByteOrAck: ByteOrAck? { (self == .transmittingAddressByte || self == .transmittingDataByte) ? .byte : (self == .transmittingAddressAck || self == .transmittingDataAck) ? .ack : nil }
@@ -189,9 +187,7 @@ class I2CSlaveController: I2CController {
          
         switch currentTransmissionStatus! {
             
-        case .transmissionNotAddressedToSelf,
-             .transmissionModeNotSupported,
-             .completedWithoutError,
+        case .completedWithoutError,
              .completedWithDataWriteNackedBySlave,
              .transmittingAddressByte:
             releaseSDA()
@@ -286,17 +282,13 @@ class I2CSlaveController: I2CController {
         
         switch (ackValue, currentTransmissionStatus!.currentAckTarget!) {
             
-        case (.ack, .address):
+        case (.ack, .address),
+             (.nack, .address):
             currentTransmissionStatus = .transmittingDataByte
             currentTransmittedByteIndex = 0
-            
-        case (.nack, .address):
-            if !acceptAddress {
-                currentTransmissionStatus = .transmissionNotAddressedToSelf
-            } else {
-                currentTransmissionStatus = .transmissionModeNotSupported
+            if ackValue == .nack && !reportsTransmissionsNotAddressedToSelf {
+                transmissionStopped()
             }
-            transmissionStopped()
             
         case (.ack, .data):
             currentTransmissionStatus = .transmittingDataByte
@@ -361,18 +353,16 @@ class I2CSlaveController: I2CController {
         if let status = currentTransmissionStatus {
             switch status {
                 
-            case .transmissionNotAddressedToSelf:
-                if reportsTransmissionsNotAddressedToSelf {
-                    lastTransmissionResult = makeTransmissionResult(withType: .notAddressedToSelf)
-                }
-                
-            case .transmissionModeNotSupported:
-                if reportsTransmissionsNotAddressedToSelf {
-                    lastTransmissionResult = makeTransmissionResult(withType: .modeNotSupported)
-                }
-                
             case .completedWithoutError, .transmittingDataByte:
-                lastTransmissionResult = makeTransmissionResult(withType: .success)
+                if acceptAddress && acceptRW {
+                    lastTransmissionResult = makeTransmissionResult(withType: .success)
+                } else if reportsTransmissionsNotAddressedToSelf {
+                    if !acceptAddress {
+                        lastTransmissionResult = makeTransmissionResult(withType: .notAddressedToSelf)
+                    } else {
+                        lastTransmissionResult = makeTransmissionResult(withType: .modeNotSupported)
+                    }
+                }
                 
             case .completedWithDataWriteNackedBySlave:
                 lastTransmissionResult = makeTransmissionResult(withType: .dataNack)

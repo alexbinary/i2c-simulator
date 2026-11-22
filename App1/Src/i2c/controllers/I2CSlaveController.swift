@@ -22,7 +22,7 @@ extension I2CSlaveController.Delegate {
 
 class I2CSlaveController: I2CController {
     
-    enum TransmissionState {
+    enum TransmissionBitState {
         case holdingBeforeNextBit
         case readyForNextBit
         case bitClockLow
@@ -33,6 +33,7 @@ class I2CSlaveController: I2CController {
         case transmittingAddressByte
         case transmittingAddressAck
         case holdingBeforeDataByte
+        case waitingAfterHoldingBeforeReleasingSCL
         case transmittingDataByte
         case transmittingDataAck
         case completedWithoutError
@@ -63,7 +64,7 @@ class I2CSlaveController: I2CController {
         var isReadSuccess: Bool { return type == .success && mode == .readFromSlave }
     }
     
-    var currentTransmissionState: TransmissionState?
+    var currentTransmissionBitState: TransmissionBitState?
     var currentTransmissionStatus: TransmissionStatus?
     var lastTransmissionResult: TransmissionResult?
     
@@ -94,6 +95,9 @@ class I2CSlaveController: I2CController {
     
     var bytesToBeRead: [Byte] = []
     var delegate: Delegate?
+    
+    var nextHoldingEndX: CGFloat?
+    var xHoldingWaitBeforeReleasingSCL: CGFloat = 30
 
 
     init(
@@ -140,16 +144,13 @@ class I2CSlaveController: I2CController {
             lastKnownLineLevels = bus.currentLineLevels
         }
         
-        if currentTransmissionStatus == .holdingBeforeDataByte {
-            
-            holdingPhaseActive()
-        }
+        updateHoldingState(x: x)
         
         while true {
-            let previousState = currentTransmissionState
+            let previousState = currentTransmissionBitState
             
-            if currentTransmissionState != nil {
-                switch currentTransmissionState! {
+            if currentTransmissionBitState != nil {
+                switch currentTransmissionBitState! {
                     
                 case .holdingBeforeNextBit:
                     break
@@ -173,14 +174,14 @@ class I2CSlaveController: I2CController {
                 }
             }
             
-            if currentTransmissionState != previousState {
+            if currentTransmissionBitState != previousState {
                 continue
             } else {
                 break
             }
         }
         
-        if currentTransmissionStatus == .holdingBeforeDataByte && acceptTransmission {
+        if currentTransmissionStatus == .holdingBeforeDataByte || currentTransmissionStatus == .waitingAfterHoldingBeforeReleasingSCL {
             pullSCL()
         } else {
             releaseSCL()
@@ -190,7 +191,7 @@ class I2CSlaveController: I2CController {
     
     func resetTransmissionState() {
         
-        currentTransmissionState = nil
+        currentTransmissionBitState = nil
         currentTransmissionStatus = nil
         lastTransmissionResult = nil
         lastTransmittedBit = nil
@@ -206,30 +207,38 @@ class I2CSlaveController: I2CController {
     
     func transmissionStarted() {
         
-        currentTransmissionState = .readyForNextBit
+        currentTransmissionBitState = .readyForNextBit
         currentTransmissionStatus = .transmittingAddressByte
     }
     
     
-    func holdingPhaseActive() {
+    func updateHoldingState(x: CGFloat) {
         
-        if !(delegate?.shouldContinueHoldingBeforeDataByte(mode: currentTransmissionMode!) ?? false) {
+        if currentTransmissionStatus == .holdingBeforeDataByte {
             
-            currentTransmissionStatus = .transmittingDataByte
-            currentTransmissionState = .readyForNextBit
-            
-            if currentTransmissionMode == .readFromSlave, currentTransmittedByteIndex == bytesToBeRead.count {
-                var nextBytes = delegate?.nextBytesToBeRead() ?? []
-                if nextBytes.isEmpty { nextBytes.append(0xff) }
-                bytesToBeRead.append(contentsOf: nextBytes)
+            if !(delegate?.shouldContinueHoldingBeforeDataByte(mode: currentTransmissionMode!) ?? false) {
+                
+                if currentTransmissionMode == .readFromSlave, currentTransmittedByteIndex == bytesToBeRead.count {
+                    var nextBytes = delegate?.nextBytesToBeRead() ?? []
+                    if nextBytes.isEmpty { nextBytes.append(0xff) }
+                    bytesToBeRead.append(contentsOf: nextBytes)
+                }
+                
+                currentTransmissionBitState = .readyForNextBit
+                currentTransmissionStatus = .waitingAfterHoldingBeforeReleasingSCL
+                nextHoldingEndX = x + xHoldingWaitBeforeReleasingSCL
             }
+        }
+        
+        if currentTransmissionStatus == .waitingAfterHoldingBeforeReleasingSCL, x >= nextHoldingEndX! {
+            currentTransmissionStatus = .transmittingDataByte
         }
     }
     
     
     func bitSetupPhaseStarted() {
         
-        currentTransmissionState = .bitClockLow
+        currentTransmissionBitState = .bitClockLow
          
         switch currentTransmissionStatus! {
             
@@ -241,7 +250,8 @@ class I2CSlaveController: I2CController {
         case .holdingBeforeDataByte:
             break
             
-        case .transmittingDataByte:
+        case .waitingAfterHoldingBeforeReleasingSCL,
+             .transmittingDataByte:
             if currentTransmissionMode == .readFromSlave && currentDataBitToWrite == .zero {
                 pullSDA()
             } else {
@@ -261,7 +271,7 @@ class I2CSlaveController: I2CController {
     
     func bitClockHighPhaseStarted() {
         
-        currentTransmissionState = .bitClockHigh
+        currentTransmissionBitState = .bitClockHigh
     }
     
     
@@ -272,8 +282,6 @@ class I2CSlaveController: I2CController {
     
     
     func bitClockHighPhaseEnded() {
-        
-        releaseSDA()
         
         switch currentTransmissionStatus!.transmittingByteOrAck {
 
@@ -295,9 +303,9 @@ class I2CSlaveController: I2CController {
         }
         
         if currentTransmissionStatus == .holdingBeforeDataByte {
-            currentTransmissionState = .holdingBeforeNextBit
+            currentTransmissionBitState = .holdingBeforeNextBit
         } else {
-            currentTransmissionState = .readyForNextBit
+            currentTransmissionBitState = .readyForNextBit
         }
     }
     

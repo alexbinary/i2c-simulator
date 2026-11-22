@@ -24,7 +24,7 @@ class EquipmentRegisterBank: Equipment, I2CSlaveController.Delegate {
     override func reset(x: CGFloat) {
         super.reset(x: x)
         
-        registers[3] = 12
+        registers[3] = 12+128
         registers[4] = 1
     }
     
@@ -37,7 +37,7 @@ class EquipmentRegisterBank: Equipment, I2CSlaveController.Delegate {
     
     func shouldContinueHoldingBeforeDataByte(mode: ReadWrite) -> Bool {
         
-        return mode == .readFromSlave && currentX < 950
+        return mode == .readFromSlave && currentX < 1500
     }
     
     

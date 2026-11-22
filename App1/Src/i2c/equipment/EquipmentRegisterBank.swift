@@ -9,8 +9,8 @@ class EquipmentRegisterBank: Equipment, I2CSlaveController.Delegate {
     var i2cSlaveController: I2CSlaveController { self.i2cController as! I2CSlaveController }
     
     var registers = [Byte](repeating: 0x00, count: 256)
-    var registerBaseAddress: Int?
-    var currentRegisterAddress: Int?
+    var registerBaseAddress: Int? = 3
+    var currentRegisterAddress: Int? = 3
     
     var currentX: CGFloat = 0
     
@@ -37,7 +37,7 @@ class EquipmentRegisterBank: Equipment, I2CSlaveController.Delegate {
     
     func shouldContinueHoldingBeforeDataByte(mode: ReadWrite) -> Bool {
         
-        return mode == .readFromSlave && currentX < 2200
+        return mode == .readFromSlave && currentX < 950
     }
     
     

@@ -60,7 +60,7 @@ class EquipmentTestMaster1: Equipment, I2CMasterController.Delegate {
     
     func read_slave2_testData1() {
         
-        i2cMasterController.scheduleTransmission(at: 1, I2CTransmission(writeTo: slave2_address, bytes: [Byte(slave2_testData1_registerAddress)]))
+//        i2cMasterController.scheduleTransmission(at: 1, I2CTransmission(writeTo: slave2_address, bytes: [Byte(slave2_testData1_registerAddress)]))
         i2cMasterController.scheduleTransmission(at: 2, I2CTransmission(readFrom: slave2_address, bytes: slave2_testData1_len))
     }
     

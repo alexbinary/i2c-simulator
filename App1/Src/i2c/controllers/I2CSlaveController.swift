@@ -23,7 +23,8 @@ extension I2CSlaveController.Delegate {
 class I2CSlaveController: I2CController {
     
     enum TransmissionState {
-        case started
+        case holdingBeforeNextBit
+        case readyForNextBit
         case bitClockLow
         case bitClockHigh
     }
@@ -124,22 +125,6 @@ class I2CSlaveController: I2CController {
 
     override func update(x: CGFloat) {
         
-        if currentTransmissionStatus == .holdingBeforeDataByte {
-            
-            if !(delegate?.shouldContinueHoldingBeforeDataByte(mode: currentTransmissionMode!) ?? false) {
-                
-                currentTransmissionStatus = .transmittingDataByte
-                
-                if currentTransmissionMode == .readFromSlave, currentTransmittedByteIndex == bytesToBeRead.count {
-                    var nextBytes = delegate?.nextBytesToBeRead() ?? []
-                    if nextBytes.isEmpty { nextBytes.append(0xff) }
-                    bytesToBeRead.append(contentsOf: nextBytes)
-                }
-                
-                bitSetupPhaseStarted()
-            }
-        }
-        
         if bus.currentLineLevels != lastKnownLineLevels {
             
             if detectedStartCondition(analysingTransitionFrom: lastKnownLineLevels, to: bus.currentLineLevels) {
@@ -152,39 +137,47 @@ class I2CSlaveController: I2CController {
                 transmissionStopped()
             }
             
-            while true {
-                let previousState = currentTransmissionState
-                
-                if currentTransmissionState != nil {
-                    switch currentTransmissionState! {
-                        
-                    case .started:
-                        if bus.lineSCL.isLow {
-                            bitSetupPhaseStarted()
-                        }
-                        
-                    case .bitClockLow:
-                        if bus.lineSCL.isHigh {
-                            bitClockHighPhaseStarted()
-                        }
-                        
-                    case .bitClockHigh:
-                        if bus.lineSCL.isHigh {
-                            bitClockHighPhaseActive()
-                        } else {
-                            bitClockHighPhaseEnded()
-                        }
-                    }
-                }
-                
-                if currentTransmissionState != previousState {
-                    continue
-                } else {
+            lastKnownLineLevels = bus.currentLineLevels
+        }
+        
+        if currentTransmissionStatus == .holdingBeforeDataByte {
+            
+            holdingPhaseActive()
+        }
+        
+        while true {
+            let previousState = currentTransmissionState
+            
+            if currentTransmissionState != nil {
+                switch currentTransmissionState! {
+                    
+                case .holdingBeforeNextBit:
                     break
+                    
+                case .readyForNextBit:
+                    if bus.lineSCL.isLow {
+                        bitSetupPhaseStarted()
+                    }
+                    
+                case .bitClockLow:
+                    if bus.lineSCL.isHigh {
+                        bitClockHighPhaseStarted()
+                    }
+                    
+                case .bitClockHigh:
+                    if bus.lineSCL.isHigh {
+                        bitClockHighPhaseActive()
+                    } else {
+                        bitClockHighPhaseEnded()
+                    }
                 }
             }
             
-            lastKnownLineLevels = bus.currentLineLevels
+            if currentTransmissionState != previousState {
+                continue
+            } else {
+                break
+            }
         }
         
         if currentTransmissionStatus == .holdingBeforeDataByte && acceptTransmission {
@@ -213,8 +206,24 @@ class I2CSlaveController: I2CController {
     
     func transmissionStarted() {
         
-        currentTransmissionState = .started
+        currentTransmissionState = .readyForNextBit
         currentTransmissionStatus = .transmittingAddressByte
+    }
+    
+    
+    func holdingPhaseActive() {
+        
+        if !(delegate?.shouldContinueHoldingBeforeDataByte(mode: currentTransmissionMode!) ?? false) {
+            
+            currentTransmissionStatus = .transmittingDataByte
+            currentTransmissionState = .readyForNextBit
+            
+            if currentTransmissionMode == .readFromSlave, currentTransmittedByteIndex == bytesToBeRead.count {
+                var nextBytes = delegate?.nextBytesToBeRead() ?? []
+                if nextBytes.isEmpty { nextBytes.append(0xff) }
+                bytesToBeRead.append(contentsOf: nextBytes)
+            }
+        }
     }
     
     
@@ -264,7 +273,6 @@ class I2CSlaveController: I2CController {
     
     func bitClockHighPhaseEnded() {
         
-        currentTransmissionState = .started
         releaseSDA()
         
         switch currentTransmissionStatus!.transmittingByteOrAck {
@@ -284,6 +292,12 @@ class I2CSlaveController: I2CController {
             
         case .none:
             break
+        }
+        
+        if currentTransmissionStatus == .holdingBeforeDataByte {
+            currentTransmissionState = .holdingBeforeNextBit
+        } else {
+            currentTransmissionState = .readyForNextBit
         }
     }
     

@@ -12,6 +12,8 @@ class EquipmentRegisterBank: Equipment, I2CSlaveController.Delegate {
     var registerBaseAddress: Int?
     var currentRegisterAddress: Int?
     
+    var currentX: CGFloat = 0
+    
     init(i2cAddress: Byte) {
         self.i2cAddress = i2cAddress
         super.init()
@@ -29,7 +31,13 @@ class EquipmentRegisterBank: Equipment, I2CSlaveController.Delegate {
     
     override func update(x: CGFloat) {
         super.update(x: x)
+        currentX = x
+    }
+    
+    
+    func shouldContinueHoldingBeforeDataByte(mode: ReadWrite) -> Bool {
         
+        return mode == .readFromSlave && currentX < 2200
     }
     
     

@@ -20,7 +20,7 @@ class RenderScene {
         
         let equipments = [
             EquipmentTestMaster1(),
-            EquipmentRegisterBank(i2cAddress: 0x2a),
+//            EquipmentRegisterBank(i2cAddress: 0x2a),
             EquipmentRegisterBank(i2cAddress: 0x61),
 //            EquipmentBusMonitor(),
         ]

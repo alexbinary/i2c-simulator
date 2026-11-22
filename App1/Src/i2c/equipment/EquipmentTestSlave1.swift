@@ -10,16 +10,17 @@ class EquipmentTestSlave1: Equipment {
     
     init(i2cAddress: Byte) {
         self.i2cAddress = i2cAddress
-        super.init(i2cController: I2CSlaveController(
+        super.init()
+        self.i2cController = I2CSlaveController(
             respondsToAddresses: [i2cAddress],
             acceptWrites: true,
             acceptReads: false,
             //            maxWrites: 1,
             onTransmissionEnded: { result in
                 print("-- EquipmentTestSlave1 TRANSMISSION ENDED --")
-                print("\(result.type), address: \(result.payload.address), transmittedBytes: \(result.payload.transmittedBytes)")
+                print("\(result.type), address: \(result.payload.address)+\(result.payload.mode), transmittedBytes: \(result.payload.transmittedBytes)")
             }
-        ))
+        )
     }
     
     

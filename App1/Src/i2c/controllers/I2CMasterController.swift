@@ -38,11 +38,20 @@ class I2CMasterController: I2CController {
         var currentAckTarget: AddressOrData? { self == .transmittingAddressAck ? .address : self == .transmittingDataAck ? .data : nil }
     }
     
-    enum TransmissionResult {
-        case addressNack
-        case success(transmittedBytes: [Byte])
-        case dataNack(transmittedBytes: [Byte])
-        case aborted(transmittedBytes: [Byte])
+    struct TransmissionResult {
+        enum `Type` {
+            case success
+            case dataNack
+            case addressNack
+            case aborted
+        }
+        struct Payload {
+            let address: Byte?
+            let mode: ReadWrite?
+            let transmittedBytes: [Byte]
+        }
+        let type: `Type`
+        let payload: Payload
     }
     
     var currentTransmissionControlState: TransmissionControlState?
@@ -469,20 +478,20 @@ class I2CMasterController: I2CController {
             switch status {
                 
             case .completedWithoutError:
-                lastTransmissionResult = .success(transmittedBytes: transmittedDataBytes)
+                lastTransmissionResult = makeTransmissionResult(withType: .success)
             
             case .completedWithAddressNacked:
-                lastTransmissionResult = .addressNack
+                lastTransmissionResult = makeTransmissionResult(withType: .addressNack)
             
             case .completedWithDataNackedBySlave:
-                lastTransmissionResult = .dataNack(transmittedBytes: transmittedDataBytes)
+                lastTransmissionResult = makeTransmissionResult(withType: .dataNack)
             
             case .starting,
                  .transmittingAddressByte,
                  .transmittingAddressAck,
                  .transmittingDataByte,
                  .transmittingDataAck:
-                lastTransmissionResult = .aborted(transmittedBytes: transmittedDataBytes)
+                lastTransmissionResult = makeTransmissionResult(withType: .aborted)
             }
             
             let result = lastTransmissionResult
@@ -491,6 +500,17 @@ class I2CMasterController: I2CController {
                 onTransmissionEnded?(result)
             }
         }
+    }
+    
+    
+    func makeTransmissionResult(withType type: TransmissionResult.`Type`) -> TransmissionResult {
+        
+        let payload = TransmissionResult.Payload(
+            address: activeTransmission!.address,
+            mode: activeTransmission!.mode,
+            transmittedBytes: transmittedDataBytes
+        )
+        return TransmissionResult(type: type, payload: payload)
     }
      
     

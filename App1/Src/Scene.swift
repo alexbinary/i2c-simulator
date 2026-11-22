@@ -24,7 +24,7 @@ class RenderScene {
             EquipmentTestSlave2(i2cAddress: 0x61),
         ]
         for equipment in equipments {
-            equipment.i2cController.connect(to: bus)
+            equipment.i2cController!.connect(to: bus)
         }
         
         let startX: CGFloat = 0

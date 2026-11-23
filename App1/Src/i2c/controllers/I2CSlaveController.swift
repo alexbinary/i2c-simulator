@@ -6,38 +6,36 @@ import SwiftUI
 extension I2CSlaveController{
     
     protocol Delegate {
-        func nextBytesToBeRead() -> [Byte]
+        func shouldAcceptTransmission(with address: Byte, mode: ReadWrite) -> Bool
         func shouldContinueHoldingBeforeDataByte(mode: ReadWrite) -> Bool
-        func onTransmissionEnded(result: TransmissionResult)
+        func shouldAckDataByte() -> Bool
+        func nextBytesToBeRead() -> [Byte]
+        func transmissionEnded(withResult: TransmissionResult)
     }
 }
 
 extension I2CSlaveController.Delegate {
-    
-    func nextBytesToBeRead() -> [Byte] { [] }
+    func shouldAcceptTransmission(with address: Byte, mode: ReadWrite) -> Bool { false }
     func shouldContinueHoldingBeforeDataByte(mode: ReadWrite) -> Bool { false }
-    func onTransmissionEnded(result: I2CSlaveController.TransmissionResult) {}
+    func shouldAckDataByte() -> Bool { true }
+    func nextBytesToBeRead() -> [Byte] { [] }
+    func transmissionEnded(withResult: I2CSlaveController.TransmissionResult) {}
 }
 
 
 class I2CSlaveController: I2CController {
     
-    enum TransmissionBitState {
-        case holdingBeforeNextBit
-        case readyForNextBit
-        case bitClockLow
-        case bitClockHigh
-    }
-    
     enum TransmissionStatus {
         case transmittingAddressByte
         case transmittingAddressAck
-        case holdingBeforeDataByte
-        case waitingAfterHoldingBeforeReleasingSCL
+        case betweenBytes
         case transmittingDataByte
         case transmittingDataAck
-        case completedWithoutError
-        case completedWithDataWriteNackedBySlave
+        
+        case holdingBeforeDataByte
+        case holdingBeforeDataByte_bitSetup
+        
+        case completed
         
         enum ByteOrAck { case byte, ack }
         var transmittingByteOrAck: ByteOrAck? { (self == .transmittingAddressByte || self == .transmittingDataByte) ? .byte : (self == .transmittingAddressAck || self == .transmittingDataAck) ? .ack : nil }
@@ -47,28 +45,40 @@ class I2CSlaveController: I2CController {
         var currentAckTarget: AddressOrData? { self == .transmittingAddressAck ? .address : self == .transmittingDataAck ? .data : nil }
     }
     
+    enum TransmissionBitState {
+        case betweenBits
+        case bitSetup
+        case bitClock
+    }
+    
     struct TransmissionResult {
         enum `Type` {
             case success
             case dataNack
             case aborted
-            case notAddressedToSelf
-            case modeNotSupported
+            case transmissionRefused
         }
         let type: `Type`
         let address: Byte?
         let mode: ReadWrite?
         let transmittedBytes: [Byte]
         
+        var isSuccess: Bool { return type == .success }
+        
+        var isRead: Bool { return mode == .readFromSlave }
+        var isWrite: Bool { return mode == .writeToSlave }
+        
         var isWriteSuccess: Bool { return type == .success && mode == .writeToSlave }
         var isReadSuccess: Bool { return type == .success && mode == .readFromSlave }
     }
     
-    var currentTransmissionBitState: TransmissionBitState?
     var currentTransmissionStatus: TransmissionStatus?
-    var lastTransmissionResult: TransmissionResult?
+    var currentTransmissionBitState: TransmissionBitState?
     
     var lastKnownLineLevels: (SCL: I2CBusLineLevel, SDA: I2CBusLineLevel) = (SCL: .high, SDA: .high)
+    
+    var nextHoldingEndX: CGFloat?
+    var xHoldingWaitBeforeReleasingSCL: CGFloat = 30
     
     var lastTransmittedBit: Bit?
     var lastTransmittedAck: Ack?
@@ -81,38 +91,19 @@ class I2CSlaveController: I2CController {
     var currentTransmittedByteBitIndex: Int { currentTransmittedByteReadBits.count }
     
     var currentTransmissionAddress: Byte?
-    var currentTransmissionMode: ReadWrite?
+    var currentTransmissionRW: ReadWrite?
     
-    let respondsToAddresses: [Byte]
-    let reportsTransmissionsNotAddressedToSelf: Bool
-    let acceptWrites: Bool
-    let acceptReads: Bool
-    let maxWrites: Int?
+    var currentBitToWrite: Bit?
+    var currentAckToWrite: Ack?
     
-    var acceptAddress: Bool { currentTransmissionAddress != nil && self.respondsToAddresses.contains(currentTransmissionAddress!) }
-    var acceptRW: Bool { currentTransmissionMode == .writeToSlave && acceptWrites || currentTransmissionMode == .readFromSlave && acceptReads }
-    var acceptTransmission: Bool { acceptAddress && acceptRW }
+    var currentTransmissionAccepted = false
+    var lastByteAccepted = false
     
     var bytesToBeRead: [Byte] = []
     var delegate: Delegate?
-    
-    var nextHoldingEndX: CGFloat?
-    var xHoldingWaitBeforeReleasingSCL: CGFloat = 30
 
 
-    init(
-        respondsToAddresses: [Byte],
-        reportsTransmissionsNotAddressedToSelf: Bool = false,
-        acceptWrites: Bool = true,
-        acceptReads: Bool = true,
-        maxWrites: Int? = nil,
-        delegate: Delegate? = nil
-    ) {
-        self.respondsToAddresses = respondsToAddresses
-        self.reportsTransmissionsNotAddressedToSelf = reportsTransmissionsNotAddressedToSelf
-        self.acceptWrites = acceptWrites
-        self.acceptReads = acceptReads
-        self.maxWrites = maxWrites
+    init(delegate: Delegate? = nil) {
         self.delegate = delegate
     }
 
@@ -152,20 +143,17 @@ class I2CSlaveController: I2CController {
             if currentTransmissionBitState != nil {
                 switch currentTransmissionBitState! {
                     
-                case .holdingBeforeNextBit:
-                    break
-                    
-                case .readyForNextBit:
-                    if bus.lineSCL.isLow {
+                case .betweenBits:
+                    if bus.lineSCL.isLow && currentTransmissionStatus != .holdingBeforeDataByte {
                         bitSetupPhaseStarted()
                     }
                     
-                case .bitClockLow:
+                case .bitSetup:
                     if bus.lineSCL.isHigh {
                         bitClockHighPhaseStarted()
                     }
                     
-                case .bitClockHigh:
+                case .bitClock:
                     if bus.lineSCL.isHigh {
                         bitClockHighPhaseActive()
                     } else {
@@ -181,7 +169,7 @@ class I2CSlaveController: I2CController {
             }
         }
         
-        if currentTransmissionStatus == .holdingBeforeDataByte || currentTransmissionStatus == .waitingAfterHoldingBeforeReleasingSCL {
+        if currentTransmissionStatus == .holdingBeforeDataByte || currentTransmissionStatus == .holdingBeforeDataByte_bitSetup {
             pullSCL()
         } else {
             releaseSCL()
@@ -191,100 +179,141 @@ class I2CSlaveController: I2CController {
     
     func resetTransmissionState() {
         
-        currentTransmissionBitState = nil
         currentTransmissionStatus = nil
-        lastTransmissionResult = nil
+        currentTransmissionBitState = nil
+        
         lastTransmittedBit = nil
         lastTransmittedAck = nil
         lastTransmittedByte = nil
-        transmittedDataBytes = []
+        
         currentTransmittedByteReadBits = []
+        
         currentTransmissionAddress = nil
-        currentTransmissionMode = nil
+        currentTransmissionRW = nil
+        currentTransmissionAccepted = false
+        
+        transmittedDataBytes = []
+        lastByteAccepted = false
+        
         bytesToBeRead = []
     }
     
     
     func transmissionStarted() {
         
-        currentTransmissionBitState = .readyForNextBit
         currentTransmissionStatus = .transmittingAddressByte
+        currentTransmissionBitState = .betweenBits
     }
     
     
     func updateHoldingState(x: CGFloat) {
         
         if currentTransmissionStatus == .holdingBeforeDataByte {
-            
-            if !(delegate?.shouldContinueHoldingBeforeDataByte(mode: currentTransmissionMode!) ?? false) {
+            if !(delegate?.shouldContinueHoldingBeforeDataByte(mode: currentTransmissionRW!) ?? false) {
                 
-                if currentTransmissionMode == .readFromSlave, currentTransmittedByteIndex == bytesToBeRead.count {
-                    var nextBytes = delegate?.nextBytesToBeRead() ?? []
-                    if nextBytes.isEmpty { nextBytes.append(0xff) }
-                    bytesToBeRead.append(contentsOf: nextBytes)
+                startingNewDataByte()
+                
+                if currentTransmissionRW == .readFromSlave {
+                    currentTransmissionStatus = .holdingBeforeDataByte_bitSetup
+                    nextHoldingEndX = x + xHoldingWaitBeforeReleasingSCL
+                } else {
+                    currentTransmissionStatus = .transmittingDataByte
                 }
-                
-                currentTransmissionBitState = .readyForNextBit
-                currentTransmissionStatus = .waitingAfterHoldingBeforeReleasingSCL
-                nextHoldingEndX = x + xHoldingWaitBeforeReleasingSCL
             }
         }
         
-        if currentTransmissionStatus == .waitingAfterHoldingBeforeReleasingSCL, x >= nextHoldingEndX! {
-            currentTransmissionStatus = .transmittingDataByte
+        if currentTransmissionStatus == .holdingBeforeDataByte_bitSetup, x >= nextHoldingEndX! {
+            currentTransmissionStatus = .betweenBytes
         }
+    }
+    
+    
+    func startingNewDataByte() {
+        
+        if currentTransmissionRW == .readFromSlave {
+            
+            if currentTransmittedByteIndex == bytesToBeRead.count {
+                var nextBytes = delegate?.nextBytesToBeRead() ?? []
+                if nextBytes.isEmpty { nextBytes.append(0xff) }
+                bytesToBeRead.append(contentsOf: nextBytes)
+            }
+        }
+    }
+    
+    
+    func assertBit(_ bit: Bit?) {
+        
+        if bit == .zero {
+            pullSDA()
+        } else {
+            releaseSDA()
+        }
+    }
+    
+    
+    func assertCurrentBit() {
+        
+        assertBit(currentBitToWrite)
     }
     
     
     func bitSetupPhaseStarted() {
         
-        currentTransmissionBitState = .bitClockLow
-         
+        if currentTransmissionStatus == .betweenBytes {
+            currentTransmissionStatus = .transmittingDataByte
+        }
+        
         switch currentTransmissionStatus! {
             
-        case .completedWithoutError,
-             .completedWithDataWriteNackedBySlave,
-             .transmittingAddressByte:
-            releaseSDA()
+        case .holdingBeforeDataByte_bitSetup, .transmittingDataByte:
             
-        case .holdingBeforeDataByte:
+            if currentTransmissionRW == .readFromSlave {
+                let byte = bytesToBeRead[currentTransmittedByteIndex]
+                currentBitToWrite = byte.bit(atIndex: currentTransmittedByteBitIndex)
+            }
+            
+        case .transmittingAddressAck:
+            currentBitToWrite = Ack(ackIf: currentTransmissionAccepted).bit
+            
+        case .transmittingDataAck:
+            if currentTransmissionRW == .writeToSlave {
+                currentAckToWrite = Ack(ackIf: lastByteAccepted)
+            }
+            
+        default:
             break
-            
-        case .waitingAfterHoldingBeforeReleasingSCL,
-             .transmittingDataByte:
-            if currentTransmissionMode == .readFromSlave && currentDataBitToWrite == .zero {
-                pullSDA()
-            } else {
-                releaseSDA()
-            }
-        
-        case .transmittingAddressAck,
-             .transmittingDataAck:
-            if currentAck == .ack {
-                pullSDA()
-            } else {
-                releaseSDA()
-            }
         }
+        
+        assertCurrentBit()
+        currentTransmissionBitState = .bitSetup
     }
     
     
     func bitClockHighPhaseStarted() {
         
-        currentTransmissionBitState = .bitClockHigh
+        assertCurrentBit()
+        currentTransmissionBitState = .bitClock
     }
     
     
     func bitClockHighPhaseActive() {
         
+        assertCurrentBit()
         lastTransmittedBit = bus.lineSDA.currentLevel.bit
     }
     
     
     func bitClockHighPhaseEnded() {
         
+        transmittedBit()
+        currentTransmissionBitState = .betweenBits
+    }
+    
+    
+    func transmittedBit() {
+        
         switch currentTransmissionStatus!.transmittingByteOrAck {
-
+            
         case .byte:
             currentTransmittedByteReadBits.append(lastTransmittedBit!)
             if currentTransmittedByteReadBits.count == 8 {
@@ -301,16 +330,12 @@ class I2CSlaveController: I2CController {
         case .none:
             break
         }
-        
-        if currentTransmissionStatus == .holdingBeforeDataByte {
-            currentTransmissionBitState = .holdingBeforeNextBit
-        } else {
-            currentTransmissionBitState = .readyForNextBit
-        }
     }
     
     
     func transmittedByte() {
+        
+        currentAckToWrite = nil
         
         switch currentTransmissionStatus!.transmittingAddressOrData {
 
@@ -322,13 +347,18 @@ class I2CSlaveController: I2CController {
             let rw = ReadWrite(from: rwBit)
             
             currentTransmissionAddress = address
-            currentTransmissionMode = rw
+            currentTransmissionRW = rw
+            currentTransmissionAccepted = delegate?.shouldAcceptTransmission(with: address, mode: rw) ?? false
             
             currentTransmissionStatus = .transmittingAddressAck
             
         case .data:
             
             transmittedDataBytes.append(lastTransmittedByte!)
+            
+            if currentTransmissionRW == .writeToSlave {
+                lastByteAccepted = delegate?.shouldAckDataByte() ?? false
+            }
             currentTransmissionStatus = .transmittingDataAck
             
         case .none:
@@ -339,8 +369,8 @@ class I2CSlaveController: I2CController {
     
     func transmittedAck() {
         
-        let ackSentBySelf = currentTransmissionStatus!.currentAckTarget! == .address || currentTransmissionMode == .writeToSlave
-        let ackValue = ackSentBySelf ? currentAck! : lastTransmittedAck!
+        let ackSentBySelf = currentTransmissionStatus!.currentAckTarget! == .address || currentTransmissionRW == .writeToSlave
+        let ackValue = ackSentBySelf ? currentAckToWrite! : lastTransmittedAck!
         
         switch (ackValue, currentTransmissionStatus!.currentAckTarget!) {
             
@@ -348,83 +378,43 @@ class I2CSlaveController: I2CController {
              (.nack, .address):
             currentTransmissionStatus = .holdingBeforeDataByte
             currentTransmittedByteIndex = 0
-            if ackValue == .nack && !reportsTransmissionsNotAddressedToSelf {
-                transmissionStopped()
-            }
             
         case (.ack, .data):
             currentTransmissionStatus = .holdingBeforeDataByte
             currentTransmittedByteIndex += 1
             
         case (.nack, .data):
-            switch currentTransmissionMode! {
-            case .writeToSlave: currentTransmissionStatus = .completedWithDataWriteNackedBySlave
-            case .readFromSlave: currentTransmissionStatus = .completedWithoutError
-            }
+            currentTransmissionStatus = .completed
         }
-    }
-    
-    
-    var currentAck: Ack? {
-        
-        switch currentTransmissionStatus {
-            
-        case .transmittingAddressAck:
-            if acceptAddress && acceptRW {
-                return .ack
-            } else {
-                return .nack
-            }
-            
-        case .transmittingDataAck:
-            if currentTransmissionMode == .writeToSlave {
-                return Ack(ackIf: maxWrites == nil || transmittedDataBytes.count < maxWrites!)
-            }
-            
-        default:
-            break
-        }
-        
-        return nil
-    }
-    
-    
-    var currentDataBitToWrite: Bit {
-        
-        let byte = bytesToBeRead[currentTransmittedByteIndex]
-        return byte.bit(atIndex: currentTransmittedByteBitIndex)
     }
     
     
     func transmissionStopped() {
         
-        if let status = currentTransmissionStatus {
-            switch status {
-                
-            case .completedWithoutError, .transmittingDataByte, .holdingBeforeDataByte:
-                if acceptAddress && acceptRW {
-                    lastTransmissionResult = makeTransmissionResult(withType: .success)
-                } else if reportsTransmissionsNotAddressedToSelf {
-                    if !acceptAddress {
-                        lastTransmissionResult = makeTransmissionResult(withType: .notAddressedToSelf)
-                    } else {
-                        lastTransmissionResult = makeTransmissionResult(withType: .modeNotSupported)
-                    }
-                }
-                
-            case .completedWithDataWriteNackedBySlave:
-                lastTransmissionResult = makeTransmissionResult(withType: .dataNack)
-            
-            default:
-                lastTransmissionResult = makeTransmissionResult(withType: .aborted)
-            }
-            
-            let result = lastTransmissionResult
-            resetTransmissionState()
-            if let result = result {
-                delegate?.onTransmissionEnded(result: result)
+        let result = transmissionResult()
+        resetTransmissionState()
+        if let result = result {
+            delegate?.transmissionEnded(withResult: result)
+        }
+    }
+    
+    
+    func transmissionResult() -> TransmissionResult? {
+        
+        let normalStop = (currentTransmissionStatus == .completed && (currentTransmissionRW == .readFromSlave || lastByteAccepted)) || (currentTransmissionRW == .writeToSlave && currentTransmissionStatus == .transmittingDataByte)
+        if normalStop {
+            if currentTransmissionAccepted {
+                return makeTransmissionResult(withType: .success)
+            } else {
+                return makeTransmissionResult(withType: .transmissionRefused)
             }
         }
+        
+        if !lastByteAccepted {
+            return makeTransmissionResult(withType: .dataNack)
+        }
+        
+        return makeTransmissionResult(withType: .aborted)
     }
     
     
@@ -433,7 +423,7 @@ class I2CSlaveController: I2CController {
         return TransmissionResult(
             type: type,
             address: currentTransmissionAddress,
-            mode: currentTransmissionMode,
+            mode: currentTransmissionRW,
             transmittedBytes: transmittedDataBytes
         )
     }

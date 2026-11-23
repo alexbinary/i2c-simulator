@@ -17,7 +17,7 @@ class EquipmentRegisterBank: Equipment, I2CSlaveController.Delegate {
     init(i2cAddress: Byte) {
         self.i2cAddress = i2cAddress
         super.init()
-        self.i2cController = I2CSlaveController(respondsToAddresses: [i2cAddress], delegate: self)
+        self.i2cController = I2CSlaveController(delegate: self)
     }
     
     
@@ -32,6 +32,12 @@ class EquipmentRegisterBank: Equipment, I2CSlaveController.Delegate {
     override func update(x: CGFloat) {
         super.update(x: x)
         currentX = x
+    }
+    
+    
+    func shouldAcceptTransmission(with address: Byte, mode: ReadWrite) -> Bool {
+        
+        return address == self.i2cAddress
     }
     
     
@@ -54,24 +60,24 @@ class EquipmentRegisterBank: Equipment, I2CSlaveController.Delegate {
     }
     
     
-    func onTransmissionEnded(result: I2CSlaveController.TransmissionResult) {
+    func transmissionEnded(withResult: I2CSlaveController.TransmissionResult) {
         
         print("")
         print("-- EquipmentRegisterBank:\(i2cAddress) TRANSMISSION ENDED --")
-        print("\(result.type), address: \(result.address)+\(result.mode), transmittedBytes: \(result.transmittedBytes)")
+        print("\(withResult.type), address: \(withResult.address)+\(withResult.mode), transmittedBytes: \(withResult.transmittedBytes)")
         
-        if result.isWriteSuccess {
+        if withResult.isWriteSuccess {
             
-            let bytes = result.transmittedBytes
+            let bytes = withResult.transmittedBytes
             if bytes.count > 0 {
                 
-                registerBaseAddress = Int(result.transmittedBytes.first!)
+                registerBaseAddress = Int(withResult.transmittedBytes.first!)
                 currentRegisterAddress = registerBaseAddress
                 print("setting register address: \(registerBaseAddress)")
                 
                 if bytes.count > 1 {
                     
-                    let data = result.transmittedBytes[1...]
+                    let data = withResult.transmittedBytes[1...]
                     var baseAddress = registerBaseAddress!
                     for byte in data {
                         
@@ -86,9 +92,9 @@ class EquipmentRegisterBank: Equipment, I2CSlaveController.Delegate {
             }
         }
         
-        if result.type == .success, result.mode == .readFromSlave {
+        if withResult.type == .success, withResult.mode == .readFromSlave {
             
-            print("sent values: \(result.transmittedBytes)")
+            print("sent values: \(withResult.transmittedBytes)")
         }
     }
 }

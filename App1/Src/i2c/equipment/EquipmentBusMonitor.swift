@@ -9,11 +9,7 @@ class EquipmentBusMonitor: Equipment, I2CSlaveController.Delegate {
     
     override init() {
         super.init()
-        self.i2cController = I2CSlaveController(
-            respondsToAddresses: [],
-            reportsTransmissionsNotAddressedToSelf: true,
-            delegate: self
-        )
+        self.i2cController = I2CSlaveController(delegate: self)
     }
     
     
@@ -29,10 +25,16 @@ class EquipmentBusMonitor: Equipment, I2CSlaveController.Delegate {
     }
     
     
-    func onTransmissionEnded(result: I2CSlaveController.TransmissionResult) {
+    func shouldAcceptTransmission(with address: Byte, mode: ReadWrite) -> Bool {
+        
+        return false
+    }
+    
+    
+    func transmissionEnded(withResult: I2CSlaveController.TransmissionResult) {
         
         print("")
         print("-- EquipmentBusMonitor TRANSMISSION ENDED --")
-        print("\(result.type), address: \(result.address)+\(result.mode), transmittedBytes: \(result.transmittedBytes)")
+        print("\(withResult.type), address: \(withResult.address)+\(withResult.mode), transmittedBytes: \(withResult.transmittedBytes)")
     }
 }

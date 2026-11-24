@@ -3,7 +3,7 @@ import SwiftUI
 
 
 
-class EquipmentTestMaster1: I2CEquipment, I2CMasterController.Delegate {
+class EquipmentTestMaster1: I2CEquipment, I2CMasterController.Interrupts {
     
     
     lazy var i2cController = I2CMasterController(delegate: self)

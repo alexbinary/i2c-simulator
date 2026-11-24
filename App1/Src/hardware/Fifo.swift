@@ -7,23 +7,33 @@ class Fifo {
     
     let size: Int
     var bytes: [Byte]
+    
+    enum PushWhenFullBehavior { case discard, forcePush }
+    var pushWhenFullBehavior: PushWhenFullBehavior
+    
     var readIndex = 0
     var writeIndex = 0
     var isFull = false
     var isEmpty = true
     
-    init(size: Int) {
+    init(size: Int, pushWhenFullBehavior: PushWhenFullBehavior) {
         self.size = size
         self.bytes = [Byte](repeating: 0x00, count: size)
+        self.pushWhenFullBehavior = pushWhenFullBehavior
     }
     
-    func push(_ byte: Byte) -> Bool {
-        guard !isFull else { return false }
-        bytes[writeIndex] = byte
-        writeIndex = (writeIndex + 1) % size
-        isEmpty = false
-        if writeIndex == readIndex { isFull = true }
-        return true
+    func push(_ byte: Byte) {
+        
+        if !isFull || pushWhenFullBehavior == .forcePush {
+            bytes[writeIndex] = byte
+            writeIndex = (writeIndex + 1) % size
+            if isFull {
+                readIndex = writeIndex
+            } else {
+                isEmpty = false
+                isFull = (writeIndex == readIndex)
+            }
+        }
     }
     
     func pop() -> Byte? {
@@ -31,7 +41,7 @@ class Fifo {
         let index = readIndex
         readIndex = (readIndex + 1) % size
         isFull = false
-        if readIndex == writeIndex { isEmpty = true }
+        isEmpty = (readIndex == writeIndex)
         return bytes[index]
     }
     

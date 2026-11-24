@@ -3,9 +3,9 @@ import SwiftUI
 
 
 
-class EquipmentBusMonitor: I2CEquipment, I2CSlaveController.Delegate {
+class EquipmentBusMonitor: I2CEquipment{
     
-    lazy var i2cController = I2CSlaveController(delegate: self)
+    lazy var i2cController = I2CSlaveController()
     
     var transmittedBytes: [Byte] = []
     

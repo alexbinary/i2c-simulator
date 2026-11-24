@@ -9,8 +9,8 @@ class I2CController: SimulationEntity {
     let id = UUID()
     var bus: I2CBus!
     
-    var txFifo = Fifo(size: 256)
-    var rxFifo = Fifo(size: 256)
+    var txFifo = Fifo(size: 256, pushWhenFullBehavior: .forcePush)
+    var rxFifo = Fifo(size: 256, pushWhenFullBehavior: .forcePush)
 
     
     func connect(to bus: I2CBus) {

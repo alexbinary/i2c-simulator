@@ -3,10 +3,10 @@ import SwiftUI
 
 
 
-class EquipmentRegisterBank: I2CEquipment, I2CSlaveController.Delegate {
+class EquipmentRegisterBank: I2CEquipment {
     
     let i2cAddress: Byte
-    lazy var i2cController = I2CSlaveController(delegate: self)
+    lazy var i2cController = I2CSlaveController()
     
     var registers = [Byte](repeating: 0x00, count: 256)
     var registerBaseAddress: Int? = 3

@@ -18,14 +18,14 @@ class RenderScene {
 
         bus.reset()
         
-        let equipments = [
+        let equipments: [I2CEquipment] = [
             EquipmentTestMaster1(),
 //            EquipmentRegisterBank(i2cAddress: 0x2a),
             EquipmentRegisterBank(i2cAddress: 0x61),
 //            EquipmentBusMonitor(),
         ]
         for equipment in equipments {
-            equipment.i2cController!.connect(to: bus)
+            equipment.connect(to: bus)
         }
         
         let startX: CGFloat = 0

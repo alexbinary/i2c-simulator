@@ -3,9 +3,10 @@ import SwiftUI
 
 
 
-class EquipmentTestMaster1: Equipment, I2CMasterController.Delegate {
+class EquipmentTestMaster1: I2CEquipment, I2CMasterController.Delegate {
     
-    var i2cMasterController: I2CMasterController { self.i2cController as! I2CMasterController }
+    
+    lazy var i2cController = I2CMasterController(delegate: self)
     
     
     var slave1_testData1 = 0
@@ -25,57 +26,95 @@ class EquipmentTestMaster1: Equipment, I2CMasterController.Delegate {
     var lastAddressedRegister: Int? = nil
     
     
-    override init() {
-        super.init()
-        i2cController = I2CMasterController(delegate: self)
-    }
+    var transmittedBytes: [Byte] = []
     
     
-    override func reset(x: CGFloat) {
-        super.reset(x: x)
+    func reset(x: CGFloat) {
         
+        i2cController.reset(x: x)
         read_slave2_testData1()
     }
     
     
-    override func update(x: CGFloat) {
-        super.update(x: x)
-
+    func update(x: CGFloat) {
+        
+        i2cController.update(x: x)
+    }
+    
+    
+    func connect(to bus: I2CBus) {
+        
+        i2cController.connect(to: bus)
     }
     
     
     func read_slave1_testData1() {
         
-        i2cMasterController.scheduleTransmission(at: 1, I2CTransmission(writeTo: slave1_address, bytes: [Byte(slave1_testData1_registerAddress)]))
-        i2cMasterController.scheduleTransmission(at: 2, I2CTransmission(readFrom: slave1_address, bytes: slave1_testData1_len))
+//        i2cMasterController.scheduleTransmission(at: 1, I2CTransmission(writeTo: slave1_address, bytes: [Byte(slave1_testData1_registerAddress)]))
+//        i2cMasterController.scheduleTransmission(at: 2, I2CTransmission(readFrom: slave1_address, bytes: slave1_testData1_len))
     }
     
     
     func read_slave1_testData2() {
         
-        i2cMasterController.scheduleTransmission(at: 1, I2CTransmission(writeTo: slave1_address, bytes: [Byte(slave1_testData2_registerAddress)]))
-        i2cMasterController.scheduleTransmission(at: 2, I2CTransmission(readFrom: slave1_address, bytes: slave1_testData2_len))
+//        i2cMasterController.scheduleTransmission(at: 1, I2CTransmission(writeTo: slave1_address, bytes: [Byte(slave1_testData2_registerAddress)]))
+//        i2cMasterController.scheduleTransmission(at: 2, I2CTransmission(readFrom: slave1_address, bytes: slave1_testData2_len))
     }
     
     
     func read_slave2_testData1() {
         
 //        i2cMasterController.scheduleTransmission(at: 1, I2CTransmission(writeTo: slave2_address, bytes: [Byte(slave2_testData1_registerAddress)]))
-        i2cMasterController.scheduleTransmission(at: 2, I2CTransmission(readFrom: slave2_address, bytes: slave2_testData1_len))
+//        i2cMasterController.scheduleTransmission(at: 2, I2CTransmission(readFrom: slave2_address, bytes: slave2_testData1_len))
     }
     
     
-    func onTransmissionEnded(result: I2CMasterController.TransmissionResult) {
+    func transmissionStarted() {
+        
+    }
+    
+    
+    func nextDataByteToWrite() -> Byte? {
+        
+        nil
+    }
+    
+    
+    func sentDataByte(_ byte: Byte) {
+        
+        transmittedBytes.append(byte)
+    }
+    
+    
+    func receivedDataByte(_ byte: Byte) {
+        
+        transmittedBytes.append(byte)
+    }
+    
+    
+    func shouldContinueReadingDataBytes() -> Bool {
+        
+        false
+    }
+    
+    
+    func shouldHoldBeforeNextDataByte() -> Bool {
+        
+        false
+    }
+    
+    
+    func transmissionEnded(withResult result: TransmissionResult) {
         
         print("")
         print("-- EquipmentTestMaster1 TRANSMISSION ENDED --")
-        print("\(result.type), address: \(result.address)+\(result.mode), transmittedBytes: \(result.transmittedBytes)")
+        print("\(result.type), address: \(result.address)+\(result.mode), transmittedBytes: \(transmittedBytes)")
         
         if result.isWrite {
             
             if result.isSuccess {
                 
-                let registerAddress = Int(result.transmittedBytes.first!)
+                let registerAddress = Int(transmittedBytes.first!)
                 lastAddressedRegister = registerAddress
                 
             } else {
@@ -86,7 +125,7 @@ class EquipmentTestMaster1: Equipment, I2CMasterController.Delegate {
             
             if result.isSuccess {
                 
-                let bytes = result.transmittedBytes
+                let bytes = transmittedBytes
                 switch result.address {
                 case slave1_address:
                     switch lastAddressedRegister {
@@ -116,6 +155,8 @@ class EquipmentTestMaster1: Equipment, I2CMasterController.Delegate {
                 print("read failed")
             }
         }
+        
+        transmittedBytes = []
     }
     
     

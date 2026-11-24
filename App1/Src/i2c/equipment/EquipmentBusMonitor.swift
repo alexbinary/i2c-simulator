@@ -3,38 +3,72 @@ import SwiftUI
 
 
 
-class EquipmentBusMonitor: Equipment, I2CSlaveController.Delegate {
+class EquipmentBusMonitor: I2CEquipment, I2CSlaveController.Delegate {
     
-    var i2cSlaveController: I2CSlaveController { self.i2cController as! I2CSlaveController }
+    lazy var i2cController = I2CSlaveController(delegate: self)
     
-    override init() {
-        super.init()
-        self.i2cController = I2CSlaveController(delegate: self)
+    var transmittedBytes: [Byte] = []
+    
+    
+    init() {
+//        self.i2cController = I2CSlaveController(delegate: self)
     }
     
-    
-    override func reset(x: CGFloat) {
-        super.reset(x: x)
+    func reset(x: CGFloat) {
         
+        i2cController.reset(x: x)
     }
     
-    
-    override func update(x: CGFloat) {
-        super.update(x: x)
+    func update(x: CGFloat) {
         
+        i2cController.update(x: x)
     }
     
+    func connect(to bus: I2CBus) {
+        
+        i2cController.connect(to: bus)
+    }
     
     func shouldAcceptTransmission(with address: Byte, mode: ReadWrite) -> Bool {
         
         return false
     }
     
+    func transmissionStarted(with address: Byte, mode: ReadWrite) {
     
-    func transmissionEnded(withResult: I2CSlaveController.TransmissionResult) {
+    }
+    
+    func receivedDataByte(_ byte: Byte) {
+        
+        transmittedBytes.append(byte)
+    }
+    
+    func sentDataByte(_ byte: Byte) {
+        
+        transmittedBytes.append(byte)
+    }
+    
+    func nextDataByteToBeRead() -> Byte? {
+        
+        nil
+    }
+    
+    func shouldHoldBeforeNextDataByte(mode: ReadWrite) -> Bool {
+        
+        false
+    }
+    
+    func shouldAckDataByte() -> Bool {
+        
+        false
+    }
+    
+    func transmissionEnded(withResult: TransmissionResult) {
         
         print("")
         print("-- EquipmentBusMonitor TRANSMISSION ENDED --")
-        print("\(withResult.type), address: \(withResult.address)+\(withResult.mode), transmittedBytes: \(withResult.transmittedBytes)")
+        print("\(withResult.type), address: \(withResult.address)+\(withResult.mode), transmittedBytes: \(transmittedBytes)")
+        
+        transmittedBytes = []
     }
 }

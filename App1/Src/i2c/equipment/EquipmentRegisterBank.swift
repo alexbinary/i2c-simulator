@@ -3,10 +3,10 @@ import SwiftUI
 
 
 
-class EquipmentRegisterBank: Equipment, I2CSlaveController.Delegate {
+class EquipmentRegisterBank: I2CEquipment, I2CSlaveController.Delegate {
     
     let i2cAddress: Byte
-    var i2cSlaveController: I2CSlaveController { self.i2cController as! I2CSlaveController }
+    lazy var i2cController = I2CSlaveController(delegate: self)
     
     var registers = [Byte](repeating: 0x00, count: 256)
     var registerBaseAddress: Int? = 3
@@ -14,24 +14,33 @@ class EquipmentRegisterBank: Equipment, I2CSlaveController.Delegate {
     
     var currentX: CGFloat = 0
     
+    
+    var transmittedBytes: [Byte] = []
+    
+    
     init(i2cAddress: Byte) {
         self.i2cAddress = i2cAddress
-        super.init()
-        self.i2cController = I2CSlaveController(delegate: self)
     }
     
-    
-    override func reset(x: CGFloat) {
-        super.reset(x: x)
+    func reset(x: CGFloat) {
+        
+        i2cController.reset(x: x)
         
         registers[3] = 12+128
         registers[4] = 1
     }
     
-    
-    override func update(x: CGFloat) {
-        super.update(x: x)
+    func update(x: CGFloat) {
+        
+        i2cController.update(x: x)
+        
         currentX = x
+    }
+    
+    
+    func connect(to bus: I2CBus) {
+        
+        i2cController.connect(to: bus)
     }
     
     
@@ -40,44 +49,63 @@ class EquipmentRegisterBank: Equipment, I2CSlaveController.Delegate {
         return address == self.i2cAddress
     }
     
+    func transmissionStarted(with address: Byte, mode: ReadWrite) {
+        
+    }
     
-    func shouldContinueHoldingBeforeDataByte(mode: ReadWrite) -> Bool {
+    func receivedDataByte(_ byte: Byte) {
+        
+        transmittedBytes.append(byte)
+    }
+    
+    func sentDataByte(_ byte: Byte) {
+        
+        transmittedBytes.append(byte)
+    }
+    
+    func nextDataByteToBeRead() -> Byte? {
+        
+//        if currentRegisterAddress != nil {
+//            
+//            let byte = registers[currentRegisterAddress!]
+//            currentRegisterAddress! += 1
+//            return [byte]
+//        }
+        
+        return nil
+    }
+    
+    
+    func shouldHoldBeforeNextDataByte(mode: ReadWrite) -> Bool {
         
         return mode == .readFromSlave && currentX < 1500
     }
     
     
-    func nextBytesToBeRead() -> [Byte] {
+    func shouldAckDataByte() -> Bool {
         
-        if currentRegisterAddress != nil {
-            
-            let byte = registers[currentRegisterAddress!]
-            currentRegisterAddress! += 1
-            return [byte]
-        }
-        
-        return []
+        true
     }
     
     
-    func transmissionEnded(withResult: I2CSlaveController.TransmissionResult) {
+    func transmissionEnded(withResult result: TransmissionResult) {
         
         print("")
         print("-- EquipmentRegisterBank:\(i2cAddress) TRANSMISSION ENDED --")
-        print("\(withResult.type), address: \(withResult.address)+\(withResult.mode), transmittedBytes: \(withResult.transmittedBytes)")
+        print("\(result.type), address: \(result.address)+\(result.mode), transmittedBytes: \(transmittedBytes)")
         
-        if withResult.isWriteSuccess {
+        if result.isWriteSuccess {
             
-            let bytes = withResult.transmittedBytes
+            let bytes = transmittedBytes
             if bytes.count > 0 {
                 
-                registerBaseAddress = Int(withResult.transmittedBytes.first!)
+                registerBaseAddress = Int(transmittedBytes.first!)
                 currentRegisterAddress = registerBaseAddress
                 print("setting register address: \(registerBaseAddress)")
                 
                 if bytes.count > 1 {
                     
-                    let data = withResult.transmittedBytes[1...]
+                    let data = transmittedBytes[1...]
                     var baseAddress = registerBaseAddress!
                     for byte in data {
                         
@@ -92,9 +120,11 @@ class EquipmentRegisterBank: Equipment, I2CSlaveController.Delegate {
             }
         }
         
-        if withResult.type == .success, withResult.mode == .readFromSlave {
+        if result.type == .success, result.mode == .readFromSlave {
             
-            print("sent values: \(withResult.transmittedBytes)")
+            print("sent values: \(transmittedBytes)")
         }
+        
+        transmittedBytes = []
     }
 }

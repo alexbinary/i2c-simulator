@@ -5,6 +5,21 @@ import SwiftUI
 
 /// I2C Slave Controller
 ///
+/// The slave controller can be configured to respond to multiple addresses.
+/// Set all the addresses you want in the `addresses` registers (up to 128 addresses), and set the `num_addresses` register.
+///
+/// The controller always accepts transmissions that match the configured addresses,
+/// regardless of the rw mode, unless the transmission is a read and no tx data is available (see below).
+///
+/// As soon as they are received, the address and rw mode are written to the `address` and `rw` registers.
+///
+/// The `started` bit is set to `1` when a transmission starts, and `0` when a transmission stops.
+/// A nack at the address ends the transmission, unless `spy_mode` is set to `1`.
+/// In that case the controller enters a passive mode after the address nack and follows the transmission till the end,
+/// pushing transmitted bytes to the `rxFifo`.
+/// In passive mode, if the rx fifo is full, the controller wont hold the bus unless `spy_mode_stretching_enabled` is `true`.
+/// Note that in spy mode the controller cannot force nack data bytes, so if transmission resumed with the rx fifo still full data can be lost.
+///
 /// Reveived data bytes are push into `rxFifo`.
 /// Data to be read by the master are popped from `txFifo`.
 ///
@@ -32,11 +47,6 @@ import SwiftUI
 /// When a transmission is suspended, `stretching_enabled` can be set to `0` to end the stretching phase.
 ///
 /// The driver can detect that the controller is waiting on the fifos by polling the fifo state directly.
-/// The `started` bit is set to `1` when a transmission starts, and `0` when a transmission stops.
-///
-/// The slave controller can be configured to respond to multiple addresses.
-/// Set all the addresses you want in the `addresses` registers (up to 128 addresses), and set the `num_addresses` register.
-/// The controller always accepts transmissions that match the configured addresses, unless the transmission is a read and no tx data is available.
 ///
 class I2CSlaveController: I2CController {
 

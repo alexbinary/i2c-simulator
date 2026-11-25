@@ -20,6 +20,7 @@ class I2CController: SimulationEntity {
     
     var address: Byte = 0x00
     var rw: ReadWrite = .writeToSlave
+    var num_bytes: Int = 0
     
     var started = 0
     

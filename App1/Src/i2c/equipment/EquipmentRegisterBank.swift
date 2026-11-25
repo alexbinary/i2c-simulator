@@ -9,32 +9,51 @@ class EquipmentRegisterBank: I2CEquipment {
     lazy var i2cController = I2CSlaveController()
     
     var registers = [Byte](repeating: 0x00, count: 256)
-    var registerBaseAddress: Int? = 3
-    var currentRegisterAddress: Int? = 3
-    
-    var currentX: CGFloat = 0
+    var registerBaseAddress: Int = 0
+    var currentRegisterAddress: Int = 0
     
     
-    var transmittedBytes: [Byte] = []
+    var transmissionOngoing = false
     
     
     init(i2cAddress: Byte) {
+        
         self.i2cAddress = i2cAddress
     }
     
+    
     func reset(x: CGFloat) {
-        
-        i2cController.reset(x: x)
         
         registers[3] = 12+128
         registers[4] = 1
+        
+        i2cController.reset(x: x)
+        i2cController.addresses = [i2cAddress]
+        i2cController.last_address_index = 0
+        i2cController.stretching_enabled = 1
+        i2cController.spy_mode = 0
     }
+    
     
     func update(x: CGFloat) {
         
         i2cController.update(x: x)
         
-        currentX = x
+        if !transmissionOngoing {
+            if i2cController.started == 1 {
+                transmissionOngoing = true
+                transmissionStarted()
+            }
+        }
+        if transmissionOngoing {
+            if i2cController.started == 0 {
+                transmissionOngoing = false
+                transmissionEnded()
+            }
+            if i2cController.stretching_ongoing == 1 {
+                stretchingOngoing()
+            }
+        }
     }
     
     
@@ -44,87 +63,68 @@ class EquipmentRegisterBank: I2CEquipment {
     }
     
     
-    func shouldAcceptTransmission(with address: Byte, mode: ReadWrite) -> Bool {
-        
-        return address == self.i2cAddress
-    }
-    
-    func transmissionStarted(with address: Byte, mode: ReadWrite) {
+    func transmissionStarted() {
         
     }
     
-    func receivedDataByte(_ byte: Byte) {
+    
+    func stretchingOngoing() {
         
-        transmittedBytes.append(byte)
+        if i2cController.rw == .readFromSlave {
+            
+            let byte = registers[currentRegisterAddress]
+            i2cController.txFifo.push(byte)
+            currentRegisterAddress += 1
+        }
     }
+
     
-    func sentDataByte(_ byte: Byte) {
-        
-        transmittedBytes.append(byte)
-    }
-    
-    func nextDataByteToBeRead() -> Byte? {
-        
-//        if currentRegisterAddress != nil {
-//            
-//            let byte = registers[currentRegisterAddress!]
-//            currentRegisterAddress! += 1
-//            return [byte]
-//        }
-        
-        return nil
-    }
-    
-    
-    func shouldHoldBeforeNextDataByte(mode: ReadWrite) -> Bool {
-        
-        return mode == .readFromSlave && currentX < 1500
-    }
-    
-    
-    func shouldAckDataByte() -> Bool {
-        
-        true
-    }
-    
-    
-    func transmissionEnded(withResult result: TransmissionResult) {
+    func transmissionEnded() {
         
         print("")
         print("-- EquipmentRegisterBank:\(i2cAddress) TRANSMISSION ENDED --")
-        print("\(result.type), address: \(result.address)+\(result.mode), transmittedBytes: \(transmittedBytes)")
-        
-        if result.isWriteSuccess {
-            
-            let bytes = transmittedBytes
-            if bytes.count > 0 {
-                
-                registerBaseAddress = Int(transmittedBytes.first!)
-                currentRegisterAddress = registerBaseAddress
-                print("setting register address: \(registerBaseAddress)")
-                
-                if bytes.count > 1 {
-                    
-                    let data = transmittedBytes[1...]
-                    var baseAddress = registerBaseAddress!
-                    for byte in data {
-                        
-                        registers[baseAddress] = byte
-                        print("wrote register: [\(baseAddress)]=\(registers[baseAddress])")
-                        baseAddress += 1
-                    }
-                }
-                
-            } else {
-                print("ERROR: no register address")
-            }
+        print("\(i2cController.result), address: \(i2cController.address)+\(i2cController.rw)")
+
+        if i2cController.result == .success && i2cController.rw == .writeToSlave {
+            writeSuccess()
         }
         
-        if result.type == .success, result.mode == .readFromSlave {
-            
-            print("sent values: \(transmittedBytes)")
+        if i2cController.result == .success, i2cController.rw == .readFromSlave {
+            readSuccess()
+        }
+    }
+    
+    
+    func writeSuccess() {
+        
+        guard i2cController.num_bytes > 0 else {
+            print("ERROR: no register address")
+            return
         }
         
-        transmittedBytes = []
+        registerBaseAddress = Int(i2cController.rxFifo.pop())
+        currentRegisterAddress = registerBaseAddress
+        print("setting register address: \(registerBaseAddress)")
+        
+        guard i2cController.num_bytes > 1 else {
+            print("ERROR: no data")
+            return
+        }
+        
+        var baseAddress = registerBaseAddress
+        for _ in 1..<i2cController.num_bytes {
+            let byte = i2cController.rxFifo.pop()
+            registers[baseAddress] = byte
+            print("wrote register: [\(baseAddress)]=\(registers[baseAddress])")
+            baseAddress += 1
+        }
+        
+        i2cController.rxFifo.clear()
+    }
+    
+    
+    func readSuccess() {
+        
+        print("read success: \(i2cController.num_bytes)")
     }
 }

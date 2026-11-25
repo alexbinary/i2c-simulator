@@ -46,13 +46,12 @@ import SwiftUI
 /// - `addressNack` means no slave acked the address byte
 /// - `dataNack` means the slave nacked the last data byte (write mode only)
 /// - `timeout` means the transmission was unable to start in the alloted time
+/// Additionnally, `num_bytes` holds the number of bytes actually transmitted.
 ///
 class I2CMasterController: I2CController {
     
     
     /* Public registers */
-    
-    var num_bytes: Int = 0
     
     var start_timeout: Int = 1000
     

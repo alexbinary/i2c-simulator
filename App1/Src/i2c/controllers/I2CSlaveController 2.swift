@@ -49,6 +49,7 @@ import SwiftUI
 /// - `success` means no error, all bytes transmitted and properly acked
 /// - `addressNack` means the address byte was nacked
 /// - `dataNack` means the slave nacked the last data byte (write mode only)
+/// Additionnally, `num_bytes` holds the number of bytes actually transmitted.
 ///
 class I2CSlaveController: I2CController {
 

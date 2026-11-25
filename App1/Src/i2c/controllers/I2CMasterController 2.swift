@@ -13,7 +13,7 @@ import SwiftUI
 /// The transmission starts when the `started` bit is set to `1`.
 /// The controller sets the `started` bit back to `0` when the transmission is complete.
 ///
-/// If the bus is busy when the `start` bit is set to `1`, the controller waits until it becomes free.
+/// If the bus is busy when the `started` bit is set to `1`, the controller waits until it becomes free.
 /// If that doesnt happen within the time configured in `start_timeout`, the transmission is aborted.
 ///
 /// Data bytes to be sent to the slave are read from `txFifo`.
@@ -41,7 +41,7 @@ import SwiftUI
 /// If no transmission is started before `hold_timeout` since the hold started, hold stops and the controller sends a STOP.
 ///
 /// End of transmission can be detected by polling the`started` bit and waiting for it to become `0`.
-/// The `transmission_result` register contains the status of the completed transmission:
+/// The `result` register contains the status of the completed transmission:
 /// - `success` means no error, all bytes transmitted and properly acked
 /// - `addressNack` means no slave acked the address byte
 /// - `dataNack` means the slave nacked the last data byte (write mode only)
@@ -50,9 +50,16 @@ import SwiftUI
 class I2CMasterController: I2CController {
     
     
-    override init() {
-        
-    }
+    /* Public registers */
+    
+    var num_bytes: Int = 0
+    
+    var start_timeout: Int = 1000
+    
+    var hold_bus = 0
+    var hold_timeout = 1000
+    
+    /* */
     
     
     override func reset(x: CGFloat) {

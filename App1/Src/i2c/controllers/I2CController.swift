@@ -9,8 +9,25 @@ class I2CController: SimulationEntity {
     let id = UUID()
     var bus: I2CBus!
     
+    
+    /* Public registers */
+    
     var txFifo = Fifo(size: 256, pushWhenFullBehavior: .forcePush)
     var rxFifo = Fifo(size: 256, pushWhenFullBehavior: .forcePush)
+    
+    enum Result { case success, addressNack, dataNack, timeout }
+    var result: Result = .success
+    
+    var address: Byte = 0x00
+    var rw: ReadWrite = .writeToSlave
+    
+    var started = 0
+    
+    var stretching_enabled = 0
+    var stretching_ongoing = 0
+    var stretching_timeout: Int = 2000
+    
+    /* */
 
     
     func connect(to bus: I2CBus) {

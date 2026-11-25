@@ -45,7 +45,7 @@ import SwiftUI
 /// When stretching is interrupted, the transmission resumes as if `stretching_enabled` was `0`.
 ///
 /// End of transmission can be detected by polling the`started` bit and waiting for it to become `0`.
-/// The `transmission_result` register contains the status of the completed transmission:
+/// The `result` register contains the status of the completed transmission:
 /// - `success` means no error, all bytes transmitted and properly acked
 /// - `addressNack` means the address byte was nacked
 /// - `dataNack` means the slave nacked the last data byte (write mode only)
@@ -53,9 +53,15 @@ import SwiftUI
 class I2CSlaveController: I2CController {
 
 
-    override init() {
-        
-    }
+    /* Public registers */
+    
+    var addresses: [Byte] = []
+    var last_address_index: Int = 0
+    
+    var spy_mode = 0
+    var spy_mode_stretching_enabled = 0
+    
+    /* */
 
 
     override func reset(x: CGFloat) {

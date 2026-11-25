@@ -23,7 +23,6 @@ class Fifo {
     }
     
     func push(_ byte: Byte) {
-        
         if !isFull || pushWhenFullBehavior == .forcePush {
             bytes[writeIndex] = byte
             writeIndex = (writeIndex + 1) % size
@@ -36,8 +35,8 @@ class Fifo {
         }
     }
     
-    func pop() -> Byte? {
-        guard !isEmpty else { return nil }
+    func pop() -> Byte {
+        guard !isEmpty else { return 0x00 }
         let index = readIndex
         readIndex = (readIndex + 1) % size
         isFull = false
@@ -48,5 +47,12 @@ class Fifo {
     func peek() -> Byte? {
         guard !isEmpty else { return nil }
         return bytes[readIndex]
+    }
+    
+    func clear() {
+        readIndex = 0
+        writeIndex = 0
+        isFull = false
+        isEmpty = true
     }
 }

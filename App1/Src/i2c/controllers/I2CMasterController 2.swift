@@ -53,20 +53,148 @@ class I2CMasterController: I2CController {
     
     /* Public registers */
     
-    var start_timeout: Int = 1000
+    var start_timeout: CGFloat = 1000
     
     var hold_bus = 0
     var hold_timeout = 1000
     
-    /* */
     
+    /* Internal state */
     
+    var generatingStart = false
+    var generatingClock = false
+    var generatingStop = false
+    
+    var started_previousValue = 0
+    var xStartTimeoutRef: CGFloat = 0
+    
+    let xWaitBeforeStart: CGFloat = 30
+    
+
     override func reset(x: CGFloat) {
     
+        generatingStart = false
+        generatingClock = false
+        generatingStop = false
+        
+        started_previousValue = 0
+        xStartTimeoutRef = 0
     }
     
     
-    override func update(x: CGFloat) {
+    override func updateBusControls() {
+        super.updateBusControls()
         
+        if !transmissionOngoing {
+            
+            if started != started_previousValue {
+                
+                if started == 1 && started_previousValue == 0 {
+                    xStartTimeoutRef = currentX
+                    generatingStart = true
+                }
+                
+                started_previousValue = started
+            }
+            
+            if (started == 1 && waited(start_timeout, relativeTo: xStartTimeoutRef)) || generatingStart && started == 0 {
+                abort()
+            }
+            
+            if generatingStart {
+                generateStart()
+            }
+        }
+        
+        if transmissionOngoing {
+            
+            if generatingClock {
+                if bus.lineSCL.isHigh {
+                    if waited(xBitClockHighDuration, relativeTo: lastBitClockHighStartX), waitedDelayBetweenLineChanges() {
+                        pullingSCL = true
+                    }
+                }
+                if bus.lineSCL.isLow {
+                    if waited(xBitClockLowDuration, relativeTo: lastBitClockLowStartX), waitedDelayBetweenLineChanges() {
+                        pullingSCL = false
+                    }
+                }
+            }
+            
+            if generatingStop {
+                generateStop()
+            }
+        }
+    }
+    
+    
+    func generateStart() {
+        
+        if waitedDelayBetweenLineChanges() {
+            
+            switch bus.currentLineLevels {
+            case (SCL: .high, SDA: .low): pullingSCL = true
+            case (SCL: .low, SDA: .low): pullingSDA = false
+            case (SCL: .low, SDA: .high): pullingSCL = false
+            case (SCL: .high, SDA: .high):
+                if waited(xWaitBeforeStart, relativeTo: lastIdleReachedX) {
+                    pullingSDA = true
+                }
+            }
+        }
+    }
+    
+    
+    func generateStop() {
+        
+        if waitedDelayBetweenLineChanges() {
+            
+            switch bus.currentLineLevels {
+            case (SCL: .high, SDA: .high): pullingSCL = true
+            case (SCL: .low, SDA: .high): pullingSDA = true
+            case (SCL: .low, SDA: .low): pullingSCL = false
+            case (SCL: .high, SDA: .low): pullingSDA = false
+            }
+        }
+    }
+    
+    
+    override func transmissionStarted() {
+        super.transmissionStarted()
+        
+        generatingClock = true
+    }
+    
+    
+    override func bitClockPhaseEnded() {
+        super.bitClockPhaseEnded()
+        
+        if numTransmittedBits == 10 {
+            
+            generatingClock = false
+            generatingStop = true
+        }
+    }
+    
+    
+    override func transmissionStopped() {
+        super.transmissionStopped()
+        
+        generatingStart = false
+        generatingStop = false
+        
+        result = .success
+        started = 0
+    }
+    
+    
+    func abort() {
+        
+        transmissionOngoing = false
+        generatingStart = false
+        generatingStop = false
+        
+        result = .timeout
+        started = 0
     }
 }

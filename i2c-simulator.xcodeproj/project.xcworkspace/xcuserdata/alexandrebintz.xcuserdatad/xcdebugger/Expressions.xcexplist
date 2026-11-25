@@ -28,6 +28,14 @@
          </PersistentStrings>
       </ContextState>
       <ContextState
+         contextName = "I2CController.bitClockPhaseEnded():I2CController.swift">
+         <PersistentStrings>
+            <PersistentString
+               value = "numTransmittedBits">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
          contextName = "I2CSlaveController.bitClockHighPhaseEnded():I2CSlaveController.swift">
          <PersistentStrings>
             <PersistentString

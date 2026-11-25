@@ -28,14 +28,177 @@ class I2CController: SimulationEntity {
     var stretching_ongoing = 0
     var stretching_timeout: Int = 2000
     
-    /* */
+    
+    /* Internal state */
+    
+    var pullingSDA = false
+    var pullingSCL = false
+    
+    var currentX: CGFloat = 0
+    var lastKnownLineLevels: (SCL: I2CBusLineLevel, SDA: I2CBusLineLevel) = (SCL: .high, SDA: .high)
+    
+    var transmissionOngoing = false
+    var bitClockHighActive = false
+    
+    var lastLineChangeX: CGFloat = 0
+    var lastIdleReachedX: CGFloat = 0
+    var lastBitClockHighStartX: CGFloat = 0
+    var lastBitClockLowStartX: CGFloat = 0
+    
+    let xDelayBetweenLineChange: CGFloat = 10
+    let xBitClockHighDuration: CGFloat = 30
+    let xBitClockLowDuration: CGFloat = 30
+    
+    var numTransmittedBits = 0
+    
+    
+    func reset(x: CGFloat) {
+        
+        currentX = x
+        
+        transmissionOngoing = false
+        numTransmittedBits = 0
+        
+        pullingSDA = false
+        pullingSCL = false
+    }
+    
+    
+    func update(x: CGFloat) {
+        
+        currentX = x
+        
+        updateLineLevels()
+        updateBusControls()
+        applyBusControls()
+    }
+    
+    
+    func updateLineLevels() {
+        
+        if bus.currentLineLevels != lastKnownLineLevels {
+            
+            if let symbol = detectedSymbol(analysingTransitionFrom: lastKnownLineLevels, to: bus.currentLineLevels) {
+                switch symbol {
+                    
+                case .start:
+                    lastBitClockHighStartX = currentX
+                    transmissionStarted()
+                    
+                case .stop:
+                    transmissionStopped()
+                    
+                case .clockFall:
+                    if transmissionOngoing {
+                        lastBitClockLowStartX = currentX
+                        clockHighPhaseEnded()
+                        bitClockHighActive = false
+                        clockLowPhaseStarted()
+                    }
+                    
+                case .clockRise:
+                    if transmissionOngoing {
+                        lastBitClockHighStartX = currentX
+                        clockLowPhaseEnded()
+                        bitClockHighActive = true
+                        clockHighPhaseStarted()
+                    }
+                }
+            }
+            
+            lastKnownLineLevels = bus.currentLineLevels
+            lastLineChangeX = currentX
+            
+            if bus.currentLineLevels == (SCL: .high, SDA: .high) {
+                lastIdleReachedX = currentX
+            }
+        }
+    }
+    
+    
+    func updateBusControls() {
+        
+    }
+    
+    
+    func applyBusControls() {
+        
+        if pullingSDA { pullSDA() } else { releaseSDA() }
+        if pullingSCL { pullSCL() } else { releaseSCL() }
+    }
+    
+    
+    func transmissionStarted() {
+    
+        transmissionOngoing = true
+        bitClockHighActive = false
+        numTransmittedBits = 0
+    }
+    
+    
+    func clockLowPhaseStarted() {
+        
+        stretchingPhaseStarted()
+    }
+    
+    
+    func clockLowPhaseEnded() {
+        
+    }
+    
+    
+    func clockHighPhaseStarted() {
+        
+    }
+    
+    
+    func clockHighPhaseEnded() {
+        
+        if bitClockHighActive {
+            bitClockPhaseEnded()
+        }
+    }
+    
+    
+    func stretchingPhaseStarted() {
+        
+        bitSetupPhaseStarted()
+    }
+    
+    
+    func bitSetupPhaseStarted() {
+        
+    }
+    
+    
+    func bitClockPhaseEnded() {
+        
+        numTransmittedBits += 1
+    }
+    
+    
+    func transmissionStopped() {
+        
+        transmissionOngoing = false
+    }
+    
+    
+    func waited(_ duration: CGFloat, relativeTo ref: CGFloat) -> Bool {
+
+        return (currentX - ref) >= duration
+    }
+    
+    
+    func waitedDelayBetweenLineChanges() -> Bool {
+        
+        return waited(xDelayBetweenLineChange, relativeTo: lastLineChangeX)
+    }
 
     
     func connect(to bus: I2CBus) {
         
         self.bus = bus
     }
-    
     
     func pull(_ line: I2CBusLine.Identity) {
         
@@ -87,14 +250,5 @@ class I2CController: SimulationEntity {
         }
         
         return nil
-    }
-    
-    
-    func reset(x: CGFloat) {
-        
-    }
-    
-    func update(x: CGFloat) {
-        
     }
 }

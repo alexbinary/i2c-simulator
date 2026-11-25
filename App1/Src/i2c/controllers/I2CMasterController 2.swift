@@ -5,33 +5,47 @@ import SwiftUI
 
 /// I2C Master Controller
 ///
-/// To start a transmission, first load the address and RW mode into the `address` and `rw` registers,
-/// then set the `num_bytes` register to set the number of bytes to write or read.
-/// The `num_bytes` register can be updated at any point during the transmission.
-/// To start, set the `started` bit to `1`. The controller sets the `started` bit to `0` when the transmission is complete.
+/// Before starting a transmission, the following registers must be configured:
+/// - `address` holds the address of the slave
+/// - `rw` holds `0`for write, `1` for read
+/// - `num_bytes` holds the number of bytes to transmit
 ///
-/// When a transmission is complete, the driver can inspect the `transmission_result` register.
-/// Possible values are: `success`, `addressNack`, `dataNack`, `error`, `timeout`.
+/// The transmission starts when the `started` bit is set to `1`.
+/// The controller sets the `started` bit back to `0` when the transmission is complete.
+///
+/// If the bus is busy when the `start` bit is set to `1`, the controller waits until it becomes free.
+/// If that doesnt happen within the time configured in `start_timeout`, the transmission is aborted.
 ///
 /// Data bytes to be sent to the slave are read from `txFifo`.
-/// Data bytes received from the slave are pushed into`rxFifo`.
-///
-/// If `txFifo` runs out of data before the configured number of bytes have been sent,
+/// If `txFifo` becomes empty before `num_bytes` bytes have been sent,
 /// transmission stops after the last data ack, unless `stretching_enabled` is `1`.
 /// In that case the controller holds the bus and waits until new data is available in the fifo.
-/// As soon as the fifo is no more empty, stretching stops and transmission resumes.
+/// As soon as the fifo is not empty, stretching stops and transmission resumes.
 ///
-/// If `rxFifo` is full before the configured number of bytes have been read,
+/// Data bytes received from the slave are pushed into`rxFifo`.
+/// If `rxFifo` becomes full before `num_bytes` bytes have been read,
 /// the last data byte is nacked and transmission stops, unless `stretching_enabled` is `1`.
-/// In that case transmission is suspended before the data ack and the controller waits for the fifo to have at least one byte free.
-/// As soon as the fifo is no more full the controller acks the data byte and transmission resumes.
+/// In that case the controller holds the bus before the data ack and waits for the fifo to have at least one byte free.
+/// As soon as the fifo is not full, the controller acks the data byte and transmission resumes.
 ///
-/// Entering the stretching phase starts a timer.
-/// If the timer reaches the duration set in the `timeout` register, the transmission resumes as if `stretching_enabled` was `0`.
+/// Stretching can be detected by polling the `stretching_ongoing` flag:
+/// - `1` means stretching is ongoing
+/// - `0` means no stretching is active
 ///
-/// When a transmission is suspended, setting `stretching_enabled` to `0` ends the stretching phase.
+/// An ongoing stretching operation can be interrupted by setting `stretching_enabled` to `0`.
+/// Stretching is also interrupted automatically if the time since the stretching started exceeds the duration set in the `stretching_timeout` register.
+/// When stretching is interrupted, the transmission resumes as if `stretching_enabled` was `0`.
 ///
-/// The driver can detect that the controller is waiting on the fifos by polling the fifo state directly.
+/// When all bytes and acks have been transmitted, the controller sends a STOP, unless `hold_bus` is set to `1`.
+/// In that case the controller sets `started` to `0` and holds the bus until a new transmission is started or `hold` is set to `0`.
+/// If no transmission is started before `hold_timeout` since the hold started, hold stops and the controller sends a STOP.
+///
+/// End of transmission can be detected by polling the`started` bit and waiting for it to become `0`.
+/// The `transmission_result` register contains the status of the completed transmission:
+/// - `success` means no error, all bytes transmitted and properly acked
+/// - `addressNack` means no slave acked the address byte
+/// - `dataNack` means the slave nacked the last data byte (write mode only)
+/// - `timeout` means the transmission was unable to start in the alloted time
 ///
 class I2CMasterController: I2CController {
     

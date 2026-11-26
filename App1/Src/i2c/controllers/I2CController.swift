@@ -130,16 +130,12 @@ class I2CController: SimulationEntity {
         
         transmissionOngoing = true
         lastStartX = currentX
-        
-        transmissionStarted()
     }
     
     
     func stopCondition() {
         
         lastStopX = currentX
-        
-        transmissionStopped()
         resetAllTransmissionRelatedState()
     }
     
@@ -168,11 +164,6 @@ class I2CController: SimulationEntity {
     }
     
     
-    func transmissionStarted() {
-        
-    }
-    
-    
     func bitSetupStarted() {
         
         lastBitSetupStartX = currentX
@@ -193,12 +184,6 @@ class I2CController: SimulationEntity {
     func bitClockEnded() {
         
         numTransmittedBits += 1
-    }
-    
-    
-    func transmissionStopped() {
-    
-        resetAllTransmissionRelatedState()
     }
     
     

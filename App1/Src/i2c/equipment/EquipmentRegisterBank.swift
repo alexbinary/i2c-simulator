@@ -37,21 +37,32 @@ class EquipmentRegisterBank: I2CBusConnectable {
     
     func update(x: CGFloat) {
         
+//        var p: CGFloat = 0
+//        
+//        p += 1
+//        if x == p {
+//            i2cController.started = 1
+//        }
+        
         i2cController.update(x: x)
         
         if !transmissionOngoing {
             if i2cController.started == 1 {
                 transmissionOngoing = true
-                transmissionStarted()
             }
         }
         if transmissionOngoing {
             if i2cController.started == 0 {
                 transmissionOngoing = false
-                transmissionEnded()
+                processTransmissionResult()
             }
             if i2cController.stretching_ongoing == 1 {
-                stretchingOngoing()
+//                if i2cController.rw == .readFromSlave {
+                    if x > 3300 {
+                        i2cController.stretching_enabled = 0
+                        pushNextByte()
+                    }
+//                }
             }
         }
     }
@@ -63,23 +74,15 @@ class EquipmentRegisterBank: I2CBusConnectable {
     }
     
     
-    func transmissionStarted() {
+    func pushNextByte() {
         
-    }
-    
-    
-    func stretchingOngoing() {
-        
-        if i2cController.rw == .readFromSlave {
-            
-            let byte = registers[currentRegisterAddress]
-            i2cController.txFifo.push(byte)
-            currentRegisterAddress += 1
-        }
+        let byte = registers[currentRegisterAddress]
+        i2cController.txFifo.push(byte)
+        currentRegisterAddress += 1
     }
 
     
-    func transmissionEnded() {
+    func processTransmissionResult() {
         
         print("")
         print("-- EquipmentRegisterBank:\(i2cAddress) TRANSMISSION ENDED --")

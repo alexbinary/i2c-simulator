@@ -3,6 +3,14 @@
    version = "1.0">
    <ContextStates>
       <ContextState
+         contextName = "I2CMasterController.updateControls(x:):I2CMasterController.swift">
+         <PersistentStrings>
+            <PersistentString
+               value = "currentTransmissionControlState">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
          contextName = "GLOBAL">
          <PersistentStrings>
             <PersistentString
@@ -14,24 +22,51 @@
          </PersistentStrings>
       </ContextState>
       <ContextState
+         contextName = "I2CSlaveController.transmissionStopped():I2CSlaveController.swift">
+         <PersistentStrings>
+            <PersistentString
+               value = "respondsToAddresses">
+            </PersistentString>
+            <PersistentString
+               value = "reportsTransmissionsNotAddressedToSelf">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
          contextName = "I2CMasterController.prepareNextBit():I2CMasterController.swift">
       </ContextState>
       <ContextState
-         contextName = "I2CMasterController.updateTransmissionDriveState(afterTimeChanged:):I2CMasterController.swift">
-      </ContextState>
-      <ContextState
-         contextName = "I2CMasterController.updateControls(x:):I2CMasterController.swift">
+         contextName = "I2CSlaveController.update(x:):I2CSlaveController.swift">
          <PersistentStrings>
             <PersistentString
-               value = "currentTransmissionControlState">
+               value = "currentTransmissionState">
             </PersistentString>
          </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "I2CMasterController.updateTransmissionDriveState(afterTimeChanged:):I2CMasterController.swift">
       </ContextState>
       <ContextState
          contextName = "I2CController.bitClockPhaseEnded():I2CController.swift">
          <PersistentStrings>
             <PersistentString
                value = "numTransmittedBits">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "I2CMasterController.assertStart():I2CMasterController 2.swift">
+         <PersistentStrings>
+            <PersistentString
+               value = "currentX">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "I2CSlaveController.startCondition():I2CSlaveController 2.swift">
+         <PersistentStrings>
+            <PersistentString
+               value = "currentX">
             </PersistentString>
          </PersistentStrings>
       </ContextState>
@@ -61,37 +96,10 @@
          </PersistentStrings>
       </ContextState>
       <ContextState
-         contextName = "I2CMasterController.assertStart():I2CMasterController 2.swift">
-         <PersistentStrings>
-            <PersistentString
-               value = "currentX">
-            </PersistentString>
-         </PersistentStrings>
-      </ContextState>
-      <ContextState
-         contextName = "I2CSlaveController.transmissionStopped():I2CSlaveController.swift">
-         <PersistentStrings>
-            <PersistentString
-               value = "respondsToAddresses">
-            </PersistentString>
-            <PersistentString
-               value = "reportsTransmissionsNotAddressedToSelf">
-            </PersistentString>
-         </PersistentStrings>
-      </ContextState>
-      <ContextState
          contextName = "I2CSlaveController.transmittedByte():I2CSlaveController.swift">
          <PersistentStrings>
             <PersistentString
                value = "self.address">
-            </PersistentString>
-         </PersistentStrings>
-      </ContextState>
-      <ContextState
-         contextName = "I2CSlaveController.update(x:):I2CSlaveController.swift">
-         <PersistentStrings>
-            <PersistentString
-               value = "currentTransmissionState">
             </PersistentString>
          </PersistentStrings>
       </ContextState>

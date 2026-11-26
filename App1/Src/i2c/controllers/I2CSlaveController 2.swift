@@ -62,15 +62,42 @@ class I2CSlaveController: I2CController {
     var spy_mode = 0
     var spy_mode_stretching_enabled = 0
     
-    /* */
+    
+    /* Internal bus-related state */
+    
+    var holdingClock = false
 
 
-    override func reset(x: CGFloat) {
-
+    override func updateBusControls() {
+        super.updateBusControls()
+        
+        if stretching_enabled_fallingEdgeDetected == 1 {
+            holdingClock = false
+        }
+        
+        stretching_ongoing = holdingClock ? 1 : 0
+        
+        pullingSCL = holdingClock
     }
-
-
-    override func update(x: CGFloat) {
-                
+    
+    
+    override func startCondition() {
+        super.startCondition()
+        
+        transmissionOngoing = true
+        result = .aborted
+        lastStartX = currentX
+        started = 1
+    }
+    
+    
+    override func bitClockEnded() {
+        super.bitClockEnded()
+        
+        if numTransmittedBits == 12 {
+            if stretching_enabled == 1 {
+                holdingClock = true
+            }
+        }
     }
 }

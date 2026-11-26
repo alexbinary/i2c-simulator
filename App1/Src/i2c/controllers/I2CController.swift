@@ -34,6 +34,14 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     let xDelayBetweenLineChange: CGFloat = 10
     
     
+    /* Internal generic state */
+    
+    var started_previousValue = 0
+    var started_risingEdgeDetected = 0
+    var stretching_enabled_previousValue = 0
+    var stretching_enabled_fallingEdgeDetected = 0
+    
+    
     /* Internal bus-related state */
     
     var pullingSDA = false
@@ -75,6 +83,7 @@ class I2CController: SimulationEntity, I2CBusConnectable {
         currentX = x
         
         updateLineLevels()
+        updateControlSignals()
         updateBusControls()
         applyBusControls()
     }
@@ -104,6 +113,26 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     }
     
     
+    func updateControlSignals() {
+        
+        started_risingEdgeDetected = 0
+        if started != started_previousValue {
+            if started == 1 {
+                started_risingEdgeDetected = 1
+            }
+            started_previousValue = started
+        }
+        
+        stretching_enabled_fallingEdgeDetected = 0
+        if stretching_enabled != stretching_enabled_previousValue {
+            if stretching_enabled == 0 {
+                stretching_enabled_fallingEdgeDetected = 1
+            }
+            stretching_enabled_previousValue = stretching_enabled
+        }
+    }
+    
+    
     func updateBusControls() {
         
     }
@@ -118,27 +147,30 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     
     func resetAllTransmissionRelatedState() {
         
-        transmissionOngoing = false
         detectedClockRiseSinceStart = false
         numTransmittedBits = 0
     }
     
     
+    func concludeTransmission() {
+        
+        transmissionOngoing = false
+        stretching_ongoing = 0
+        resetAllTransmissionRelatedState()
+        lastStopX = currentX
+        started = 0
+    }
+    
+    
     func startCondition() {
         
-        if started == 1 {
-            transmissionOngoing = true
-            result = .aborted
-            lastStartX = currentX
-        }
+        resetAllTransmissionRelatedState()
     }
     
     
     func stopCondition() {
         
-        started = 0
-        lastStopX = currentX
-        resetAllTransmissionRelatedState()
+        concludeTransmission()
     }
     
     

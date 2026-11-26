@@ -70,9 +70,6 @@ class I2CMasterController: I2CController {
     
     /* Internal generic state */
     
-    var started_previousValue = 0
-    var stretching_enabled_previousValue = 0
-    
     
     /* Internal transmission-related state */
     
@@ -94,14 +91,9 @@ class I2CMasterController: I2CController {
         
         if !transmissionOngoing {
             
-            if started != started_previousValue {
-                
-                if started == 1 && started_previousValue == 0 {
-                    lastStartRequestedX = currentX
-                    generatingStart = true
-                }
-                
-                started_previousValue = started
+            if started_risingEdgeDetected == 1 {
+                lastStartRequestedX = currentX
+                generatingStart = true
             }
             
             if generatingStart && started == 0 {
@@ -119,17 +111,13 @@ class I2CMasterController: I2CController {
         
         if transmissionOngoing {
             
-            if stretching_enabled != stretching_enabled_previousValue {
-                
-                if stretching_enabled == 0 {
-                    lastStretchingDisabledX = currentX
-                }
-                
-                stretching_enabled_previousValue = stretching_enabled
+            if stretching_enabled_fallingEdgeDetected == 1 {
+                lastStretchingDisabledX = currentX
             }
             
             if !generatingClock && stretching_enabled == 0,
                waited(after: lastStretchingDisabledX, xBitSetupDuration) {
+                stretching_ongoing = 0
                 generatingClock = true
             }
             
@@ -140,6 +128,18 @@ class I2CMasterController: I2CController {
             if generatingStop {
                 assertStop()
             }
+        }
+    }
+    
+    
+    override func startCondition() {
+        super.startCondition()
+        
+        if started == 1 {   // prevents undesired events if SDA is unstable
+            transmissionOngoing = true
+            generatingClock = true
+            result = .aborted
+            lastStartX = currentX
         }
     }
     
@@ -205,13 +205,6 @@ class I2CMasterController: I2CController {
     }
     
     
-    override func startCondition() {
-        super.startCondition()
-        
-        generatingClock = true
-    }
-    
-    
     override func bitClockEnded() {
         super.bitClockEnded()
         
@@ -234,23 +227,27 @@ class I2CMasterController: I2CController {
             generatingClock = false
             generatingStop = true
         } else {
-            started = 0
-            resetAllTransmissionRelatedState()
+            stretching_ongoing = 1
+            concludeTransmission()
         }
     }
     
     func startTimeout() {
         
         result = .timeout
-        started = 0
-        resetAllTransmissionRelatedState()
+        concludeTransmission()
+        
+        pullingSCL = false
+        pullingSDA = false
     }
     
     
     func startAborted() {
         
         result = .aborted
-        started = 0
-        resetAllTransmissionRelatedState()
+        concludeTransmission()
+        
+        pullingSCL = false
+        pullingSDA = false
     }
 }

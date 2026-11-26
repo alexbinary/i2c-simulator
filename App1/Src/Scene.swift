@@ -20,8 +20,8 @@ class RenderScene {
         
         let devices: [I2CBusConnectable] = [
             EquipmentTestMaster1(),
-//            EquipmentRegisterBank(i2cAddress: 0x2a),
-            EquipmentRegisterBank(i2cAddress: 0x61),
+            EquipmentRegisterBank(i2cAddress: 0x2a),
+//            EquipmentRegisterBank(i2cAddress: 0x61),
 //            EquipmentBusMonitor(),
             PerturbatorEquipment(),
         ]

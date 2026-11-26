@@ -29,27 +29,33 @@ class I2CController: SimulationEntity {
     var stretching_timeout: Int = 2000
     
     
-    /* Internal state */
+    /* Configurations */
+    
+    let xDelayBetweenLineChange: CGFloat = 10
+    let xBitClockHighDuration: CGFloat = 30
+    let xBitClockLowDuration: CGFloat = 30
+    
+    
+    /* Internal bus-related state */
     
     var pullingSDA = false
     var pullingSCL = false
     
     var currentX: CGFloat = 0
-    var lastKnownLineLevels: (SCL: I2CBusLineLevel, SDA: I2CBusLineLevel) = (SCL: .high, SDA: .high)
+    var lastKnownLineLevels: (SCL: I2CBusLineLevel, SDA: I2CBusLineLevel)?
+    
+    var lastLineChangeX: CGFloat?
+    var lastIdleReachedX: CGFloat?
+    var lastStartX: CGFloat?
+    var lastStopX: CGFloat?
+    var lastBitClockStartX: CGFloat?
+    var lastBitSetupStartX: CGFloat?
+    
+    
+    /* Internal transmission-related state */
     
     var transmissionOngoing = false
     var detectedClockRiseSinceStart = false
-    
-    var lastLineChangeX: CGFloat = 0
-    var lastIdleReachedX: CGFloat = 0
-    var lastStartX: CGFloat = 0
-    var lastStopX: CGFloat = 0
-    var lastBitClockStartX: CGFloat = 0
-    var lastBitSetupStartX: CGFloat = 0
-    
-    let xDelayBetweenLineChange: CGFloat = 10
-    let xBitClockHighDuration: CGFloat = 30
-    let xBitClockLowDuration: CGFloat = 30
     
     var numTransmittedBits = 0
     var numTransmittedBytes: Int { numTransmittedBits / 9 }
@@ -59,7 +65,7 @@ class I2CController: SimulationEntity {
         
         currentX = x
         
-        resetTransmission()
+        resetAllTransmissionRelatedState()
         
         pullingSDA = false
         pullingSCL = false
@@ -78,14 +84,16 @@ class I2CController: SimulationEntity {
     
     func updateLineLevels() {
         
-        if bus.currentLineLevels != lastKnownLineLevels {
+        if lastKnownLineLevels == nil || bus.currentLineLevels != lastKnownLineLevels! {
             
-            switch detectedSymbol(analysingTransitionFrom: lastKnownLineLevels, to: bus.currentLineLevels) {
-            case .start: startCondition()
-            case .stop: stopCondition()
-            case .clockFall: clockFall()
-            case .clockRise: clockRise()
-            case .none: break
+            if let lastKnownLineLevels = lastKnownLineLevels {
+                switch detectedSymbol(analysingTransitionFrom: lastKnownLineLevels, to: bus.currentLineLevels) {
+                case .start: startCondition()
+                case .stop: stopCondition()
+                case .clockFall: clockFall()
+                case .clockRise: clockRise()
+                case .none: break
+                }
             }
             
             lastKnownLineLevels = bus.currentLineLevels
@@ -110,7 +118,7 @@ class I2CController: SimulationEntity {
     }
     
     
-    func resetTransmission() {
+    func resetAllTransmissionRelatedState() {
         
         transmissionOngoing = false
         detectedClockRiseSinceStart = false
@@ -132,7 +140,7 @@ class I2CController: SimulationEntity {
         lastStopX = currentX
         
         transmissionStopped()
-        resetTransmission()
+        resetAllTransmissionRelatedState()
     }
     
     
@@ -190,13 +198,17 @@ class I2CController: SimulationEntity {
     
     func transmissionStopped() {
     
-        resetTransmission()
+        resetAllTransmissionRelatedState()
     }
     
     
-    func waited(_ duration: CGFloat, relativeTo ref: CGFloat) -> Bool {
+    func waited(_ duration: CGFloat, relativeTo ref: CGFloat?) -> Bool {
 
-        return (currentX - ref) >= duration
+        if let ref = ref {
+            return (currentX - ref) >= duration
+        } else {
+            return true
+        }
     }
     
     

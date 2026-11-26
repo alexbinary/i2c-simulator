@@ -59,22 +59,28 @@ class I2CMasterController: I2CController {
     var hold_timeout = 1000
     
     
-    /* Internal state */
-    
-    var generatingStart = false
-    var generatingClock = false
-    var generatingStop = false
-    
-    var started_previousValue = 0
-    var xStartTimeoutRef: CGFloat = 0
-    
-    var lastStartReadyX: CGFloat = 0
+    /* Configurations */
     
     let xWaitBeforeStart: CGFloat = 30
     let xWaitBeforeStop: CGFloat = 30
     let xWaitAfterStop: CGFloat = 30
     
-
+    
+    /* Internal generic state */
+    
+    var started_previousValue = 0
+    
+    
+    /* Internal transmission-related state */
+    
+    var startTimeoutRefX: CGFloat?
+    var lastStartReadyX: CGFloat?
+    
+    var generatingStart = false
+    var generatingClock = false
+    var generatingStop = false
+    
+    
     override func reset(x: CGFloat) {
         super.reset(x: x)
     }
@@ -88,14 +94,14 @@ class I2CMasterController: I2CController {
             if started != started_previousValue {
                 
                 if started == 1 && started_previousValue == 0 {
-                    xStartTimeoutRef = currentX
+                    startTimeoutRefX = currentX
                     generatingStart = true
                 }
                 
                 started_previousValue = started
             }
             
-            if started == 1 && waited(start_timeout, relativeTo: xStartTimeoutRef) {
+            if started == 1 && waited(start_timeout, relativeTo: startTimeoutRefX) {
                 startTimeout()
             }
             
@@ -119,16 +125,14 @@ class I2CMasterController: I2CController {
     }
     
     
-    override func resetTransmission() {
-        super.resetTransmission()
+    override func resetAllTransmissionRelatedState() {
+        super.resetAllTransmissionRelatedState()
+        
+        startTimeoutRefX = 0
         
         generatingStart = false
         generatingClock = false
         generatingStop = false
-        
-        started = 0
-        started_previousValue = 0
-        xStartTimeoutRef = 0
     }
     
     
@@ -143,11 +147,11 @@ class I2CMasterController: I2CController {
             case (SCL: .low, SDA: .low): pullingSDA = false
             case (SCL: .low, SDA: .high): pullingSCL = false
             case (SCL: .high, SDA: .high):
-                if lastStartReadyX == 0 {
+                if lastStartReadyX == nil {
                     lastStartReadyX = currentX
                 }
                 if waited(xWaitBeforeStart, relativeTo: lastStartReadyX) {
-                    lastStartReadyX = 0
+                    lastStartReadyX = nil
                     pullingSDA = true
                 }
             }
@@ -215,7 +219,7 @@ class I2CMasterController: I2CController {
         } else {
             result = .success
             transmissionComplete()
-            resetTransmission()
+            resetAllTransmissionRelatedState()
         }
     }
     
@@ -236,7 +240,7 @@ class I2CMasterController: I2CController {
         
         result = .timeout
         transmissionComplete()
-        resetTransmission()
+        resetAllTransmissionRelatedState()
     }
     
     
@@ -244,6 +248,6 @@ class I2CMasterController: I2CController {
         
         result = .aborted
         transmissionComplete()
-        resetTransmission()
+        resetAllTransmissionRelatedState()
     }
 }

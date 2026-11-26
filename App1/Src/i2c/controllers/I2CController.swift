@@ -15,7 +15,7 @@ class I2CController: SimulationEntity {
     var txFifo = Fifo(size: 256, pushWhenFullBehavior: .forcePush)
     var rxFifo = Fifo(size: 256, pushWhenFullBehavior: .forcePush)
     
-    enum Result { case success, addressNack, dataNack, timeout }
+    enum Result { case success, addressNack, dataNack, timeout, aborted }
     var result: Result = .success
     
     var address: Byte = 0x00
@@ -38,10 +38,12 @@ class I2CController: SimulationEntity {
     var lastKnownLineLevels: (SCL: I2CBusLineLevel, SDA: I2CBusLineLevel) = (SCL: .high, SDA: .high)
     
     var transmissionOngoing = false
-    var bitClockHighActive = false
+    var detectedClockRiseSinceStart = false
     
     var lastLineChangeX: CGFloat = 0
     var lastIdleReachedX: CGFloat = 0
+    var lastStartX: CGFloat = 0
+    var lastStopX: CGFloat = 0
     var lastBitClockHighStartX: CGFloat = 0
     var lastBitClockLowStartX: CGFloat = 0
     
@@ -50,14 +52,14 @@ class I2CController: SimulationEntity {
     let xBitClockLowDuration: CGFloat = 30
     
     var numTransmittedBits = 0
+    var numTransmittedBytes: Int { numTransmittedBits / 9 }
     
     
     func reset(x: CGFloat) {
         
         currentX = x
         
-        transmissionOngoing = false
-        numTransmittedBits = 0
+        resetTransmission()
         
         pullingSDA = false
         pullingSCL = false
@@ -78,32 +80,12 @@ class I2CController: SimulationEntity {
         
         if bus.currentLineLevels != lastKnownLineLevels {
             
-            if let symbol = detectedSymbol(analysingTransitionFrom: lastKnownLineLevels, to: bus.currentLineLevels) {
-                switch symbol {
-                    
-                case .start:
-                    lastBitClockHighStartX = currentX
-                    transmissionStarted()
-                    
-                case .stop:
-                    transmissionStopped()
-                    
-                case .clockFall:
-                    if transmissionOngoing {
-                        lastBitClockLowStartX = currentX
-                        clockHighPhaseEnded()
-                        bitClockHighActive = false
-                        clockLowPhaseStarted()
-                    }
-                    
-                case .clockRise:
-                    if transmissionOngoing {
-                        lastBitClockHighStartX = currentX
-                        clockLowPhaseEnded()
-                        bitClockHighActive = true
-                        clockHighPhaseStarted()
-                    }
-                }
+            switch detectedSymbol(analysingTransitionFrom: lastKnownLineLevels, to: bus.currentLineLevels) {
+            case .start: startCondition()
+            case .stop: stopCondition()
+            case .clockFall: clockFall()
+            case .clockRise: clockRise()
+            case .none: break
             }
             
             lastKnownLineLevels = bus.currentLineLevels
@@ -128,58 +110,87 @@ class I2CController: SimulationEntity {
     }
     
     
-    func transmissionStarted() {
-    
-        transmissionOngoing = true
-        bitClockHighActive = false
+    func resetTransmission() {
+        
+        transmissionOngoing = false
+        detectedClockRiseSinceStart = false
         numTransmittedBits = 0
     }
     
     
-    func clockLowPhaseStarted() {
+    func startCondition() {
         
-        stretchingPhaseStarted()
+        transmissionOngoing = true
+        lastStartX = currentX
+        
+        transmissionStarted()
     }
     
     
-    func clockLowPhaseEnded() {
+    func stopCondition() {
         
+        lastStopX = currentX
+        
+        transmissionStopped()
+        resetTransmission()
     }
     
     
-    func clockHighPhaseStarted() {
+    func clockFall() {
         
-    }
-    
-    
-    func clockHighPhaseEnded() {
-        
-        if bitClockHighActive {
-            bitClockPhaseEnded()
+        if transmissionOngoing {
+            
+            if detectedClockRiseSinceStart {
+                bitClockEnded()
+            }
+            bitSetupStarted()
         }
     }
     
     
-    func stretchingPhaseStarted() {
+    func clockRise() {
         
-        bitSetupPhaseStarted()
+        if transmissionOngoing {
+            
+            detectedClockRiseSinceStart = true
+            
+            bitSetupEnded()
+            bitClockStarted()
+        }
     }
     
     
-    func bitSetupPhaseStarted() {
+    func transmissionStarted() {
         
     }
     
     
-    func bitClockPhaseEnded() {
+    func bitSetupStarted() {
+        
+        lastBitClockLowStartX = currentX
+    }
+    
+    
+    func bitSetupEnded() {
+        
+    }
+    
+    
+    func bitClockStarted() {
+        
+        lastBitClockHighStartX = currentX
+    }
+    
+    
+    func bitClockEnded() {
         
         numTransmittedBits += 1
     }
     
     
     func transmissionStopped() {
-        
-        transmissionOngoing = false
+    
+        resetTransmission()
     }
     
     
@@ -192,6 +203,18 @@ class I2CController: SimulationEntity {
     func waitedDelayBetweenLineChanges() -> Bool {
         
         return waited(xDelayBetweenLineChange, relativeTo: lastLineChangeX)
+    }
+    
+    
+    func waitedClockLowDuration() -> Bool {
+        
+        waited(xBitClockLowDuration, relativeTo: lastBitClockLowStartX)
+    }
+    
+    
+    func waitedClockHighDuration() -> Bool {
+        
+        waited(xBitClockHighDuration, relativeTo: lastBitClockHighStartX)
     }
 
     

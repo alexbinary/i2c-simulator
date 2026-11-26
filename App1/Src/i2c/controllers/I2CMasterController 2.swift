@@ -71,6 +71,7 @@ class I2CMasterController: I2CController {
     var lastStartReadyX: CGFloat = 0
     
     let xWaitBeforeStart: CGFloat = 30
+    let xWaitBeforeStop: CGFloat = 30
     let xWaitAfterStop: CGFloat = 30
     
 
@@ -134,7 +135,8 @@ class I2CMasterController: I2CController {
     func generateStart() {
         
         if waitedDelayBetweenLineChanges(),
-           waited(xWaitAfterStop, relativeTo: lastStopX) {
+           waited(xWaitAfterStop, relativeTo: lastStopX),
+           waited(xWaitBeforeStop, relativeTo: lastBitSetupStartX) {
             
             switch bus.currentLineLevels {
             case (SCL: .high, SDA: .low): pullingSCL = true
@@ -148,6 +150,22 @@ class I2CMasterController: I2CController {
                     lastStartReadyX = 0
                     pullingSDA = true
                 }
+            }
+        }
+    }
+    
+    
+    func generateStop() {
+        
+        if waitedDelayBetweenLineChanges(),
+           waitedClockLowDuration(),
+           waited(xWaitBeforeStop, relativeTo: lastBitSetupStartX) {
+            
+            switch bus.currentLineLevels {
+            case (SCL: .high, SDA: .high): pullingSCL = true
+            case (SCL: .low, SDA: .high): pullingSDA = true
+            case (SCL: .low, SDA: .low): pullingSCL = false
+            case (SCL: .high, SDA: .low): pullingSDA = false
             }
         }
     }
@@ -172,20 +190,6 @@ class I2CMasterController: I2CController {
     }
     
     
-    func generateStop() {
-        
-        if waitedDelayBetweenLineChanges(), waitedClockLowDuration() {
-            
-            switch bus.currentLineLevels {
-            case (SCL: .high, SDA: .high): pullingSCL = true
-            case (SCL: .low, SDA: .high): pullingSDA = true
-            case (SCL: .low, SDA: .low): pullingSCL = false
-            case (SCL: .high, SDA: .low): pullingSDA = false
-            }
-        }
-    }
-    
-    
     override func transmissionStarted() {
         super.transmissionStarted()
         
@@ -197,33 +201,49 @@ class I2CMasterController: I2CController {
         super.bitClockEnded()
         
         if numTransmittedBytes == num_bytes {
-            
-            result = .success
-            generatingClock = false
-            generatingStop = true
+            allBytesTransmitted()
         }
     }
     
     
-    override func transmissionStopped() {
+    func allBytesTransmitted() {
         
-        started = 0
-        resetTransmission()
+        result = .success
+        generatingClock = false
+        if hold_bus == 0 {
+            generatingStop = true
+        } else {
+            result = .success
+            transmissionComplete()
+            resetTransmission()
+        }
+    }
+    
+    override func transmissionStopped() {
+        transmissionComplete()
         
         super.transmissionStopped()
+    }
+    
+    
+    func transmissionComplete() {
+        
+        started = 0
     }
     
     
     func startTimeout() {
         
         result = .timeout
-        transmissionStopped()
+        transmissionComplete()
+        resetTransmission()
     }
     
     
     func startAborted() {
         
         result = .aborted
-        transmissionStopped()
+        transmissionComplete()
+        resetTransmission()
     }
 }

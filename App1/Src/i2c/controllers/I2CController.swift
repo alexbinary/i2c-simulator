@@ -44,8 +44,8 @@ class I2CController: SimulationEntity {
     var lastIdleReachedX: CGFloat = 0
     var lastStartX: CGFloat = 0
     var lastStopX: CGFloat = 0
-    var lastBitClockHighStartX: CGFloat = 0
-    var lastBitClockLowStartX: CGFloat = 0
+    var lastBitClockStartX: CGFloat = 0
+    var lastBitSetupStartX: CGFloat = 0
     
     let xDelayBetweenLineChange: CGFloat = 10
     let xBitClockHighDuration: CGFloat = 30
@@ -167,7 +167,7 @@ class I2CController: SimulationEntity {
     
     func bitSetupStarted() {
         
-        lastBitClockLowStartX = currentX
+        lastBitSetupStartX = currentX
     }
     
     
@@ -178,7 +178,7 @@ class I2CController: SimulationEntity {
     
     func bitClockStarted() {
         
-        lastBitClockHighStartX = currentX
+        lastBitClockStartX = currentX
     }
     
     
@@ -208,13 +208,13 @@ class I2CController: SimulationEntity {
     
     func waitedClockLowDuration() -> Bool {
         
-        waited(xBitClockLowDuration, relativeTo: lastBitClockLowStartX)
+        waited(xBitClockLowDuration, relativeTo: lastBitSetupStartX)
     }
     
     
     func waitedClockHighDuration() -> Bool {
         
-        waited(xBitClockHighDuration, relativeTo: lastBitClockHighStartX)
+        waited(xBitClockHighDuration, relativeTo: lastBitClockStartX)
     }
 
     

@@ -30,7 +30,6 @@ class EquipmentTestMaster1: I2CBusConnectable {
     func reset(x: CGFloat) {
         
         i2cController.reset(x: x)
-        prepare_request_slave2_testData1()
     }
     
     
@@ -40,11 +39,13 @@ class EquipmentTestMaster1: I2CBusConnectable {
         
         p += 1
         if x == p {
+            prepare_request_slave2_testData1()
             i2cController.started = 1
         }
         
         p += 1200
         if x == p {
+            prepare_request_slave2_testData1()
             i2cController.started = 1
         }
         
@@ -55,7 +56,13 @@ class EquipmentTestMaster1: I2CBusConnectable {
         
         p += 5
         if x == p {
+            prepare_request_slave2_testData1()
             i2cController.started = 1
+        }
+        
+        p += 300
+        if x == p {
+            i2cController.txFifo.push(Byte(slave2_testData1_registerAddress))
         }
         
         p += 400
@@ -106,7 +113,6 @@ class EquipmentTestMaster1: I2CBusConnectable {
         i2cController.address = slave2_address
         i2cController.rw = .writeToSlave
         i2cController.txFifo.clear()
-        i2cController.txFifo.push(Byte(slave2_testData1_registerAddress))
         i2cController.num_bytes = 1
         i2cController.stretching_enabled = 1
         i2cController.hold_bus = 1
@@ -130,7 +136,7 @@ class EquipmentTestMaster1: I2CBusConnectable {
         
         print("")
         print("-- EquipmentTestMaster1 TRANSMISSION ENDED --")
-        print("\(i2cController.result), address: \(i2cController.address)+\(i2cController.rw)")
+        print("\(i2cController.result), address: \(i2cController.address)+\(i2cController.rw), num_bytes: \(i2cController.num_bytes)")
 
         if i2cController.rw == .writeToSlave {
 

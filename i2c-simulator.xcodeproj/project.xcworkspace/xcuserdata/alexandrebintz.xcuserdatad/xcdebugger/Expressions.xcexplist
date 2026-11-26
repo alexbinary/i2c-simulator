@@ -47,6 +47,14 @@
          contextName = "I2CMasterController.updateTransmissionDriveState(afterTimeChanged:):I2CMasterController.swift">
       </ContextState>
       <ContextState
+         contextName = "I2CMasterController.bitClockEnded():I2CMasterController 2.swift">
+         <PersistentStrings>
+            <PersistentString
+               value = "num_bytes">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
          contextName = "I2CController.bitClockPhaseEnded():I2CController.swift">
          <PersistentStrings>
             <PersistentString

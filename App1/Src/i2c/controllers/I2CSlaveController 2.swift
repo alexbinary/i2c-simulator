@@ -71,8 +71,14 @@ class I2CSlaveController: I2CController {
     override func updateBusControls() {
         super.updateBusControls()
         
-        if stretching_enabled_fallingEdgeDetected == 1 {
+        if (stretching_enabled_fallingEdgeDetected == 1) || (holdingClock && !holdingClockFinalPhase && !txFifo.isEmpty) {
+            lastStretchingDisabledX = currentX
+            holdingClockFinalPhase = true
+        }
+        
+        if holdingClockFinalPhase && waited(after: lastStretchingDisabledX, xBitSetupDuration) {
             holdingClock = false
+            holdingClockFinalPhase = false
         }
         
         stretching_ongoing = holdingClock ? 1 : 0
@@ -94,7 +100,7 @@ class I2CSlaveController: I2CController {
     override func bitClockEnded() {
         super.bitClockEnded()
         
-        if numTransmittedBits == 12 {
+        if numTransmittedBits == 12 || numTransmittedBits == 13 {
             if stretching_enabled == 1 {
                 holdingClock = true
             }

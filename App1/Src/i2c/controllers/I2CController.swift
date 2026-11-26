@@ -32,6 +32,8 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     /* Configurations */
     
     let xDelayBetweenLineChange: CGFloat = 10
+    let xBitSetupDuration: CGFloat = 30
+    let xBitClockDuration: CGFloat = 30
     
     
     /* Internal generic state */
@@ -40,6 +42,7 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     var started_risingEdgeDetected = 0
     var stretching_enabled_previousValue = 0
     var stretching_enabled_fallingEdgeDetected = 0
+    var lastStretchingDisabledX: CGFloat?
     
     
     /* Internal bus-related state */
@@ -56,6 +59,8 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     var lastStopX: CGFloat?
     var lastBitSetupStartX: CGFloat?
     var lastBitClockStartX: CGFloat?
+    
+    var holdingClockFinalPhase = false
 
     
     /* Internal transmission-related state */
@@ -72,6 +77,9 @@ class I2CController: SimulationEntity, I2CBusConnectable {
         currentX = x
         
         resetAllTransmissionRelatedState()
+        
+        txFifo.clear()
+        rxFifo.clear()
         
         pullingSDA = false
         pullingSCL = false
@@ -148,6 +156,7 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     func resetAllTransmissionRelatedState() {
         
         detectedClockRiseSinceStart = false
+        holdingClockFinalPhase = false
         numTransmittedBits = 0
     }
     
@@ -156,8 +165,9 @@ class I2CController: SimulationEntity, I2CBusConnectable {
         
         transmissionOngoing = false
         stretching_ongoing = 0
-        resetAllTransmissionRelatedState()
         lastStopX = currentX
+        num_bytes = numTransmittedBytes
+        resetAllTransmissionRelatedState()
         started = 0
     }
     

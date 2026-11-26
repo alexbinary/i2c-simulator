@@ -64,8 +64,6 @@ class I2CMasterController: I2CController {
     let xWaitBeforeStart: CGFloat = 30
     let xWaitBeforeStop: CGFloat = 30
     let xWaitAfterStop: CGFloat = 30
-    let xBitSetupDuration: CGFloat = 30
-    let xBitClockDuration: CGFloat = 30
     
     
     /* Internal generic state */
@@ -78,7 +76,6 @@ class I2CMasterController: I2CController {
     var generatingStop = false
     
     var lastStartRequestedX: CGFloat?
-    var lastStretchingDisabledX: CGFloat?
     
     
     override func reset(x: CGFloat) {
@@ -111,14 +108,15 @@ class I2CMasterController: I2CController {
         
         if transmissionOngoing {
             
-            if stretching_enabled_fallingEdgeDetected == 1 {
+            if stretching_enabled_fallingEdgeDetected == 1 || (!generatingClock && !holdingClockFinalPhase && !txFifo.isEmpty) {
                 lastStretchingDisabledX = currentX
+                holdingClockFinalPhase = true
             }
             
-            if !generatingClock && stretching_enabled == 0,
-               waited(after: lastStretchingDisabledX, xBitSetupDuration) {
-                stretching_ongoing = 0
+            if holdingClockFinalPhase && waited(after: lastStretchingDisabledX, xBitSetupDuration) {
                 generatingClock = true
+                holdingClockFinalPhase = false
+                stretching_ongoing = 0
             }
             
             if generatingClock {
@@ -227,7 +225,6 @@ class I2CMasterController: I2CController {
             generatingClock = false
             generatingStop = true
         } else {
-            stretching_ongoing = 1
             concludeTransmission()
         }
     }

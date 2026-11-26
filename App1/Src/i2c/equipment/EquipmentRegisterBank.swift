@@ -37,12 +37,24 @@ class EquipmentRegisterBank: I2CBusConnectable {
     
     func update(x: CGFloat) {
         
-//        var p: CGFloat = 0
-//        
-//        p += 1
-//        if x == p {
-//            i2cController.started = 1
-//        }
+        var p: CGFloat = 0
+        
+        p += 3300
+        if x == p {
+            i2cController.stretching_enabled = 0
+        }
+        p += 5
+        if x == p {
+            i2cController.stretching_enabled = 1
+        }
+        p += 100
+        if x == p {
+            pushNextByte()
+        }
+        p += 200
+        if x == p {
+            i2cController.stretching_enabled = 0
+        }
         
         i2cController.update(x: x)
         
@@ -57,12 +69,7 @@ class EquipmentRegisterBank: I2CBusConnectable {
                 processTransmissionResult()
             }
             if i2cController.stretching_ongoing == 1 {
-//                if i2cController.rw == .readFromSlave {
-                    if x > 3300 {
-                        i2cController.stretching_enabled = 0
-                        pushNextByte()
-                    }
-//                }
+                
             }
         }
     }
@@ -86,7 +93,7 @@ class EquipmentRegisterBank: I2CBusConnectable {
         
         print("")
         print("-- EquipmentRegisterBank:\(i2cAddress) TRANSMISSION ENDED --")
-        print("\(i2cController.result), address: \(i2cController.address)+\(i2cController.rw)")
+        print("\(i2cController.result), address: \(i2cController.address)+\(i2cController.rw), num_bytes: \(i2cController.num_bytes)")
 
         if i2cController.result == .success && i2cController.rw == .writeToSlave {
             writeSuccess()

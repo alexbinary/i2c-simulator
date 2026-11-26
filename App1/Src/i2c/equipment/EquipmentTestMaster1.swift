@@ -52,6 +52,10 @@ class EquipmentTestMaster1: I2CBusConnectable {
             i2cController.started = 1
         }
         
+        if x == 2000 {
+            i2cController.started = 1
+        }
+        
         i2cController.update(x: x)
         
         if !transmissionStarted {
@@ -97,9 +101,6 @@ class EquipmentTestMaster1: I2CBusConnectable {
         i2cController.num_bytes = slave2_testData1_len
         i2cController.stretching_enabled = 0
         i2cController.hold_bus = 0
-        
-        i2cController.started = 1
-        transmissionStarted = true
     }
     
     

@@ -135,6 +135,7 @@ class I2CController: SimulationEntity {
     
     func stopCondition() {
         
+        started = 0
         lastStopX = currentX
         resetAllTransmissionRelatedState()
     }

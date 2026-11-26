@@ -30,19 +30,36 @@ class EquipmentTestMaster1: I2CEquipment {
     func reset(x: CGFloat) {
         
         i2cController.reset(x: x)
-        request_slave2_testData1()
+        prepare_request_slave2_testData1()
     }
     
     
     func update(x: CGFloat) {
         
+        if x == 1 {
+            i2cController.started = 1
+        }
+        
+        if x == 5 {
+            i2cController.started = 0
+        }
+        
+        if x == 12 {
+            i2cController.started = 1
+        }
+        
         i2cController.update(x: x)
         
+        if !transmissionStarted {
+            if i2cController.started == 1 {
+                transmissionStarted = true
+            }
+        }
+        
         if transmissionStarted {
-            
             if i2cController.started == 0 {
                 transmissionStarted = false
-                transmissionEnded()
+                processTransmissionResult()
             }
         }
     }
@@ -54,7 +71,7 @@ class EquipmentTestMaster1: I2CEquipment {
     }
     
     
-    func request_slave2_testData1() {
+    func prepare_request_slave2_testData1() {
         
         i2cController.address = slave2_address
         i2cController.rw = .writeToSlave
@@ -63,14 +80,12 @@ class EquipmentTestMaster1: I2CEquipment {
         i2cController.num_bytes = 1
         i2cController.stretching_enabled = 0
         i2cController.hold_bus = 1
-        i2cController.started = 1
         
-        transmissionStarted = true
         lastAddressedRegister = slave2_testData1_registerAddress
     }
     
     
-    func read_slave2_testData1() {
+    func prepare_read_slave2_testData1() {
         
         i2cController.address = slave2_address
         i2cController.rw = .readFromSlave
@@ -78,17 +93,16 @@ class EquipmentTestMaster1: I2CEquipment {
         i2cController.num_bytes = slave2_testData1_len
         i2cController.stretching_enabled = 0
         i2cController.hold_bus = 0
-        i2cController.started = 1
         
+        i2cController.started = 1
         transmissionStarted = true
     }
     
     
-    func transmissionEnded() {
+    func processTransmissionResult() {
         
         print("")
         print("-- EquipmentTestMaster1 TRANSMISSION ENDED --")
-    
         print("\(i2cController.result), address: \(i2cController.address)+\(i2cController.rw)")
 
         if i2cController.rw == .writeToSlave {
@@ -112,7 +126,7 @@ class EquipmentTestMaster1: I2CEquipment {
     
     func requestRegisterSuccess() {
         
-        read_slave2_testData1()
+        prepare_read_slave2_testData1()
     }
     
     

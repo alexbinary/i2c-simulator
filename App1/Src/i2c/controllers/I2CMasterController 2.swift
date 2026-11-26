@@ -102,25 +102,26 @@ class I2CMasterController: I2CController {
                 started_previousValue = started
             }
             
-            if started == 1 && waited(start_timeout, relativeTo: startTimeoutRefX) {
-                startTimeout()
-            }
-            
             if generatingStart && started == 0 {
                 startAborted()
             }
             
+            if generatingStart && waited(start_timeout, relativeTo: startTimeoutRefX) {
+                startTimeout()
+            }
+            
             if generatingStart {
-                generateStart()
+                assertStart()
             }
         }
         
         if transmissionOngoing {
             
             if generatingStop {
-                generateStop()
-            } else if generatingClock {
-                generateClock()
+                assertStop()
+            }
+            if generatingClock {
+                assertClock()
             }
         }
     }
@@ -137,7 +138,7 @@ class I2CMasterController: I2CController {
     }
     
     
-    func generateStart() {
+    func assertStart() {
         
         if waitedDelayBetweenLineChanges(),
            waited(xWaitAfterStop, relativeTo: lastStopX),
@@ -159,7 +160,7 @@ class I2CMasterController: I2CController {
     }
     
     
-    func generateStop() {
+    func assertStop() {
         
         if waitedDelayBetweenLineChanges(),
            waitedClockLowDuration(),
@@ -175,7 +176,7 @@ class I2CMasterController: I2CController {
     }
     
     
-    func generateClock() {
+    func assertClock() {
         
         if waitedDelayBetweenLineChanges() {
             
@@ -201,13 +202,6 @@ class I2CMasterController: I2CController {
     }
     
     
-    override func stopCondition() {
-        
-        started = 0
-        super.stopCondition()
-    }
-    
-    
     override func bitClockEnded() {
         super.bitClockEnded()
         
@@ -222,6 +216,7 @@ class I2CMasterController: I2CController {
         result = .success
         generatingClock = false
         if hold_bus == 0 {
+            generatingClock = false
             generatingStop = true
         } else {
             started = 0

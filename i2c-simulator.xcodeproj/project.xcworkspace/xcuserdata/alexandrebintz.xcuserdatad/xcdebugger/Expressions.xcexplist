@@ -36,6 +36,17 @@
          </PersistentStrings>
       </ContextState>
       <ContextState
+         contextName = "I2CMasterController.updateBusControls():I2CMasterController 2.swift">
+         <PersistentStrings>
+            <PersistentString
+               value = "started">
+            </PersistentString>
+            <PersistentString
+               value = "generatingStart">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
          contextName = "I2CSlaveController.bitClockHighPhaseEnded():I2CSlaveController.swift">
          <PersistentStrings>
             <PersistentString

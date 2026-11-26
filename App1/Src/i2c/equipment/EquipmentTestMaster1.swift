@@ -159,7 +159,6 @@ class EquipmentTestMaster1: I2CBusConnectable {
     
     func requestRegisterSuccess() {
         
-        prepare_read_slave2_testData1()
     }
     
     

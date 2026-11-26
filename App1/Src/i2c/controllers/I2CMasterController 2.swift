@@ -126,38 +126,52 @@ class I2CMasterController: I2CController {
                 
                 if !holdingClockFinalPhase {
                     
-                    if !txFifo.isEmpty || stretching_enabled == 0 || waited(after: lastStretchingStartX, CGFloat(stretching_timeout)) {
-                        
+                    let fifoNotEmpty = !txFifo.isEmpty
+                    let stretchingDisabled = stretching_enabled == 0
+                    let timeout = waited(after: lastStretchingStartX, CGFloat(stretching_timeout))
+                    
+                    if fifoNotEmpty {
+                        print("")
+                        print("MasterController -- data available")
+                    }
+                    if stretchingDisabled {
+                        print("")
+                        print("MasterController -- stretching disabled")
+                    }
+                    if timeout {
+                        print("")
+                        print("MasterController -- stretching timeout")
+                    }
+                    
+                    if fifoNotEmpty || stretchingDisabled || timeout {
                         lastStretchingDisabledX = currentX
                         holdingClockFinalPhase = true
-                        
-                        if waited(after: lastStretchingStartX, CGFloat(stretching_timeout)) {
-                            print("")
-                            print("MasterController -- stretching timeout")
-                        }
                     }
                 }
                 
                 if holdingClockFinalPhase {
-                    
                     if waited(after: lastStretchingDisabledX, xBitSetupDuration) {
-                        
-                        holdingClock = false
-                        holdingClockFinalPhase = false
-                        generatingClock = true
-                        stretching_ongoing = 0
+                        exitStretching()
                     }
                 }
             }
             
             if holdingBus {
                 
-                if waited(after: lastHoldStartedX, CGFloat(hold_timeout)) {
-                    
+                let disabled = hold_bus == 0
+                let timeout = waited(after: lastHoldStartedX, CGFloat(hold_timeout))
+                
+                if disabled {
+                    print("")
+                    print("MasterController -- hold disabled by user")
+                }
+                if timeout {
                     print("")
                     print("MasterController -- hold timeout")
-                    holdingBus = false
-                    generatingStop = true
+                }
+                
+                if disabled || timeout {
+                    exitHold()
                 }
             }
             
@@ -244,20 +258,59 @@ class I2CMasterController: I2CController {
     }
     
     
+    func enterStretching() {
+        
+        holdingClock = true
+        generatingClock = false
+        lastStretchingStartX = currentX
+        stretching_ongoing = 1
+        
+        print("")
+        print("MasterController -- stretching started")
+    }
+    
+    
+    func exitStretching() {
+        
+        holdingClock = false
+        holdingClockFinalPhase = false
+        generatingClock = true
+        stretching_ongoing = 0
+        
+        print("")
+        print("MasterController -- stretching ended")
+    }
+    
+    
+    func enterHold() {
+        
+        holdingBus = true
+        lastHoldStartedX = currentX
+        
+        print("")
+        print("MasterController -- hold started")
+    }
+    
+    
+    func exitHold() {
+        
+        holdingBus = false
+        generatingStop = true
+        
+        print("")
+        print("MasterController -- hold ended")
+    }
+    
+    
     override func bitClockEnded() {
         super.bitClockEnded()
         
         if numTransmittedBits % 4 == 3 {
+            
             if stretching_enabled == 1 {
-                
-                holdingClock = true
-                generatingClock = false
-                lastStretchingStartX = currentX
-                stretching_ongoing = 1
-                
-                print("")
-                print("MasterController -- stretching started")
+                enterStretching()
             }
+            
         } else if numTransmittedBytes == num_bytes {
             
             allBytesTransmitted()
@@ -273,14 +326,11 @@ class I2CMasterController: I2CController {
             generatingClock = false
             generatingStop = true
         } else {
-            holdingBus = true
-            lastHoldStartedX = currentX
+            enterHold()
             concludeTransmission()
-            
-            print("")
-            print("MasterController -- hold started")
         }
     }
+    
     
     func startTimeout() {
         

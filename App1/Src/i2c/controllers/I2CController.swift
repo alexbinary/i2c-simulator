@@ -26,7 +26,7 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     
     var stretching_enabled = 0
     var stretching_ongoing = 0
-    var stretching_timeout: Int = 2000
+    var stretching_timeout: Int = 200
     
     
     /* Configurations */
@@ -42,6 +42,7 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     var started_risingEdgeDetected = 0
     var stretching_enabled_previousValue = 0
     var stretching_enabled_fallingEdgeDetected = 0
+    var lastStretchingStartX: CGFloat?
     var lastStretchingDisabledX: CGFloat?
     
     
@@ -60,12 +61,13 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     var lastBitSetupStartX: CGFloat?
     var lastBitClockStartX: CGFloat?
     
+    var holdingClock = false
     var holdingClockFinalPhase = false
 
     
     /* Internal transmission-related state */
     
-    var transmissionOngoing = false
+    var betweenStartAndStop = false
     var detectedClockRiseSinceStart = false
     
     var numTransmittedBits = 0
@@ -163,7 +165,6 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     
     func concludeTransmission() {
         
-        transmissionOngoing = false
         stretching_ongoing = 0
         lastStopX = currentX
         num_bytes = numTransmittedBytes
@@ -175,18 +176,20 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     func startCondition() {
         
         resetAllTransmissionRelatedState()
+        betweenStartAndStop = true
     }
     
     
     func stopCondition() {
         
+        betweenStartAndStop = false
         concludeTransmission()
     }
     
     
     func clockFall() {
         
-        if transmissionOngoing {
+        if betweenStartAndStop {
             
             if detectedClockRiseSinceStart {
                 bitClockEnded()
@@ -198,7 +201,7 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     
     func clockRise() {
         
-        if transmissionOngoing {
+        if betweenStartAndStop {
             
             detectedClockRiseSinceStart = true
             

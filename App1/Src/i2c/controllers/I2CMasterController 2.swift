@@ -53,10 +53,10 @@ class I2CMasterController: I2CController {
     
     /* Public registers */
     
-    var start_timeout: CGFloat = 1000
+    var start_timeout: CGFloat = 100
     
     var hold_bus = 0
-    var hold_timeout = 1000
+    var hold_timeout = 200
     
     
     /* Configurations */
@@ -68,14 +68,16 @@ class I2CMasterController: I2CController {
     
     /* Internal generic state */
     
+    var lastStartRequestedX: CGFloat?
+    var lastHoldStartedX: CGFloat?
+    var holdingBus = false
+    
     
     /* Internal transmission-related state */
     
     var generatingStart = false
     var generatingClock = false
     var generatingStop = false
-    
-    var lastStartRequestedX: CGFloat?
     
     
     override func reset(x: CGFloat) {
@@ -86,18 +88,30 @@ class I2CMasterController: I2CController {
     override func updateBusControls() {
         super.updateBusControls()
         
-        if !transmissionOngoing {
+        if !betweenStartAndStop {
             
             if started_risingEdgeDetected == 1 {
+                
                 lastStartRequestedX = currentX
                 generatingStart = true
+                
+                print("")
+                print("MasterController -- start requested by user")
             }
             
             if generatingStart && started == 0 {
+                
+                print("")
+                print("MasterController -- start aborted by user")
+                
                 startAborted()
             }
             
             if generatingStart && waited(after: lastStartRequestedX, start_timeout) {
+                
+                print("")
+                print("MasterController -- start timeout")
+                
                 startTimeout()
             }
             
@@ -106,17 +120,45 @@ class I2CMasterController: I2CController {
             }
         }
         
-        if transmissionOngoing {
+        if betweenStartAndStop {
             
-            if stretching_enabled_fallingEdgeDetected == 1 || (!generatingClock && !holdingClockFinalPhase && !txFifo.isEmpty) {
-                lastStretchingDisabledX = currentX
-                holdingClockFinalPhase = true
+            if holdingClock {
+                
+                if !holdingClockFinalPhase {
+                    
+                    if !txFifo.isEmpty || stretching_enabled == 0 || waited(after: lastStretchingStartX, CGFloat(stretching_timeout)) {
+                        
+                        lastStretchingDisabledX = currentX
+                        holdingClockFinalPhase = true
+                        
+                        if waited(after: lastStretchingStartX, CGFloat(stretching_timeout)) {
+                            print("")
+                            print("MasterController -- stretching timeout")
+                        }
+                    }
+                }
+                
+                if holdingClockFinalPhase {
+                    
+                    if waited(after: lastStretchingDisabledX, xBitSetupDuration) {
+                        
+                        holdingClock = false
+                        holdingClockFinalPhase = false
+                        generatingClock = true
+                        stretching_ongoing = 0
+                    }
+                }
             }
             
-            if holdingClockFinalPhase && waited(after: lastStretchingDisabledX, xBitSetupDuration) {
-                generatingClock = true
-                holdingClockFinalPhase = false
-                stretching_ongoing = 0
+            if holdingBus {
+                
+                if waited(after: lastHoldStartedX, CGFloat(hold_timeout)) {
+                    
+                    print("")
+                    print("MasterController -- hold timeout")
+                    holdingBus = false
+                    generatingStop = true
+                }
             }
             
             if generatingClock {
@@ -134,7 +176,6 @@ class I2CMasterController: I2CController {
         super.startCondition()
         
         if started == 1 {   // prevents undesired events if SDA is unstable
-            transmissionOngoing = true
             generatingClock = true
             result = .aborted
             lastStartX = currentX
@@ -208,10 +249,17 @@ class I2CMasterController: I2CController {
         
         if numTransmittedBits % 4 == 3 {
             if stretching_enabled == 1 {
+                
+                holdingClock = true
                 generatingClock = false
+                lastStretchingStartX = currentX
                 stretching_ongoing = 1
+                
+                print("")
+                print("MasterController -- stretching started")
             }
         } else if numTransmittedBytes == num_bytes {
+            
             allBytesTransmitted()
         }
     }
@@ -225,7 +273,12 @@ class I2CMasterController: I2CController {
             generatingClock = false
             generatingStop = true
         } else {
+            holdingBus = true
+            lastHoldStartedX = currentX
             concludeTransmission()
+            
+            print("")
+            print("MasterController -- hold started")
         }
     }
     

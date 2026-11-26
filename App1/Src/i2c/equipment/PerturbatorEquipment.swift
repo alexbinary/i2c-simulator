@@ -17,7 +17,7 @@ class PerturbatorEquipment: I2CController {
             releaseSCL()
         }
         
-        if x > 1100 {
+        if x > 110 {
             releaseSCL()
         }
     }

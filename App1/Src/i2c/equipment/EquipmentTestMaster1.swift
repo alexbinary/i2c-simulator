@@ -43,7 +43,7 @@ class EquipmentTestMaster1: I2CBusConnectable {
             i2cController.started = 1
         }
         
-        p += 1200
+        p += 120
         if x == p {
             prepare_request_slave2_testData1()
             i2cController.started = 1
@@ -60,30 +60,30 @@ class EquipmentTestMaster1: I2CBusConnectable {
             i2cController.started = 1
         }
         
-        p += 300
-        if x == p {
-            i2cController.txFifo.push(Byte(slave2_testData1_registerAddress))
-        }
+//        p += 300
+//        if x == p {
+//            i2cController.txFifo.push(Byte(slave2_testData1_registerAddress))
+//        }
+//        
+//        p += 400
+//        if x == p {
+//            i2cController.stretching_enabled = 0
+//        }
         
-        p += 400
-        if x == p {
-            i2cController.stretching_enabled = 0
-        }
+//        p += 400
+//        if x == p {
+//            i2cController.stretching_enabled = 1
+//        }
         
-        p += 50
-        if x == p {
-            i2cController.stretching_enabled = 1
-        }
-        
-        p += 300
-        if x == p {
-            i2cController.stretching_enabled = 0
-        }
-        
-        p += 300
-        if x == p {
-            i2cController.started = 1
-        }
+//        p += 300
+//        if x == p {
+//            i2cController.stretching_enabled = 0
+//        }
+//        
+//        p += 300
+//        if x == p {
+//            i2cController.started = 1
+//        }
         
         i2cController.update(x: x)
         

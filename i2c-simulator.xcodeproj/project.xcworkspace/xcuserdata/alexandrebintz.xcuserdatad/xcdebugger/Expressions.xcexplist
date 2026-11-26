@@ -52,6 +52,9 @@
             <PersistentString
                value = "num_bytes">
             </PersistentString>
+            <PersistentString
+               value = "currentX">
+            </PersistentString>
          </PersistentStrings>
       </ContextState>
       <ContextState

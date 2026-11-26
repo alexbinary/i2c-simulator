@@ -61,19 +61,17 @@ class I2CSlaveController: I2CController {
     
     var spy_mode = 0
     var spy_mode_stretching_enabled = 0
-    
-    
-    /* Internal bus-related state */
-    
-    var holdingClock = false
 
 
     override func updateBusControls() {
         super.updateBusControls()
         
-        if (stretching_enabled_fallingEdgeDetected == 1) || (holdingClock && !holdingClockFinalPhase && !txFifo.isEmpty) {
-            lastStretchingDisabledX = currentX
-            holdingClockFinalPhase = true
+        if holdingClock && !holdingClockFinalPhase {
+            
+            if !txFifo.isEmpty || stretching_enabled == 0 {
+                lastStretchingDisabledX = currentX
+                holdingClockFinalPhase = true
+            }
         }
         
         if holdingClockFinalPhase && waited(after: lastStretchingDisabledX, xBitSetupDuration) {
@@ -90,7 +88,7 @@ class I2CSlaveController: I2CController {
     override func startCondition() {
         super.startCondition()
         
-        transmissionOngoing = true
+        betweenStartAndStop = true
         result = .aborted
         lastStartX = currentX
         started = 1

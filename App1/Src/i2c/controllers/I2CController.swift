@@ -32,8 +32,6 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     /* Configurations */
     
     let xDelayBetweenLineChange: CGFloat = 10
-    let xBitClockHighDuration: CGFloat = 30
-    let xBitClockLowDuration: CGFloat = 30
     
     
     /* Internal bus-related state */
@@ -48,9 +46,9 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     var lastIdleReachedX: CGFloat?
     var lastStartX: CGFloat?
     var lastStopX: CGFloat?
-    var lastBitClockStartX: CGFloat?
     var lastBitSetupStartX: CGFloat?
-    
+    var lastBitClockStartX: CGFloat?
+
     
     /* Internal transmission-related state */
     
@@ -191,7 +189,7 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     }
     
     
-    func waited(_ duration: CGFloat, relativeTo ref: CGFloat?) -> Bool {
+    func waited(after ref: CGFloat?, _ duration: CGFloat) -> Bool {
 
         if let ref = ref {
             return (currentX - ref) >= duration
@@ -203,21 +201,27 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     
     func waitedDelayBetweenLineChanges() -> Bool {
         
-        return waited(xDelayBetweenLineChange, relativeTo: lastLineChangeX)
+        return waited(after: lastLineChangeX, xDelayBetweenLineChange)
     }
     
     
-    func waitedClockLowDuration() -> Bool {
+    func waitedAfterLastStop(_ duration: CGFloat) -> Bool {
         
-        waited(xBitClockLowDuration, relativeTo: lastBitSetupStartX)
+        return waited(after: lastStopX, duration)
     }
     
     
-    func waitedClockHighDuration() -> Bool {
+    func waitedAfterLastBitSetupStart(_ duration: CGFloat) -> Bool {
         
-        waited(xBitClockHighDuration, relativeTo: lastBitClockStartX)
+        return waited(after: lastBitSetupStartX, duration)
     }
-
+    
+    
+    func waitedAfterLastBitClockStart(_ duration: CGFloat) -> Bool {
+        
+        return waited(after: lastBitClockStartX, duration)
+    }
+    
     
     func connect(to bus: I2CBus) {
         

@@ -36,23 +36,45 @@ class EquipmentTestMaster1: I2CBusConnectable {
     
     func update(x: CGFloat) {
         
-        if x == 1 {
+        var p: CGFloat = 0
+        
+        p += 1
+        if x == p {
             i2cController.started = 1
         }
         
-        if x == 1200 {
+        p += 1200
+        if x == p {
             i2cController.started = 1
         }
         
-        if x == 1205 {
+        p += 5
+        if x == p {
             i2cController.started = 0
         }
         
-        if x == 1210 {
+        p += 5
+        if x == p {
             i2cController.started = 1
         }
         
-        if x == 2000 {
+        p += 400
+        if x == p {
+            i2cController.stretching_enabled = 0
+        }
+        
+        p += 50
+        if x == p {
+            i2cController.stretching_enabled = 1
+        }
+        
+        p += 300
+        if x == p {
+            i2cController.stretching_enabled = 0
+        }
+        
+        p += 300
+        if x == p {
             i2cController.started = 1
         }
         
@@ -86,7 +108,7 @@ class EquipmentTestMaster1: I2CBusConnectable {
         i2cController.txFifo.clear()
         i2cController.txFifo.push(Byte(slave2_testData1_registerAddress))
         i2cController.num_bytes = 1
-        i2cController.stretching_enabled = 0
+        i2cController.stretching_enabled = 1
         i2cController.hold_bus = 1
         
         lastAddressedRegister = slave2_testData1_registerAddress

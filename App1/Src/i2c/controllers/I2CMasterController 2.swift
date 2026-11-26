@@ -64,21 +64,24 @@ class I2CMasterController: I2CController {
     let xWaitBeforeStart: CGFloat = 30
     let xWaitBeforeStop: CGFloat = 30
     let xWaitAfterStop: CGFloat = 30
+    let xBitSetupDuration: CGFloat = 30
+    let xBitClockDuration: CGFloat = 30
     
     
     /* Internal generic state */
     
     var started_previousValue = 0
+    var stretching_enabled_previousValue = 0
     
     
     /* Internal transmission-related state */
     
-    var startTimeoutRefX: CGFloat?
-    var lastStartReadyX: CGFloat?
-    
     var generatingStart = false
     var generatingClock = false
     var generatingStop = false
+    
+    var lastStartRequestedX: CGFloat?
+    var lastStretchingDisabledX: CGFloat?
     
     
     override func reset(x: CGFloat) {
@@ -94,9 +97,8 @@ class I2CMasterController: I2CController {
             if started != started_previousValue {
                 
                 if started == 1 && started_previousValue == 0 {
-                    startTimeoutRefX = currentX
+                    lastStartRequestedX = currentX
                     generatingStart = true
-                    lastStartReadyX = nil
                 }
                 
                 started_previousValue = started
@@ -106,7 +108,7 @@ class I2CMasterController: I2CController {
                 startAborted()
             }
             
-            if generatingStart && waited(start_timeout, relativeTo: startTimeoutRefX) {
+            if generatingStart && waited(after: lastStartRequestedX, start_timeout) {
                 startTimeout()
             }
             
@@ -117,11 +119,26 @@ class I2CMasterController: I2CController {
         
         if transmissionOngoing {
             
-            if generatingStop {
-                assertStop()
+            if stretching_enabled != stretching_enabled_previousValue {
+                
+                if stretching_enabled == 0 {
+                    lastStretchingDisabledX = currentX
+                }
+                
+                stretching_enabled_previousValue = stretching_enabled
             }
+            
+            if !generatingClock && stretching_enabled == 0,
+               waited(after: lastStretchingDisabledX, xBitSetupDuration) {
+                generatingClock = true
+            }
+            
             if generatingClock {
                 assertClock()
+            }
+            
+            if generatingStop {
+                assertStop()
             }
         }
     }
@@ -129,8 +146,6 @@ class I2CMasterController: I2CController {
     
     override func resetAllTransmissionRelatedState() {
         super.resetAllTransmissionRelatedState()
-        
-        startTimeoutRefX = 0
         
         generatingStart = false
         generatingClock = false
@@ -140,26 +155,16 @@ class I2CMasterController: I2CController {
     
     func assertStart() {
         
-        if bus.currentLineLevels == (SCL: .high, SDA: .high) {
-            if lastStartReadyX == nil {
-                lastStartReadyX = currentX
-            }
-        } else {
-            lastStartReadyX = nil
-        }
-        
         if waitedDelayBetweenLineChanges(),
-           waited(xWaitAfterStop, relativeTo: lastStopX),
-           waited(xWaitBeforeStart, relativeTo: lastBitSetupStartX) {
+           waitedAfterLastStop(xWaitAfterStop),
+           waitedAfterLastBitSetupStart(xBitSetupDuration),
+           waited(after: lastStartRequestedX, xWaitBeforeStart) {
             
             switch bus.currentLineLevels {
             case (SCL: .high, SDA: .low): pullingSCL = true
             case (SCL: .low, SDA: .low): pullingSDA = false
             case (SCL: .low, SDA: .high): pullingSCL = false
-            case (SCL: .high, SDA: .high):
-                if waited(xWaitBeforeStart, relativeTo: lastStartReadyX) {
-                    pullingSDA = true
-                }
+            case (SCL: .high, SDA: .high): pullingSDA = true
             }
         }
     }
@@ -168,8 +173,8 @@ class I2CMasterController: I2CController {
     func assertStop() {
         
         if waitedDelayBetweenLineChanges(),
-           waitedClockLowDuration(),
-           waited(xWaitBeforeStop, relativeTo: lastBitSetupStartX) {
+           waitedAfterLastBitSetupStart(xBitSetupDuration),
+           waited(after: lastBitSetupStartX, xWaitBeforeStop) {
             
             switch bus.currentLineLevels {
             case (SCL: .high, SDA: .high): pullingSCL = true
@@ -186,13 +191,13 @@ class I2CMasterController: I2CController {
         if waitedDelayBetweenLineChanges() {
             
             if bus.lineSCL.isHigh {
-                if waitedClockHighDuration(),
-                   waited(xBitClockHighDuration, relativeTo: lastStartX) {
+                if waitedAfterLastBitClockStart(xBitClockDuration),
+                   waited(after: lastStartX, xBitClockDuration) {
                     pullingSCL = true
                 }
             }
             if bus.lineSCL.isLow {
-                if waitedClockLowDuration() {
+                if waitedAfterLastBitSetupStart(xBitSetupDuration) {
                     pullingSCL = false
                 }
             }
@@ -210,7 +215,12 @@ class I2CMasterController: I2CController {
     override func bitClockEnded() {
         super.bitClockEnded()
         
-        if numTransmittedBytes == num_bytes {
+        if numTransmittedBits % 4 == 3 {
+            if stretching_enabled == 1 {
+                generatingClock = false
+                stretching_ongoing = 1
+            }
+        } else if numTransmittedBytes == num_bytes {
             allBytesTransmitted()
         }
     }

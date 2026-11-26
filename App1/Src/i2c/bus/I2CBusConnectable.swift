@@ -3,7 +3,7 @@ import SwiftUI
 
 
 
-protocol I2CEquipment: SimulationEntity {
+protocol I2CBusConnectable: SimulationEntity {
     
     func connect(to bus: I2CBus)
 }

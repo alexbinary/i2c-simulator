@@ -3,7 +3,7 @@ import SwiftUI
 
 
 
-class EquipmentBusMonitor: I2CEquipment{
+class EquipmentBusMonitor: I2CBusConnectable{
     
     lazy var i2cController = I2CSlaveController()
     

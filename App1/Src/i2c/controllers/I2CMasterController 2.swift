@@ -140,18 +140,23 @@ class I2CMasterController: I2CController {
     
     func assertStart() {
         
+        if bus.currentLineLevels == (SCL: .high, SDA: .high) {
+            if lastStartReadyX == nil {
+                lastStartReadyX = currentX
+            }
+        } else {
+            lastStartReadyX = nil
+        }
+        
         if waitedDelayBetweenLineChanges(),
            waited(xWaitAfterStop, relativeTo: lastStopX),
-           waited(xWaitBeforeStop, relativeTo: lastBitSetupStartX) {
+           waited(xWaitBeforeStart, relativeTo: lastBitSetupStartX) {
             
             switch bus.currentLineLevels {
             case (SCL: .high, SDA: .low): pullingSCL = true
             case (SCL: .low, SDA: .low): pullingSDA = false
             case (SCL: .low, SDA: .high): pullingSCL = false
             case (SCL: .high, SDA: .high):
-                if lastStartReadyX == nil {
-                    lastStartReadyX = currentX
-                }
                 if waited(xWaitBeforeStart, relativeTo: lastStartReadyX) {
                     pullingSDA = true
                 }

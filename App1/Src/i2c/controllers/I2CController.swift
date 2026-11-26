@@ -3,7 +3,7 @@ import SwiftUI
 
 
 
-class I2CController: SimulationEntity {
+class I2CController: SimulationEntity, I2CBusConnectable {
     
     
     let id = UUID()
@@ -128,8 +128,11 @@ class I2CController: SimulationEntity {
     
     func startCondition() {
         
-        transmissionOngoing = true
-        lastStartX = currentX
+        if started == 1 {
+            transmissionOngoing = true
+            result = .aborted
+            lastStartX = currentX
+        }
     }
     
     

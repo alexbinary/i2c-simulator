@@ -44,6 +44,9 @@
             <PersistentString
                value = "generatingStart">
             </PersistentString>
+            <PersistentString
+               value = "transmissionOngoing">
+            </PersistentString>
          </PersistentStrings>
       </ContextState>
       <ContextState
@@ -54,6 +57,14 @@
             </PersistentString>
             <PersistentString
                value = "currentTransmissionStatus">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "I2CMasterController.assertStart():I2CMasterController 2.swift">
+         <PersistentStrings>
+            <PersistentString
+               value = "currentX">
             </PersistentString>
          </PersistentStrings>
       </ContextState>

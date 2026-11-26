@@ -3,7 +3,7 @@ import SwiftUI
 
 
 
-class EquipmentTestMaster1: I2CEquipment {
+class EquipmentTestMaster1: I2CBusConnectable {
     
     
     lazy var i2cController = I2CMasterController()
@@ -40,11 +40,15 @@ class EquipmentTestMaster1: I2CEquipment {
             i2cController.started = 1
         }
         
-        if x == 5 {
+        if x == 1200 {
+            i2cController.started = 1
+        }
+        
+        if x == 1205 {
             i2cController.started = 0
         }
         
-        if x == 12 {
+        if x == 1210 {
             i2cController.started = 1
         }
         

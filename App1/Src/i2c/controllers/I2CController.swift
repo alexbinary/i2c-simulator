@@ -71,6 +71,7 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     
     var betweenStartAndStop = false
     var detectedClockRiseSinceStart = false
+    var nextClockFallTriggersBitSetup = false
     
     var numTransmittedBits = 0
     var numTransmittedBytes: Int { numTransmittedBits / 9 }
@@ -160,6 +161,7 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     func resetAllTransmissionRelatedState() {
         
         detectedClockRiseSinceStart = false
+        nextClockFallTriggersBitSetup = false
         holdingClockFinalPhase = false
         numTransmittedBits = 0
     }
@@ -179,6 +181,7 @@ class I2CController: SimulationEntity, I2CBusConnectable {
         
         resetAllTransmissionRelatedState()
         betweenStartAndStop = true
+        nextClockFallTriggersBitSetup = true
     }
     
     
@@ -196,7 +199,11 @@ class I2CController: SimulationEntity, I2CBusConnectable {
             if detectedClockRiseSinceStart {
                 bitClockEnded()
             }
-            bitSetupStarted()
+            if nextClockFallTriggersBitSetup {
+                bitSetupStarted()
+            }
+            
+            nextClockFallTriggersBitSetup = true
         }
     }
     
@@ -216,6 +223,12 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     func bitSetupStarted() {
         
         lastBitSetupStartX = currentX
+        
+        if numTransmittedBits % 2 == 0 {
+            pullingSDA = true
+        } else {
+            pullingSDA = false
+        }
     }
     
     

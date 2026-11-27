@@ -265,6 +265,7 @@ class I2CMasterController: I2CController {
         
         holdingClock = true
         generatingClock = false
+        nextClockFallTriggersBitSetup = false
         lastStretchingStartX = currentX
         stretching_ongoing = 1
         
@@ -282,6 +283,8 @@ class I2CMasterController: I2CController {
         
         print("")
         print("MasterController \(currentX) -- stretching ended")
+        
+        bitSetupStarted()
     }
     
     
@@ -305,6 +308,14 @@ class I2CMasterController: I2CController {
     }
     
     
+    override func bitSetupStarted() {
+        super.bitSetupStarted()
+        
+        print("")
+        print("MasterController \(currentX) -- bit setup started \(numTransmittedBits)")
+    }
+    
+    
     override func bitClockEnded() {
         super.bitClockEnded()
         
@@ -325,6 +336,7 @@ class I2CMasterController: I2CController {
         
         result = .success
         generatingClock = false
+        nextClockFallTriggersBitSetup = false
         if hold_bus == 0 {
             generatingClock = false
             generatingStop = true

@@ -17,23 +17,39 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     var txFifo = Fifo(size: 256, pushWhenFullBehavior: .forcePush)
     var rxFifo = Fifo(size: 256, pushWhenFullBehavior: .forcePush)
     
-    enum Result { case success, addressNack, dataNack, timeout, aborted }
-    var result: Result = .success
-    
     var address: Byte = 0x00
     var rw: ReadWrite = .writeToSlave
     var num_bytes: Int = 0
     
+    enum Result { case success, addressNack, dataNack, timeout, aborted }
+    var result: Result = .success
+    
     var started = 0
+    var start_timeout: CGFloat = 100
     
     var stretching_enabled = 0
     var stretching_ongoing = 0
     var stretching_timeout: Int = 200
     
+    var hold_bus = 0
+    var hold_timeout = 200
+    
+    var slave_addresses: [Byte] = []
+    var slave_last_address_index: Int = 0
+    
+    var slave_spy_mode = 0
+    var slave_spy_mode_stretching_enabled = 0
+    
     
     /* Configurations */
     
-    let xDelayBetweenLineChange: CGFloat = 10
+    let xDelayBetweenLineChanges: CGFloat = 10
+    
+    let xWaitBeforeEngagingStart: CGFloat = 30
+    let xWaitBeforeEngagingStop: CGFloat = 30
+    
+    let xWaitAfterStart: CGFloat = 30
+    
     let xBitSetupDuration: CGFloat = 30
     let xBitClockDuration: CGFloat = 30
     
@@ -44,243 +60,99 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     var started_risingEdgeDetected = 0
     var stretching_enabled_previousValue = 0
     var stretching_enabled_fallingEdgeDetected = 0
+    
+    var currentX: CGFloat = 0
+    var lastStartRequestX: CGFloat?
     var lastStretchingStartX: CGFloat?
-    var lastStretchingFinalPhaseStartX: CGFloat?
+    var lastStretchingTerminationPhaseStartX: CGFloat?
     
     
     /* Internal bus-related state */
     
-    var pullingSDA = false
-    var pullingSCL = false
-    
-    var currentX: CGFloat = 0
     var lastKnownLineLevels: (SCL: I2CBusLineLevel, SDA: I2CBusLineLevel)?
     
     var lastLineChangeX: CGFloat?
     var lastIdleReachedX: CGFloat?
-    var lastStartX: CGFloat?
-    var lastStopX: CGFloat?
+    var lastStartDetectedX: CGFloat?
+    var lastStopDetectedX: CGFloat?
     var lastBitSetupStartX: CGFloat?
     var lastBitClockStartX: CGFloat?
+    var lastBitClockEndX: CGFloat?
+    var lastHoldStartedX: CGFloat?
+    
+    var pullingSCL = false
+    var pullingSDA = false
+    
+    var generatingStart = false
+    var generatingClock = false
+    var generatingStop = false
     
     var holdingClock = false
-    var holdingClockFinalPhase = false
-
+    var holdingClockTerminationPhase = false
+    var holdingBus = false
+    
+    var currentBitToTransmit: Bit?
+    var lastReadBit: Bit?
+    
     
     /* Internal transmission-related state */
     
     var betweenStartAndStop = false
     var detectedClockRiseSinceStart = false
-    var nextClockFallTriggersBitSetup = false
     
     var numTransmittedBits = 0
     var numTransmittedBytes: Int { numTransmittedBits / 9 }
     
     
-    func reset(x: CGFloat) {
+    /* Reset */
+    
+    
+    func resetAllGenericState() {
         
-        currentX = x
+        lastStartRequestX = nil
+        lastStretchingStartX = nil
+        lastStretchingTerminationPhaseStartX = nil
+    }
+    
+    
+    func resetAllBusRelatedState() {
         
-        resetAllTransmissionRelatedState()
+        lastKnownLineLevels = nil
         
-        txFifo.clear()
-        rxFifo.clear()
+        lastLineChangeX = nil
+        lastIdleReachedX = nil
+        lastStartDetectedX = nil
+        lastStopDetectedX = nil
+        lastBitSetupStartX = nil
+        lastBitClockStartX = nil
+        lastBitClockEndX = nil
+        lastHoldStartedX = nil
         
         pullingSDA = false
         pullingSCL = false
-    }
-    
-    
-    func update(x: CGFloat) {
         
-        currentX = x
+        generatingStart = false
+        generatingClock = false
+        generatingStop = false
         
-        updateLineLevels()
-        updateControlSignals()
-        updateBusControls()
-        applyBusControls()
-    }
-    
-    
-    func updateLineLevels() {
+        holdingClock = false
+        holdingClockTerminationPhase = false
+        holdingBus = false
         
-        if lastKnownLineLevels == nil || bus.currentLineLevels != lastKnownLineLevels! {
-            
-            if let lastKnownLineLevels = lastKnownLineLevels {
-                switch detectedSymbol(analysingTransitionFrom: lastKnownLineLevels, to: bus.currentLineLevels) {
-                case .start: startCondition()
-                case .stop: stopCondition()
-                case .clockFall: clockFall()
-                case .clockRise: clockRise()
-                case .none: break
-                }
-            }
-            
-            lastKnownLineLevels = bus.currentLineLevels
-            lastLineChangeX = currentX
-            
-            if bus.currentLineLevels == (SCL: .high, SDA: .high) {
-                lastIdleReachedX = currentX
-            }
-        }
-    }
-    
-    
-    func updateControlSignals() {
-        
-        started_risingEdgeDetected = 0
-        if started != started_previousValue {
-            if started == 1 {
-                started_risingEdgeDetected = 1
-            }
-            started_previousValue = started
-        }
-        
-        stretching_enabled_fallingEdgeDetected = 0
-        if stretching_enabled != stretching_enabled_previousValue {
-            if stretching_enabled == 0 {
-                stretching_enabled_fallingEdgeDetected = 1
-            }
-            stretching_enabled_previousValue = stretching_enabled
-        }
-    }
-    
-    
-    func updateBusControls() {
-        
-    }
-    
-    
-    func applyBusControls() {
-        
-        if pullingSDA { pullSDA() } else { releaseSDA() }
-        if pullingSCL { pullSCL() } else { releaseSCL() }
+        currentBitToTransmit = nil
+        lastReadBit = nil
     }
     
     
     func resetAllTransmissionRelatedState() {
         
+        betweenStartAndStop = false
         detectedClockRiseSinceStart = false
-        nextClockFallTriggersBitSetup = false
-        holdingClockFinalPhase = false
         numTransmittedBits = 0
     }
     
     
-    func concludeTransmission() {
-        
-        stretching_ongoing = 0
-        lastStopX = currentX
-        num_bytes = numTransmittedBytes
-        resetAllTransmissionRelatedState()
-        started = 0
-    }
-    
-    
-    func startCondition() {
-        
-        resetAllTransmissionRelatedState()
-        betweenStartAndStop = true
-        nextClockFallTriggersBitSetup = true
-    }
-    
-    
-    func stopCondition() {
-        
-        betweenStartAndStop = false
-        concludeTransmission()
-    }
-    
-    
-    func clockFall() {
-        
-        if betweenStartAndStop {
-            
-            if detectedClockRiseSinceStart {
-                bitClockEnded()
-            }
-            if nextClockFallTriggersBitSetup {
-                bitSetupStarted()
-            }
-            
-            nextClockFallTriggersBitSetup = true
-        }
-    }
-    
-    
-    func clockRise() {
-        
-        if betweenStartAndStop {
-            
-            detectedClockRiseSinceStart = true
-            
-            bitSetupEnded()
-            bitClockStarted()
-        }
-    }
-    
-    
-    func bitSetupStarted() {
-        
-        lastBitSetupStartX = currentX
-        
-        if numTransmittedBits % 2 == 0 {
-            pullingSDA = true
-        } else {
-            pullingSDA = false
-        }
-    }
-    
-    
-    func bitSetupEnded() {
-        
-    }
-    
-    
-    func bitClockStarted() {
-        
-        lastBitClockStartX = currentX
-    }
-    
-    
-    func bitClockEnded() {
-        
-        numTransmittedBits += 1
-    }
-    
-    
-    func waited(after ref: CGFloat?, _ duration: CGFloat) -> Bool {
-
-        if let ref = ref {
-            return (currentX - ref) >= duration
-        } else {
-            return true
-        }
-    }
-    
-    
-    func waitedDelayBetweenLineChanges() -> Bool {
-        
-        return waited(after: lastLineChangeX, xDelayBetweenLineChange)
-    }
-    
-    
-    func waitedAfterLastStop(_ duration: CGFloat) -> Bool {
-        
-        return waited(after: lastStopX, duration)
-    }
-    
-    
-    func waitedAfterLastBitSetupStart(_ duration: CGFloat) -> Bool {
-        
-        return waited(after: lastBitSetupStartX, duration)
-    }
-    
-    
-    func waitedAfterLastBitClockStart(_ duration: CGFloat) -> Bool {
-        
-        return waited(after: lastBitClockStartX, duration)
-    }
+    /* Bus connect */
     
     
     func connect(to bus: I2CBus) {
@@ -292,7 +164,7 @@ class I2CController: SimulationEntity, I2CBusConnectable {
         
         bus.line(line).addPuller(self)
     }
-        
+    
     func release(_ line: I2CBusLine.Identity) {
         
         bus.line(line).removePuller(self)
@@ -318,25 +190,491 @@ class I2CController: SimulationEntity, I2CBusConnectable {
         release(.SCL)
     }
     
-    
-    func detectedSymbol(analysingTransitionFrom lineLevelsBefore: (SCL: I2CBusLineLevel, SDA: I2CBusLineLevel), to lineLevelsAfter: (SCL: I2CBusLineLevel, SDA: I2CBusLineLevel)) -> I2CBusSymbol? {
+    func detectedSymbol(analysingTransitionFrom before: (SCL: I2CBusLineLevel, SDA: I2CBusLineLevel), to after: (SCL: I2CBusLineLevel, SDA: I2CBusLineLevel)) -> I2CBusSymbol? {
         
-        if lineLevelsBefore == (SCL: .high, SDA: .high) && lineLevelsAfter == (SCL: .high, SDA: .low) {
+        if before == (SCL: .high, SDA: .high) && after == (SCL: .high, SDA: .low) {
             return .start
         }
         
-        if lineLevelsBefore == (SCL: .high, SDA: .low) && lineLevelsAfter == (SCL: .high, SDA: .high) {
+        if before == (SCL: .high, SDA: .low) && after == (SCL: .high, SDA: .high) {
             return .stop
         }
         
-        if lineLevelsBefore.SCL == .high && lineLevelsAfter.SCL == .low {
+        if before.SCL == .high && after.SCL == .low {
             return .clockFall
         }
         
-        if lineLevelsBefore.SCL == .low && lineLevelsAfter.SCL == .high {
+        if before.SCL == .low && after.SCL == .high {
             return .clockRise
         }
         
         return nil
+    }
+    
+    
+    /* Simulation */
+    
+    
+    func reset(x: CGFloat) {
+        
+        currentX = x
+        
+        resetAllGenericState()
+        resetAllBusRelatedState()
+        resetAllTransmissionRelatedState()
+        
+        txFifo.clear()
+        rxFifo.clear()
+    }
+    
+    
+    func update(x: CGFloat) {
+        
+        currentX = x
+        
+        readLineLevels()
+        readExternalControlSignals()
+        updateInternalControlSignals()
+        updateBusControls()
+        applyBusControls()
+    }
+    
+    
+    /* Line levels events */
+    
+    
+    func readLineLevels() {
+        
+        if lastKnownLineLevels == nil || bus.currentLineLevels != lastKnownLineLevels! {
+            
+            if let lastKnownLineLevels = lastKnownLineLevels {
+                switch detectedSymbol(analysingTransitionFrom: lastKnownLineLevels, to: bus.currentLineLevels) {
+                case .start: startCondition()
+                case .stop: stopCondition()
+                case .clockFall: clockFall()
+                case .clockRise: clockRise()
+                case .none: break
+                }
+            }
+            
+            lastKnownLineLevels = bus.currentLineLevels
+            lastLineChangeX = currentX
+            
+            if bus.currentLineLevels == (SCL: .high, SDA: .high) {
+                lastIdleReachedX = currentX
+            }
+        }
+    }
+    
+    
+    func startCondition() {
+        
+        generatingStart = false
+        betweenStartAndStop = true
+        detectedClockRiseSinceStart = false
+        numTransmittedBits = 0
+        result = .aborted
+        generatingClock = started == 1
+        started = 1
+        lastStartDetectedX = currentX
+    }
+    
+    
+    func stopCondition() {
+        
+        generatingStop = false
+        generatingClock = false
+        betweenStartAndStop = false
+        num_bytes = numTransmittedBytes
+        started = 0
+        lastStopDetectedX = currentX
+    }
+    
+    
+    func clockFall() {
+        
+        if betweenStartAndStop {
+            
+            if detectedClockRiseSinceStart {
+                bitClockEnd()
+            }
+            
+            bitSetupStart()
+        }
+    }
+    
+    
+    func clockRise() {
+        
+        if betweenStartAndStop {
+            
+            detectedClockRiseSinceStart = true
+            
+            bitClockStart()
+        }
+    }
+    
+    
+    func bitSetupStart() {
+        
+        print("")
+        print("I2CController \(currentX) -- bit setup starting - bit \(numTransmittedBits)")
+        
+        lastBitSetupStartX = currentX
+        
+        pullingSDA = evaluateNextBit() == .bitSetupSuccess && currentBitToTransmit == .zero
+    }
+    
+    
+    enum EvaluateNextBitResult { case bitSetupSuccess, bitNotSetup }
+    func evaluateNextBit() -> EvaluateNextBitResult {
+        
+        return .bitNotSetup
+    }
+    
+    
+    func bitClockStart() {
+        
+        lastBitClockStartX = currentX
+    }
+    
+    
+    func bitClockEnd() {
+        
+        sampleBit()
+        numTransmittedBits += 1
+        lastBitClockEndX = currentX
+    }
+    
+    
+    func sampleBit() {
+        
+        lastReadBit = bus.lineSDA.currentLevel.bit
+    }
+    
+    
+    /* Control signals events */
+    
+    
+    func readExternalControlSignals() {
+        
+        started_risingEdgeDetected = 0
+        if started != started_previousValue {
+            if started == 1 {
+                started_risingEdgeDetected = 1
+            }
+            started_previousValue = started
+        }
+        
+        stretching_enabled_fallingEdgeDetected = 0
+        if stretching_enabled != stretching_enabled_previousValue {
+            if stretching_enabled == 0 {
+                stretching_enabled_fallingEdgeDetected = 1
+            }
+            stretching_enabled_previousValue = stretching_enabled
+        }
+    }
+    
+
+    func updateInternalControlSignals() {
+        
+        if (!betweenStartAndStop || holdingBus) && started_risingEdgeDetected == 1 {
+            startRequested()
+        }
+        
+        if (!betweenStartAndStop || holdingBus) && generatingStart && started == 0 {
+            startAborted()
+        }
+        
+        if (!betweenStartAndStop || holdingBus) && generatingStart && waitedStartTimeout() {
+            startTimeout()
+        }
+        
+        if betweenStartAndStop && holdingClock && !holdingClockTerminationPhase && !txFifo.isEmpty {
+            dataAvailable()
+        }
+        
+        if betweenStartAndStop && holdingClock && !holdingClockTerminationPhase && stretching_enabled == 0 {
+            stretchingDisabled()
+        }
+        
+        if betweenStartAndStop && holdingClock && !holdingClockTerminationPhase && waitedStretchingTimeout() {
+            stretchingTimeout()
+        }
+        
+        if betweenStartAndStop && holdingClock && holdingClockTerminationPhase && waited(after: lastStretchingTerminationPhaseStartX, xBitSetupDuration) {
+            exitStretching()
+        }
+        
+        if betweenStartAndStop && holdingBus && hold_bus == 0 {
+            holdDisabled()
+            
+        }
+        if betweenStartAndStop && holdingBus && waitedHoldTimeout() {
+            holdTimeout()
+        }
+    }
+    
+    
+    func startRequested() {
+        
+        holdingBus = false
+        generatingStart = true
+        lastStartRequestX = currentX
+    }
+    
+    
+    func startTimeout() {
+        
+        print("")
+        print("I2CController \(currentX) -- start timeout")
+        
+        releaseBus()
+        result = .timeout
+        num_bytes = 0
+        started = 0
+    }
+    
+    
+    func startAborted() {
+        
+        print("")
+        print("I2CController \(currentX) -- start aborted by user")
+        
+        releaseBus()
+        result = .aborted
+        num_bytes = 0
+        started = 0
+    }
+    
+    
+    func enterStretching() {
+        
+        print("")
+        print("I2CController \(currentX) -- stretching starting")
+        
+        holdingClock = true
+        generatingClock = false
+        lastStretchingStartX = currentX
+        stretching_ongoing = 1
+    }
+    
+    
+    func enterStretchingTerminationPhase() {
+        
+        print("")
+        print("I2CController \(currentX) -- stretching entering termination phase")
+        
+        lastStretchingTerminationPhaseStartX = currentX
+        holdingClockTerminationPhase = true
+        
+        bitSetupStart()
+    }
+    
+    
+    func exitStretching() {
+        
+        print("")
+        print("I2CController \(currentX) -- stretching ending")
+        
+        holdingClock = false
+        holdingClockTerminationPhase = false
+        generatingClock = true
+        stretching_ongoing = 0
+    }
+    
+    
+    func dataAvailable() {
+        
+        print("")
+        print("I2CController \(currentX) -- data available")
+        
+        _ = txFifo.pop()
+        
+        enterStretchingTerminationPhase()
+    }
+    
+    
+    func stretchingDisabled() {
+        
+        print("")
+        print("I2CController \(currentX) -- stretching disabled by user")
+        
+        enterStretchingTerminationPhase()
+    }
+    
+    
+    func stretchingTimeout() {
+        
+        print("")
+        print("I2CController \(currentX) -- stretching timeout")
+        
+        enterStretchingTerminationPhase()
+    }
+    
+    
+    func enterHold() {
+        
+        print("")
+        print("I2CController \(currentX) -- hold starting")
+        
+        holdingBus = true
+        generatingClock = false
+        lastHoldStartedX = currentX
+    }
+    
+    
+    func holdDisabled() {
+        
+        print("")
+        print("I2CController \(currentX) -- hold disabled by user")
+        
+        holdingBus = false
+        generatingStop = true
+    }
+    
+    
+    func holdTimeout() {
+        
+        print("")
+        print("I2CController \(currentX) -- hold timeout")
+        
+        holdingBus = false
+        generatingStop = true
+    }
+    
+    
+    /* Bus control */
+    
+    
+    func updateBusControls() {
+        
+        if generatingStart {
+            assertStart()
+        }
+        
+        if generatingClock {
+            assertClock()
+        }
+        
+        if generatingStop {
+            assertStop()
+        }
+        
+        if holdingClock {
+            pullingSCL = true
+        }
+    }
+    
+    
+    func assertStart() {
+        
+        if waited(after: lastBitClockEndX, xWaitBeforeEngagingStart),   // restart
+           waited(after: lastIdleReachedX, xWaitBeforeEngagingStart),
+           waited(after: lastStartRequestX, xWaitBeforeEngagingStart) {
+            
+            switch bus.currentLineLevels {
+            case (SCL: .high, SDA: .low): pullingSCL = true
+            case (SCL: .low, SDA: .low): pullingSDA = false
+            case (SCL: .low, SDA: .high): pullingSCL = false
+            case (SCL: .high, SDA: .high): pullingSDA = true
+            }
+        }
+    }
+    
+    
+    func assertStop() {
+        
+        if waited(after: lastBitClockEndX, xWaitBeforeEngagingStop) {
+            
+            switch bus.currentLineLevels {
+            case (SCL: .high, SDA: .high): pullingSCL = true
+            case (SCL: .low, SDA: .high): pullingSDA = true
+            case (SCL: .low, SDA: .low): pullingSCL = false
+            case (SCL: .high, SDA: .low): pullingSDA = false
+            }
+        }
+    }
+    
+    
+    func assertClock() {
+        
+        if bus.lineSCL.isHigh && waitedBitClockDuration() && waitedAfterStart() {
+            pullingSCL = true
+        }
+        if bus.lineSCL.isLow && waitedBitSetupDuration() {
+            pullingSCL = false
+        }
+    }
+    
+    
+    func releaseBus() {
+        
+        pullingSCL = false
+        pullingSDA = false
+    }
+    
+
+    func applyBusControls() {
+        
+        if waitedDelayBetweenLineChanges() {
+            pullingSDA ? pullSDA() : releaseSDA()
+            pullingSCL ? pullSCL() : releaseSCL()
+        }
+    }
+    
+    
+    /* Waits */
+    
+    
+    func waited(after ref: CGFloat?, _ duration: CGFloat) -> Bool {
+
+        if let ref = ref {
+            return (currentX - ref) >= duration
+        } else {
+            return true
+        }
+    }
+    
+    
+    func waitedDelayBetweenLineChanges() -> Bool {
+        
+        return waited(after: lastLineChangeX, xDelayBetweenLineChanges)
+    }
+    
+    
+    func waitedStartTimeout() -> Bool {
+     
+        return waited(after: lastStartRequestX, start_timeout)
+    }
+    
+    
+    func waitedAfterStart() -> Bool {
+        
+        return waited(after: lastStartDetectedX, xWaitAfterStart)
+    }
+    
+    
+    func waitedBitSetupDuration() -> Bool {
+        
+        return waited(after: lastBitSetupStartX, xBitSetupDuration)
+    }
+    
+    
+    func waitedBitClockDuration() -> Bool {
+        
+        return waited(after: lastBitClockStartX, xBitClockDuration)
+    }
+    
+    
+    func waitedStretchingTimeout() -> Bool {
+        
+        return waited(after: lastStretchingStartX, CGFloat(stretching_timeout))
+    }
+    
+    
+    func waitedHoldTimeout() -> Bool {
+        
+        return waited(after: lastHoldStartedX, CGFloat(hold_timeout))
     }
 }

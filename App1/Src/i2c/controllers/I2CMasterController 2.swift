@@ -51,320 +51,35 @@ import SwiftUI
 class I2CMasterController: I2CController {
     
     
-    /* Public registers */
-    
-    var start_timeout: CGFloat = 100
-    
-    var hold_bus = 0
-    var hold_timeout = 200
-    
-    
-    /* Configurations */
-    
-    let xWaitBeforeStart: CGFloat = 30
-    let xWaitBeforeStop: CGFloat = 30
-    let xWaitAfterStop: CGFloat = 30
-    
-    
-    /* Internal generic state */
-    
-    var lastStartRequestedX: CGFloat?
-    var lastHoldStartedX: CGFloat?
-    var holdingBus = false
-    
-    
-    /* Internal transmission-related state */
-    
-    var generatingStart = false
-    var generatingClock = false
-    var generatingStop = false
-    
-    
-    override func reset(x: CGFloat) {
-        super.reset(x: x)
-    }
-    
-    
-    override func updateBusControls() {
-        super.updateBusControls()
+    override func evaluateNextBit() -> EvaluateNextBitResult {
         
-        if !betweenStartAndStop || holdingBus {
+        if numTransmittedBytes == num_bytes {
             
-            if started_risingEdgeDetected == 1 {
-                startRequested()
-            }
-            
-            if generatingStart && started == 0 {
-                
-                print("")
-                print("MasterController \(currentX) -- start aborted by user")
-                
-                startAborted()
-            }
-            
-            if generatingStart && waited(after: lastStartRequestedX, start_timeout) {
-                
-                print("")
-                print("MasterController \(currentX) -- start timeout")
-                
-                startTimeout()
-            }
-        }
-        
-        if betweenStartAndStop {
-            
-            if holdingClock {
-                
-                if !holdingClockFinalPhase {
-                    
-                    let fifoNotEmpty = !txFifo.isEmpty
-                    let stretchingDisabled = stretching_enabled == 0
-                    let timeout = waited(after: lastStretchingStartX, CGFloat(stretching_timeout))
-                    
-                    if fifoNotEmpty {
-                        print("")
-                        print("MasterController \(currentX) -- data available")
-                    }
-                    if stretchingDisabled {
-                        print("")
-                        print("MasterController \(currentX) -- stretching disabled")
-                    }
-                    if timeout {
-                        print("")
-                        print("MasterController \(currentX) -- stretching timeout")
-                    }
-                    
-                    if fifoNotEmpty || stretchingDisabled || timeout {
-                        _ = txFifo.pop()
-                        lastStretchingFinalPhaseStartX = currentX
-                        holdingClockFinalPhase = true
-                    }
-                }
-                
-                if holdingClockFinalPhase {
-                    if waited(after: lastStretchingFinalPhaseStartX, xBitSetupDuration) {
-                        exitStretching()
-                    }
-                }
-            }
-            
-            if holdingBus {
-                
-                let disabled = hold_bus == 0
-                let timeout = waited(after: lastHoldStartedX, CGFloat(hold_timeout))
-                
-                if disabled {
-                    print("")
-                    print("MasterController \(currentX) -- hold disabled by user")
-                }
-                if timeout {
-                    print("")
-                    print("MasterController \(currentX) -- hold timeout")
-                }
-                
-                if disabled || timeout {
-                    exitHold()
-                    generatingStop = true
-                }
-            }
-        }
-        
-        if generatingStart {
-            assertStart()
-        }
-        
-        if generatingClock {
-            assertClock()
-        }
-        
-        if generatingStop {
-            assertStop()
-        }
-    }
-    
-    
-    func startRequested() {
-        
-        if holdingBus { exitHold() }
-        generatingStart = true
-        lastStartRequestedX = currentX
-    }
-    
-    
-    func startTimeout() {
-        
-        result = .timeout
-        concludeTransmission()
-        
-        pullingSCL = false
-        pullingSDA = false
-    }
-    
-    
-    func startAborted() {
-        
-        result = .aborted
-        concludeTransmission()
-        
-        pullingSCL = false
-        pullingSDA = false
-    }
-    
-    
-    func assertStart() {
-        
-        if waitedDelayBetweenLineChanges(),
-           waitedAfterLastStop(xWaitAfterStop),
-           waitedAfterLastBitSetupStart(xBitSetupDuration),
-           waited(after: lastStartRequestedX, xWaitBeforeStart) {
-            
-            switch bus.currentLineLevels {
-            case (SCL: .high, SDA: .low): pullingSCL = true
-            case (SCL: .low, SDA: .low): pullingSDA = false
-            case (SCL: .low, SDA: .high): pullingSCL = false
-            case (SCL: .high, SDA: .high): pullingSDA = true
-            }
-        }
-    }
-    
-    
-    func assertStop() {
-        
-        if waitedDelayBetweenLineChanges(),
-           waitedAfterLastBitSetupStart(xBitSetupDuration),
-           waited(after: lastBitSetupStartX, xWaitBeforeStop) {
-            
-            switch bus.currentLineLevels {
-            case (SCL: .high, SDA: .high): pullingSCL = true
-            case (SCL: .low, SDA: .high): pullingSDA = true
-            case (SCL: .low, SDA: .low): pullingSCL = false
-            case (SCL: .high, SDA: .low): pullingSDA = false
-            }
-        }
-    }
-    
-    
-    func assertClock() {
-        
-        if waitedDelayBetweenLineChanges() {
-            
-            if bus.lineSCL.isHigh {
-                if waitedAfterLastBitClockStart(xBitClockDuration),
-                   waited(after: lastStartX, xBitClockDuration) {
-                    pullingSCL = true
-                }
-            }
-            if bus.lineSCL.isLow {
-                if waitedAfterLastBitSetupStart(xBitSetupDuration) {
-                    pullingSCL = false
-                }
-            }
-        }
-    }
-    
-    
-    func enterStretching() {
-        
-        holdingClock = true
-        generatingClock = false
-        nextClockFallTriggersBitSetup = false
-        lastStretchingStartX = currentX
-        stretching_ongoing = 1
-        
-        print("")
-        print("MasterController \(currentX) -- stretching started")
-    }
-    
-    
-    func exitStretching() {
-        
-        holdingClock = false
-        holdingClockFinalPhase = false
-        generatingClock = true
-        stretching_ongoing = 0
-        
-        print("")
-        print("MasterController \(currentX) -- stretching ended")
-        
-        bitSetupStarted()
-    }
-    
-    
-    func enterHold() {
-        
-        holdingBus = true
-        generatingClock = false
-        lastHoldStartedX = currentX
-        
-        print("")
-        print("MasterController \(currentX) -- hold started")
-    }
-    
-    
-    func exitHold() {
-        
-        holdingBus = false
-        
-        print("")
-        print("MasterController \(currentX) -- hold ended")
-    }
-    
-    
-    func allBytesTransmitted() {
-        
-        result = .success
-        generatingClock = false
-        nextClockFallTriggersBitSetup = false
-        if hold_bus == 0 {
+            result = .success
             generatingClock = false
-            generatingStop = true
-        } else {
-            enterHold()
-            concludeTransmission()
-        }
-    }
-    
-    
-    override func startCondition() {
-        super.startCondition()
-        
-        if started == 1 {   // prevents undesired events if SDA is unstable
-            generatingClock = true
-            result = .aborted
-            lastStartX = currentX
-        }
-    }
-    
-    
-    override func resetAllTransmissionRelatedState() {
-        super.resetAllTransmissionRelatedState()
-        
-        generatingStart = false
-        generatingClock = false
-        generatingStop = false
-    }
-    
-    
-    override func bitSetupStarted() {
-        super.bitSetupStarted()
-        
-        print("")
-        print("MasterController \(currentX) -- bit setup started \(numTransmittedBits)")
-    }
-    
-    
-    override func bitClockEnded() {
-        super.bitClockEnded()
-        
-        if numTransmittedBits % 4 == 3 {
+            if hold_bus == 1 {
+                enterHold()
+                num_bytes = numTransmittedBytes
+                started = 0
+            } else {
+                generatingStop = true
+            }
+            return .bitNotSetup
             
-            if stretching_enabled == 1 {
-                enterStretching()
+        } else if (numTransmittedBits == 3 || numTransmittedBits == 7) && stretching_enabled == 1 {
+            
+            enterStretching()
+            return .bitNotSetup
+            
+        } else {
+            
+            if numTransmittedBits % 2 == 0 {
+                currentBitToTransmit = .one
+            } else {
+                currentBitToTransmit = .zero
             }
             
-        } else if numTransmittedBytes == num_bytes {
-            
-            allBytesTransmitted()
+            return .bitSetupSuccess
         }
     }
 }

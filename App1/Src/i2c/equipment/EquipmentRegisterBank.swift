@@ -30,10 +30,10 @@ class EquipmentRegisterBank: I2CBusConnectable {
         registers[4] = 1
         
         i2cController.reset(x: x)
-        i2cController.addresses = [i2cAddress]
-        i2cController.last_address_index = 0
+        i2cController.slave_addresses = [i2cAddress]
+        i2cController.slave_last_address_index = 0
         i2cController.stretching_enabled = 1
-        i2cController.spy_mode = 0
+        i2cController.slave_spy_mode = 0
     }
     
     

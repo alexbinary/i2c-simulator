@@ -7,8 +7,8 @@ import SwiftUI
 ///
 /// When a transmission starts the controller sets the`started` bit to `1`, and sets it back to `0` when a transmission stops.
 ///
-/// For the controller to accept transmissions, at least one address must be configured in the `addresses` registers.
-/// Up to `128` different addresses can be configured in the register span, and the `last_address_index` register
+/// For the controller to accept transmissions, at least one address must be configured in the `slave_addresses` registers.
+/// Up to `128` different addresses can be configured in the register span, and the `slave_last_address_index` register
 /// must be set to the appropriate value (`0` for one address, etc).
 ///
 /// The controller always accepts reads and write transmissions that match the configured addresses,
@@ -31,9 +31,9 @@ import SwiftUI
 /// If `txFifo` is empty at the moment of the address ack, the controller nacks the address unless `stretching_enabled` is `1`.
 /// In that case the controller waits until data is available to ack the address.
 ///
-/// A nack at the address ends the transmission, unless `spy_mode` is set to `1`.
+/// A nack at the address ends the transmission, unless `slave_spy_mode` is set to `1`.
 /// In spy mode the controller listes passively to the transmission till the end, pushing transmitted bytes to the `rxFifo`.
-/// In spy mode, if the rx fifo is full, the controller wont hold the bus unless `spy_mode_stretching_enabled` is `true`.
+/// In spy mode, if the rx fifo is full, the controller wont hold the bus unless `slave_spy_mode_stretching_enabled` is `true`.
 /// Note that in spy mode the controller cannot force nack data bytes, so if transmission resumed with the rx fifo still full data will be lost.
 ///
 /// Stretching can be detected by polling the `stretching_ongoing` flag:
@@ -53,55 +53,23 @@ import SwiftUI
 ///
 class I2CSlaveController: I2CController {
 
-
-    /* Public registers */
     
-    var addresses: [Byte] = []
-    var last_address_index: Int = 0
-    
-    var spy_mode = 0
-    var spy_mode_stretching_enabled = 0
-
-
-    override func updateBusControls() {
-        super.updateBusControls()
+    override func evaluateNextBit() -> EvaluateNextBitResult {
         
-        if holdingClock && !holdingClockFinalPhase {
+        if (numTransmittedBits == 12 || numTransmittedBits == 13) && stretching_enabled == 1 {
             
-            if !txFifo.isEmpty || stretching_enabled == 0 {
-                lastStretchingFinalPhaseStartX = currentX
-                holdingClockFinalPhase = true
+            enterStretching()
+            return .bitNotSetup
+            
+        } else {
+            
+            if numTransmittedBits % 2 == 0 {
+                currentBitToTransmit = .one
+            } else {
+                currentBitToTransmit = .zero
             }
-        }
-        
-        if holdingClockFinalPhase && waited(after: lastStretchingFinalPhaseStartX, xBitSetupDuration) {
-            holdingClock = false
-            holdingClockFinalPhase = false
-        }
-        
-        stretching_ongoing = holdingClock ? 1 : 0
-        
-        pullingSCL = holdingClock
-    }
-    
-    
-    override func startCondition() {
-        super.startCondition()
-        
-        betweenStartAndStop = true
-        result = .aborted
-        lastStartX = currentX
-        started = 1
-    }
-    
-    
-    override func bitClockEnded() {
-        super.bitClockEnded()
-        
-        if numTransmittedBits == 12 || numTransmittedBits == 13 {
-            if stretching_enabled == 1 {
-                holdingClock = true
-            }
+            
+            return .bitSetupSuccess
         }
     }
 }

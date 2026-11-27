@@ -22,17 +22,17 @@ class RenderScene {
         
         let devices: [I2CBusConnectable] = [
             EquipmentTestMaster1(),
-            EquipmentRegisterBank(i2cAddress: 0x2a),
+//            EquipmentRegisterBank(i2cAddress: 0x2a),
 //            EquipmentRegisterBank(i2cAddress: 0x61),
 //            EquipmentBusMonitor(),
-            PerturbatorEquipment(),
+            PerturbatorEquipment(name: "PER"),
         ]
         for device in devices {
             device.connect(to: bus)
         }
         
         let startX: CGFloat = 0
-        let endX: CGFloat = 12000
+        let endX: CGFloat = 2000
         let simStepX: CGFloat = 1
         
         var currentX = startX

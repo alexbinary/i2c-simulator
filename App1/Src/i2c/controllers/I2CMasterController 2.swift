@@ -55,31 +55,19 @@ class I2CMasterController: I2CController {
         
         if numTransmittedBytes == num_bytes {
             
-            result = .success
-            generatingClock = false
-            if hold_bus == 1 {
-                enterHold()
-                num_bytes = numTransmittedBytes
-                started = 0
-            } else {
-                generatingStop = true
-            }
-            return .bitNotSetup
-            
-        } else if (numTransmittedBits == 3 || numTransmittedBits == 7) && stretching_enabled == 1 {
-            
-            enterStretching()
-            return .bitNotSetup
-            
-        } else {
-            
-            if numTransmittedBits % 2 == 0 {
-                currentBitToTransmit = .one
-            } else {
-                currentBitToTransmit = .zero
-            }
-            
-            return .bitSetupSuccess
+            return .end
         }
+        
+        if (numTransmittedBits == 3 || numTransmittedBits == 7) {
+            
+            return .stretch
+        }
+        
+        if numTransmittedBits % 2 == 0 {
+            currentBitToTransmit = .one
+        } else {
+            currentBitToTransmit = .zero
+        }
+        return .ok
     }
 }

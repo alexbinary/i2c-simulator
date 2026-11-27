@@ -5,7 +5,7 @@ import SwiftUI
 
 class EquipmentBusMonitor: I2CBusConnectable{
     
-    lazy var i2cController = I2CSlaveController()
+    lazy var i2cController = I2CSlaveController(name: "MON")
     
     var markers: [SimulationMarker] = []
     

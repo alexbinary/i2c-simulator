@@ -6,7 +6,7 @@ import SwiftUI
 class EquipmentRegisterBank: I2CBusConnectable {
     
     let i2cAddress: Byte
-    lazy var i2cController = I2CSlaveController()
+    lazy var i2cController = I2CSlaveController(name: "REG")
     
     var markers: [SimulationMarker] = []
     

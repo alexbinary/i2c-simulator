@@ -58,18 +58,14 @@ class I2CSlaveController: I2CController {
         
         if (numTransmittedBits == 12 || numTransmittedBits == 13) && stretching_enabled == 1 {
             
-            enterStretching()
-            return .bitNotSetup
-            
-        } else {
-            
-            if numTransmittedBits % 2 == 0 {
-                currentBitToTransmit = .one
-            } else {
-                currentBitToTransmit = .zero
-            }
-            
-            return .bitSetupSuccess
+            return .stretch
         }
+        
+        if numTransmittedBits % 2 == 0 {
+            currentBitToTransmit = .one
+        } else {
+            currentBitToTransmit = .zero
+        }
+        return .ok
     }
 }

@@ -91,13 +91,7 @@ class I2CMasterController: I2CController {
         if !betweenStartAndStop || holdingBus {
             
             if started_risingEdgeDetected == 1 {
-                
-                if holdingBus { exitHold() }
-                generatingStart = true
-                lastStartRequestedX = currentX
-                
-                print("")
-                print("MasterController \(currentX) -- start requested by user")
+                startRequested()
             }
             
             if generatingStart && started == 0 {
@@ -142,13 +136,13 @@ class I2CMasterController: I2CController {
                     
                     if fifoNotEmpty || stretchingDisabled || timeout {
                         _ = txFifo.pop()
-                        lastStretchingDisabledX = currentX
+                        lastStretchingFinalPhaseStartX = currentX
                         holdingClockFinalPhase = true
                     }
                 }
                 
                 if holdingClockFinalPhase {
-                    if waited(after: lastStretchingDisabledX, xBitSetupDuration) {
+                    if waited(after: lastStretchingFinalPhaseStartX, xBitSetupDuration) {
                         exitStretching()
                     }
                 }
@@ -189,23 +183,31 @@ class I2CMasterController: I2CController {
     }
     
     
-    override func startCondition() {
-        super.startCondition()
+    func startRequested() {
         
-        if started == 1 {   // prevents undesired events if SDA is unstable
-            generatingClock = true
-            result = .aborted
-            lastStartX = currentX
-        }
+        if holdingBus { exitHold() }
+        generatingStart = true
+        lastStartRequestedX = currentX
     }
     
     
-    override func resetAllTransmissionRelatedState() {
-        super.resetAllTransmissionRelatedState()
+    func startTimeout() {
         
-        generatingStart = false
-        generatingClock = false
-        generatingStop = false
+        result = .timeout
+        concludeTransmission()
+        
+        pullingSCL = false
+        pullingSDA = false
+    }
+    
+    
+    func startAborted() {
+        
+        result = .aborted
+        concludeTransmission()
+        
+        pullingSCL = false
+        pullingSDA = false
     }
     
     
@@ -308,6 +310,41 @@ class I2CMasterController: I2CController {
     }
     
     
+    func allBytesTransmitted() {
+        
+        result = .success
+        generatingClock = false
+        nextClockFallTriggersBitSetup = false
+        if hold_bus == 0 {
+            generatingClock = false
+            generatingStop = true
+        } else {
+            enterHold()
+            concludeTransmission()
+        }
+    }
+    
+    
+    override func startCondition() {
+        super.startCondition()
+        
+        if started == 1 {   // prevents undesired events if SDA is unstable
+            generatingClock = true
+            result = .aborted
+            lastStartX = currentX
+        }
+    }
+    
+    
+    override func resetAllTransmissionRelatedState() {
+        super.resetAllTransmissionRelatedState()
+        
+        generatingStart = false
+        generatingClock = false
+        generatingStop = false
+    }
+    
+    
     override func bitSetupStarted() {
         super.bitSetupStarted()
         
@@ -329,40 +366,5 @@ class I2CMasterController: I2CController {
             
             allBytesTransmitted()
         }
-    }
-    
-    
-    func allBytesTransmitted() {
-        
-        result = .success
-        generatingClock = false
-        nextClockFallTriggersBitSetup = false
-        if hold_bus == 0 {
-            generatingClock = false
-            generatingStop = true
-        } else {
-            enterHold()
-            concludeTransmission()
-        }
-    }
-    
-    
-    func startTimeout() {
-        
-        result = .timeout
-        concludeTransmission()
-        
-        pullingSCL = false
-        pullingSDA = false
-    }
-    
-    
-    func startAborted() {
-        
-        result = .aborted
-        concludeTransmission()
-        
-        pullingSCL = false
-        pullingSDA = false
     }
 }

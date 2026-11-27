@@ -69,12 +69,12 @@ class I2CSlaveController: I2CController {
         if holdingClock && !holdingClockFinalPhase {
             
             if !txFifo.isEmpty || stretching_enabled == 0 {
-                lastStretchingDisabledX = currentX
+                lastStretchingFinalPhaseStartX = currentX
                 holdingClockFinalPhase = true
             }
         }
         
-        if holdingClockFinalPhase && waited(after: lastStretchingDisabledX, xBitSetupDuration) {
+        if holdingClockFinalPhase && waited(after: lastStretchingFinalPhaseStartX, xBitSetupDuration) {
             holdingClock = false
             holdingClockFinalPhase = false
         }

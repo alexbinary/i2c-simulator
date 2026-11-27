@@ -45,7 +45,7 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     var stretching_enabled_previousValue = 0
     var stretching_enabled_fallingEdgeDetected = 0
     var lastStretchingStartX: CGFloat?
-    var lastStretchingDisabledX: CGFloat?
+    var lastStretchingFinalPhaseStartX: CGFloat?
     
     
     /* Internal bus-related state */

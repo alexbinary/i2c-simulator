@@ -144,6 +144,7 @@ class I2CMasterController: I2CController {
                     }
                     
                     if fifoNotEmpty || stretchingDisabled || timeout {
+                        _ = txFifo.pop()
                         lastStretchingDisabledX = currentX
                         holdingClockFinalPhase = true
                     }

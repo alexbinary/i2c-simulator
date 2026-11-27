@@ -37,11 +37,15 @@ class EquipmentTestMaster1: I2CBusConnectable {
         
         var p: CGFloat = 0
         
+        // test start timeout
+        
         p += 1
         if x == p {
             prepare_request_slave2_testData1()
             i2cController.started = 1
         }
+        
+        // test start user abort
         
         p += 120
         if x == p {
@@ -54,17 +58,33 @@ class EquipmentTestMaster1: I2CBusConnectable {
             i2cController.started = 0
         }
         
+        // test stretching and hold timeout
+        
         p += 5
         if x == p {
             prepare_request_slave2_testData1()
             i2cController.started = 1
         }
         
-//        p += 300
-//        if x == p {
-//            i2cController.txFifo.push(Byte(slave2_testData1_registerAddress))
-//        }
-//        
+        // test stretching fifo feed
+        
+        p += 1500
+        if x == p {
+            prepare_request_slave2_testData1()
+            i2cController.started = 1
+            i2cController.hold_bus = 0
+        }
+        
+        p += 350
+        if x == p {
+            i2cController.txFifo.push(Byte(slave2_testData1_registerAddress))
+        }
+        
+        p += 350
+        if x == p {
+            i2cController.txFifo.push(Byte(slave2_testData1_registerAddress))
+        }
+        
 //        p += 400
 //        if x == p {
 //            i2cController.stretching_enabled = 0

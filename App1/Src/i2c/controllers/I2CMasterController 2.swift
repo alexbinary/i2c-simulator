@@ -88,17 +88,17 @@ class I2CMasterController: I2CController {
     override func updateBusControls() {
         super.updateBusControls()
         
-        if started_risingEdgeDetected == 1 && (!betweenStartAndStop || holdingBus) {
+        if !betweenStartAndStop || holdingBus {
             
-            if holdingBus { exitHold() }
-            generatingStart = true
-            lastStartRequestedX = currentX
-            
-            print("")
-            print("MasterController \(currentX) -- start requested by user")
-        }
-        
-        if !betweenStartAndStop {
+            if started_risingEdgeDetected == 1 {
+                
+                if holdingBus { exitHold() }
+                generatingStart = true
+                lastStartRequestedX = currentX
+                
+                print("")
+                print("MasterController \(currentX) -- start requested by user")
+            }
             
             if generatingStart && started == 0 {
                 
@@ -114,10 +114,6 @@ class I2CMasterController: I2CController {
                 print("MasterController \(currentX) -- start timeout")
                 
                 startTimeout()
-            }
-            
-            if generatingStart {
-                assertStart()
             }
         }
         
@@ -174,16 +170,21 @@ class I2CMasterController: I2CController {
                 
                 if disabled || timeout {
                     exitHold()
+                    generatingStop = true
                 }
             }
-            
-            if generatingClock {
-                assertClock()
-            }
-            
-            if generatingStop {
-                assertStop()
-            }
+        }
+        
+        if generatingStart {
+            assertStart()
+        }
+        
+        if generatingClock {
+            assertClock()
+        }
+        
+        if generatingStop {
+            assertStop()
         }
     }
     
@@ -287,6 +288,7 @@ class I2CMasterController: I2CController {
     func enterHold() {
         
         holdingBus = true
+        generatingClock = false
         lastHoldStartedX = currentX
         
         print("")
@@ -297,7 +299,6 @@ class I2CMasterController: I2CController {
     func exitHold() {
         
         holdingBus = false
-        generatingStop = true
         
         print("")
         print("MasterController \(currentX) -- hold ended")

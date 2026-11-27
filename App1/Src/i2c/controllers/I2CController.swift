@@ -9,6 +9,8 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     let id = UUID()
     var bus: I2CBus!
     
+    var markers: [SimulationMarker] = []
+    
     
     /* Public registers */
     

@@ -8,6 +8,8 @@ class EquipmentRegisterBank: I2CBusConnectable {
     let i2cAddress: Byte
     lazy var i2cController = I2CSlaveController()
     
+    var markers: [SimulationMarker] = []
+    
     var registers = [Byte](repeating: 0x00, count: 256)
     var registerBaseAddress: Int = 0
     var currentRegisterAddress: Int = 0

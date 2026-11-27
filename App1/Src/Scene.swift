@@ -6,6 +6,8 @@ import SwiftUI
 class RenderScene {
     
     let bus = I2CBus()
+    
+    var markers: [SimulationMarker] = []
 
 
     init() {
@@ -48,6 +50,11 @@ class RenderScene {
             }
             currentX += simStepX
             bus.captureLineLevels(at: currentX)
+        }
+        
+        markers = []
+        for device in devices {
+            markers += device.markers
         }
     }
 }

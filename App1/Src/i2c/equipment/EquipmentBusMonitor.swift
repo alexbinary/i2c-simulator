@@ -7,6 +7,8 @@ class EquipmentBusMonitor: I2CBusConnectable{
     
     lazy var i2cController = I2CSlaveController()
     
+    var markers: [SimulationMarker] = []
+    
     var transmittedBytes: [Byte] = []
     
     

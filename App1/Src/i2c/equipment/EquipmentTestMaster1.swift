@@ -8,6 +8,8 @@ class EquipmentTestMaster1: I2CBusConnectable {
     
     lazy var i2cController = I2CMasterController()
     
+    var markers: [SimulationMarker] = []
+    
     
     var slave1_testData1 = 0
     var slave1_testData2 = 0
@@ -25,10 +27,17 @@ class EquipmentTestMaster1: I2CBusConnectable {
     
     var transmissionStarted = false
     var lastAddressedRegister: Int? = nil
+    
+    
+    func addMarker(_ x: CGFloat, _ color: Color) {
+        
+        markers.append(SimulationMarker(x: x, color: color))
+    }
 
     
     func reset(x: CGFloat) {
         
+        markers = []
         i2cController.reset(x: x)
     }
     
@@ -46,6 +55,7 @@ class EquipmentTestMaster1: I2CBusConnectable {
             
             print("")
             print("\(x) -> 1/ starting - stretching_enabled:\(i2cController.stretching_enabled), hold_bus:\(i2cController.hold_bus)")
+            addMarker(x, .blue)
         }
         
         // test start user abort
@@ -57,6 +67,7 @@ class EquipmentTestMaster1: I2CBusConnectable {
             
             print("")
             print("\(x) -> 2/ starting - stretching_enabled:\(i2cController.stretching_enabled), hold_bus:\(i2cController.hold_bus)")
+            addMarker(x, .blue)
         }
         
         p += 5
@@ -65,6 +76,7 @@ class EquipmentTestMaster1: I2CBusConnectable {
             
             print("")
             print("\(x) -> 3/ aborting start")
+            addMarker(x, .blue)
         }
         
         // test stretching and hold - timeout
@@ -78,6 +90,7 @@ class EquipmentTestMaster1: I2CBusConnectable {
             
             print("")
             print("\(x) -> 4/ starting - stretching_enabled:\(i2cController.stretching_enabled), hold_bus:\(i2cController.hold_bus)")
+            addMarker(x, .blue)
         }
         
         // test stretching and hold - user disabled
@@ -91,6 +104,7 @@ class EquipmentTestMaster1: I2CBusConnectable {
             
             print("")
             print("\(x) -> 5/ starting - stretching_enabled:\(i2cController.stretching_enabled), hold_bus:\(i2cController.hold_bus)")
+            addMarker(x, .blue)
         }
         
         p += 350
@@ -99,6 +113,7 @@ class EquipmentTestMaster1: I2CBusConnectable {
             
             print("")
             print("\(x) -> 6/ disabling stretching")
+            addMarker(x, .blue)
         }
         
         p += 5
@@ -107,6 +122,7 @@ class EquipmentTestMaster1: I2CBusConnectable {
             
             print("")
             print("\(x) -> 7/ enabling stretching")
+            addMarker(x, .blue)
         }
         
         p += 350
@@ -115,6 +131,7 @@ class EquipmentTestMaster1: I2CBusConnectable {
             
             print("")
             print("\(x) -> 8/ disabling stretching")
+            addMarker(x, .blue)
         }
         
         p += 200
@@ -123,6 +140,7 @@ class EquipmentTestMaster1: I2CBusConnectable {
             
             print("")
             print("\(x) -> 9/ disabling hold")
+            addMarker(x, .blue)
         }
         
         // test stretching - fifo feed + no hold
@@ -136,6 +154,7 @@ class EquipmentTestMaster1: I2CBusConnectable {
             
             print("")
             print("\(x) -> 10/ starting - stretching_enabled:\(i2cController.stretching_enabled), hold_bus:\(i2cController.hold_bus)")
+            addMarker(x, .blue)
         }
         
         p += 350
@@ -144,6 +163,7 @@ class EquipmentTestMaster1: I2CBusConnectable {
             
             print("")
             print("\(x) -> 11/ pushing data")
+            addMarker(x, .blue)
         }
         
         p += 350
@@ -152,6 +172,7 @@ class EquipmentTestMaster1: I2CBusConnectable {
             
             print("")
             print("\(x) -> 12/ pushing data")
+            addMarker(x, .blue)
         }
         
         // test no stretching + restart
@@ -165,6 +186,7 @@ class EquipmentTestMaster1: I2CBusConnectable {
             
             print("")
             print("\(x) -> 13/ starting - stretching_enabled:\(i2cController.stretching_enabled), hold_bus:\(i2cController.hold_bus)")
+            addMarker(x, .blue)
         }
         
         p += 700
@@ -176,6 +198,7 @@ class EquipmentTestMaster1: I2CBusConnectable {
             
             print("")
             print("\(x) -> 14/ starting - stretching_enabled:\(i2cController.stretching_enabled), hold_bus:\(i2cController.hold_bus)")
+            addMarker(x, .blue)
         }
         
         i2cController.update(x: x)

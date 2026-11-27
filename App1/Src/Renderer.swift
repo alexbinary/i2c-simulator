@@ -125,6 +125,13 @@ class Renderer {
             context.stroke(line.path, with: .color(line.color), lineWidth: line.lineWidth)
         }
         
+        for marker in scene.markers {
+            var path = Path()
+            path.move(to: CGPoint(x: worldToScreen(marker.x), y: 0))
+            path.addLine(to: CGPoint(x: worldToScreen(marker.x), y: canvasSize.height))
+            context.stroke(path, with: .color(marker.color), lineWidth: 1)
+        }
+        
         if let x = screenMouseX {
             var path = Path()
             path.move(to: CGPoint(x: x, y: 0))

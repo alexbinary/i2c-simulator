@@ -88,21 +88,22 @@ class I2CMasterController: I2CController {
     override func updateBusControls() {
         super.updateBusControls()
         
-        if !betweenStartAndStop {
+        if started_risingEdgeDetected == 1 && (!betweenStartAndStop || holdingBus) {
             
-            if started_risingEdgeDetected == 1 {
-                
-                lastStartRequestedX = currentX
-                generatingStart = true
-                
-                print("")
-                print("MasterController -- start requested by user")
-            }
+            if holdingBus { exitHold() }
+            generatingStart = true
+            lastStartRequestedX = currentX
+            
+            print("")
+            print("MasterController \(currentX) -- start requested by user")
+        }
+        
+        if !betweenStartAndStop {
             
             if generatingStart && started == 0 {
                 
                 print("")
-                print("MasterController -- start aborted by user")
+                print("MasterController \(currentX) -- start aborted by user")
                 
                 startAborted()
             }
@@ -110,7 +111,7 @@ class I2CMasterController: I2CController {
             if generatingStart && waited(after: lastStartRequestedX, start_timeout) {
                 
                 print("")
-                print("MasterController -- start timeout")
+                print("MasterController \(currentX) -- start timeout")
                 
                 startTimeout()
             }
@@ -132,15 +133,15 @@ class I2CMasterController: I2CController {
                     
                     if fifoNotEmpty {
                         print("")
-                        print("MasterController -- data available")
+                        print("MasterController \(currentX) -- data available")
                     }
                     if stretchingDisabled {
                         print("")
-                        print("MasterController -- stretching disabled")
+                        print("MasterController \(currentX) -- stretching disabled")
                     }
                     if timeout {
                         print("")
-                        print("MasterController -- stretching timeout")
+                        print("MasterController \(currentX) -- stretching timeout")
                     }
                     
                     if fifoNotEmpty || stretchingDisabled || timeout {
@@ -164,11 +165,11 @@ class I2CMasterController: I2CController {
                 
                 if disabled {
                     print("")
-                    print("MasterController -- hold disabled by user")
+                    print("MasterController \(currentX) -- hold disabled by user")
                 }
                 if timeout {
                     print("")
-                    print("MasterController -- hold timeout")
+                    print("MasterController \(currentX) -- hold timeout")
                 }
                 
                 if disabled || timeout {
@@ -267,7 +268,7 @@ class I2CMasterController: I2CController {
         stretching_ongoing = 1
         
         print("")
-        print("MasterController -- stretching started")
+        print("MasterController \(currentX) -- stretching started")
     }
     
     
@@ -279,7 +280,7 @@ class I2CMasterController: I2CController {
         stretching_ongoing = 0
         
         print("")
-        print("MasterController -- stretching ended")
+        print("MasterController \(currentX) -- stretching ended")
     }
     
     
@@ -289,7 +290,7 @@ class I2CMasterController: I2CController {
         lastHoldStartedX = currentX
         
         print("")
-        print("MasterController -- hold started")
+        print("MasterController \(currentX) -- hold started")
     }
     
     
@@ -299,7 +300,7 @@ class I2CMasterController: I2CController {
         generatingStop = true
         
         print("")
-        print("MasterController -- hold ended")
+        print("MasterController \(currentX) -- hold ended")
     }
     
     

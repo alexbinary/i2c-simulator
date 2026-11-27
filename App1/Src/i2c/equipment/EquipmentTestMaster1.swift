@@ -43,6 +43,9 @@ class EquipmentTestMaster1: I2CBusConnectable {
         if x == p {
             prepare_request_slave2_testData1()
             i2cController.started = 1
+            
+            print("")
+            print("\(x) -> 1/ starting - stretching_enabled:\(i2cController.stretching_enabled), hold_bus:\(i2cController.hold_bus)")
         }
         
         // test start user abort
@@ -51,59 +54,129 @@ class EquipmentTestMaster1: I2CBusConnectable {
         if x == p {
             prepare_request_slave2_testData1()
             i2cController.started = 1
+            
+            print("")
+            print("\(x) -> 2/ starting - stretching_enabled:\(i2cController.stretching_enabled), hold_bus:\(i2cController.hold_bus)")
         }
         
         p += 5
         if x == p {
             i2cController.started = 0
+            
+            print("")
+            print("\(x) -> 3/ aborting start")
         }
         
-        // test stretching and hold timeout
+        // test stretching and hold - timeout
         
         p += 5
         if x == p {
             prepare_request_slave2_testData1()
+            i2cController.stretching_enabled = 1
+            i2cController.hold_bus = 1
             i2cController.started = 1
+            
+            print("")
+            print("\(x) -> 4/ starting - stretching_enabled:\(i2cController.stretching_enabled), hold_bus:\(i2cController.hold_bus)")
         }
         
-        // test stretching fifo feed
+        // test stretching and hold - user disabled
         
         p += 1500
         if x == p {
             prepare_request_slave2_testData1()
+            i2cController.stretching_enabled = 1
+            i2cController.hold_bus = 1
             i2cController.started = 1
+            
+            print("")
+            print("\(x) -> 5/ starting - stretching_enabled:\(i2cController.stretching_enabled), hold_bus:\(i2cController.hold_bus)")
+        }
+        
+        p += 350
+        if x == p {
+            i2cController.stretching_enabled = 0
+            
+            print("")
+            print("\(x) -> 6/ disabling stretching")
+        }
+        
+        p += 5
+        if x == p {
+            i2cController.stretching_enabled = 1
+            
+            print("")
+            print("\(x) -> 7/ enabling stretching")
+        }
+        
+        p += 350
+        if x == p {
+            i2cController.stretching_enabled = 0
+            
+            print("")
+            print("\(x) -> 8/ disabling stretching")
+        }
+        
+        p += 200
+        if x == p {
             i2cController.hold_bus = 0
+            
+            print("")
+            print("\(x) -> 9/ disabling hold")
+        }
+        
+        // test stretching - fifo feed + no hold
+        
+        p += 400
+        if x == p {
+            prepare_request_slave2_testData1()
+            i2cController.stretching_enabled = 1
+            i2cController.hold_bus = 0
+            i2cController.started = 1
+            
+            print("")
+            print("\(x) -> 10/ starting - stretching_enabled:\(i2cController.stretching_enabled), hold_bus:\(i2cController.hold_bus)")
         }
         
         p += 350
         if x == p {
             i2cController.txFifo.push(Byte(slave2_testData1_registerAddress))
+            
+            print("")
+            print("\(x) -> 11/ pushing data")
         }
         
         p += 350
         if x == p {
             i2cController.txFifo.push(Byte(slave2_testData1_registerAddress))
+            
+            print("")
+            print("\(x) -> 12/ pushing data")
         }
         
-//        p += 400
-//        if x == p {
-//            i2cController.stretching_enabled = 0
-//        }
+        // test no stretching + restart
         
-//        p += 400
-//        if x == p {
-//            i2cController.stretching_enabled = 1
-//        }
+        p += 300
+        if x == p {
+            prepare_request_slave2_testData1()
+            i2cController.stretching_enabled = 0
+            i2cController.hold_bus = 1
+            i2cController.started = 1
+            
+            print("")
+            print("\(x) -> 13/ starting - stretching_enabled:\(i2cController.stretching_enabled), hold_bus:\(i2cController.hold_bus)")
+        }
         
-//        p += 300
-//        if x == p {
-//            i2cController.stretching_enabled = 0
-//        }
-//        
-//        p += 300
-//        if x == p {
-//            i2cController.started = 1
-//        }
+        p += 700
+        if x == p {
+            prepare_read_slave2_testData1()
+            i2cController.stretching_enabled = 0
+            i2cController.hold_bus = 0
+            i2cController.started = 1
+            
+            print("")
+            print("\(x) -> 14/ starting - stretching_enabled:\(i2cController.stretching_enabled), hold_bus:\(i2cController.hold_bus)")
+        }
         
         i2cController.update(x: x)
         

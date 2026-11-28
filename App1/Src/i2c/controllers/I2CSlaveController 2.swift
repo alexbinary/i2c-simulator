@@ -54,11 +54,16 @@ import SwiftUI
 class I2CSlaveController: I2CController {
 
     
-    override func evaluateNextBit() -> EvaluateNextBitResult {
+    override func evaluateNextBit(canStretch: Bool) -> EvaluateNextBitResult {
         
         if (numTransmittedBits == 12 || numTransmittedBits == 13) && stretching_enabled == 1 {
             
-            return .stretch
+            if canStretch {
+                return .stretch
+            } else {
+                currentBitToTransmit = .zero
+                return .ok
+            }
         }
         
         if numTransmittedBits % 2 == 0 {

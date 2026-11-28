@@ -703,8 +703,8 @@
             filePath = "App1/Src/i2c/controllers/I2CController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "719"
-            endingLineNumber = "719"
+            startingLineNumber = "693"
+            endingLineNumber = "693"
             landmarkName = "waited(after:_:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -843,8 +843,8 @@
             filePath = "App1/Src/i2c/controllers/I2CController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "271"
-            endingLineNumber = "271"
+            startingLineNumber = "269"
+            endingLineNumber = "269"
             landmarkName = "readLineLevels()"
             landmarkType = "7">
          </BreakpointContent>
@@ -923,8 +923,8 @@
             filePath = "App1/Src/i2c/controllers/I2CController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "257"
-            endingLineNumber = "257"
+            startingLineNumber = "255"
+            endingLineNumber = "255"
             landmarkName = "readLineLevels()"
             landmarkType = "7">
          </BreakpointContent>
@@ -939,8 +939,8 @@
             filePath = "App1/Src/i2c/controllers/I2CController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "203"
-            endingLineNumber = "203"
+            startingLineNumber = "201"
+            endingLineNumber = "201"
             landmarkName = "detectedSymbol(analysingTransitionFrom:to:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -955,8 +955,8 @@
             filePath = "App1/Src/i2c/controllers/I2CController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "207"
-            endingLineNumber = "207"
+            startingLineNumber = "205"
+            endingLineNumber = "205"
             landmarkName = "detectedSymbol(analysingTransitionFrom:to:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -971,40 +971,8 @@
             filePath = "App1/Src/i2c/controllers/I2CController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "211"
-            endingLineNumber = "211"
-            landmarkName = "detectedSymbol(analysingTransitionFrom:to:)"
-            landmarkType = "7">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            uuid = "28D90D21-0C33-4ABB-A861-322753735023"
-            shouldBeEnabled = "No"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "App1/Src/i2c/controllers/I2CController.swift"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "215"
-            endingLineNumber = "215"
-            landmarkName = "detectedSymbol(analysingTransitionFrom:to:)"
-            landmarkType = "7">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            uuid = "98076AEF-03BE-4C61-99BE-6CF8B33440F0"
-            shouldBeEnabled = "No"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "App1/Src/i2c/controllers/I2CController.swift"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "218"
-            endingLineNumber = "218"
+            startingLineNumber = "213"
+            endingLineNumber = "213"
             landmarkName = "detectedSymbol(analysingTransitionFrom:to:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -1019,8 +987,8 @@
             filePath = "App1/Src/i2c/controllers/I2CController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "255"
-            endingLineNumber = "255"
+            startingLineNumber = "253"
+            endingLineNumber = "253"
             landmarkName = "readLineLevels()"
             landmarkType = "7">
          </BreakpointContent>

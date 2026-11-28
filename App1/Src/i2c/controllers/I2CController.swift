@@ -57,8 +57,8 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     
     let xWaitAfterStart: CGFloat = 30
     
-    let xBitSetupDuration: CGFloat = 30
-    let xBitClockDuration: CGFloat = 30
+    let xClockHighDuration: CGFloat = 30
+    let xClockLowDuration: CGFloat = 30
     
     
     /* Internal generic state */
@@ -82,8 +82,8 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     var lastIdleReachedX: CGFloat?
     var lastStartDetectedX: CGFloat?
     var lastStopDetectedX: CGFloat?
-    var lastBitSetupStartX: CGFloat?
-    var lastBitClockStartX: CGFloat?
+    var lastClockFallX: CGFloat?
+    var lastClockRiseX: CGFloat?
     var lastBitClockEndX: CGFloat?
     var lastHoldStartedX: CGFloat?
     
@@ -105,7 +105,6 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     /* Internal transmission-related state */
     
     var betweenStartAndStop = false
-    var detectedClockRiseSinceStart = false
     
     var numTransmittedBits = 0
     var numTransmittedBytes: Int { numTransmittedBits / 9 }
@@ -130,8 +129,8 @@ class I2CController: SimulationEntity, I2CBusConnectable {
         lastIdleReachedX = nil
         lastStartDetectedX = nil
         lastStopDetectedX = nil
-        lastBitSetupStartX = nil
-        lastBitClockStartX = nil
+        lastClockFallX = nil
+        lastClockRiseX = nil
         lastBitClockEndX = nil
         lastHoldStartedX = nil
         
@@ -154,7 +153,6 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     func resetAllTransmissionRelatedState() {
         
         betweenStartAndStop = false
-        detectedClockRiseSinceStart = false
         numTransmittedBits = 0
     }
     
@@ -207,12 +205,12 @@ class I2CController: SimulationEntity, I2CBusConnectable {
             return .stop
         }
         
-        if before.SCL == .high && after.SCL == .low {
-            return .clockFall
-        }
-        
         if before.SCL == .low && after.SCL == .high {
             return .clockRise
+        }
+        
+        if before.SCL == .high && after.SCL == .low {
+            return .clockFall
         }
         
         return nil
@@ -258,8 +256,8 @@ class I2CController: SimulationEntity, I2CBusConnectable {
                 switch detectedSymbol(analysingTransitionFrom: lastKnownLineLevels, to: bus.currentLineLevels) {
                 case .start: startCondition()
                 case .stop: stopCondition()
-                case .clockFall: clockFall()
                 case .clockRise: clockRise()
+                case .clockFall: clockFall()
                 case .none: break
                 }
             }
@@ -281,7 +279,6 @@ class I2CController: SimulationEntity, I2CBusConnectable {
         
         generatingStart = false
         betweenStartAndStop = true
-        detectedClockRiseSinceStart = false
         numTransmittedBits = 0
         result = .aborted
         generatingClock = started == 1
@@ -304,22 +301,6 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     }
     
     
-    func clockFall() {
-        
-        print("")
-        print("\(name) \(currentX) - I2CController -- detected CLOCK FALL")
-        
-        if betweenStartAndStop {
-            
-            if detectedClockRiseSinceStart {
-                bitClockEnd()
-            }
-            
-            bitSetupStart()
-        }
-    }
-    
-    
     func clockRise() {
         
         print("")
@@ -327,84 +308,77 @@ class I2CController: SimulationEntity, I2CBusConnectable {
         
         if betweenStartAndStop {
             
-            detectedClockRiseSinceStart = true
-            
-            bitClockStart()
+            sampleBit()
+            lastClockRiseX = currentX
         }
     }
     
     
-    func bitSetupStart() {
+    func clockFall() {
         
         print("")
-        print("\(name) \(currentX) - I2CController -- bit setup starting - bit \(numTransmittedBits)")
+        print("\(name) \(currentX) - I2CController -- detected CLOCK FALL")
         
-        trySetupNextBit(allowStretching: true)
-        lastBitSetupStartX = currentX
+        if betweenStartAndStop {
+            
+            trySetupNextBit(allowStretching: true)
+            lastClockFallX = currentX
+        }
     }
     
     
     func trySetupNextBit(allowStretching: Bool) {
         
-        switch evaluateNextBit() {
+        print("")
+        print("\(name) \(currentX) - I2CController -- starting setup for bit \(numTransmittedBits)")
+        
+        let canStretch = stretching_enabled == 1 && allowStretching
+        
+        print("")
+        print("\(name) \(currentX) - I2CController -- (\(stretching_enabled == 0 ? "stretching disabled" : !allowStretching ? "cannot stretch now" : "can stretch if needed"))")
+        
+        switch evaluateNextBit(canStretch: canStretch) {
         case .ok:
             
             print("")
-            print("\(name) \(currentX) - I2CController -- bit success")
+            print("\(name) \(currentX) - I2CController -- bit setup success")
             
             assertBit()
             
-        case .end:
+        case .stretch:  // expected only when canStretch is true
             
             print("")
-            print("\(name) \(currentX) - I2CController -- bit end")
+            print("\(name) \(currentX) - I2CController -- bit setup requested stretch")
+            
+            enterStretching()
+        
+        case .end:  // expected only from master
+            
+            print("")
+            print("\(name) \(currentX) - I2CController -- bit setup requested end")
             
             endTransmission()
-        
-        case .stretch:
-            
-            print("")
-            print("\(name) \(currentX) - I2CController -- bit stretch")
-            
-            allowStretching ? enterStretching() : endTransmission()
         }
     }
     
     
-    enum EvaluateNextBitResult { case ok, end, stretch }
-    func evaluateNextBit() -> EvaluateNextBitResult {
+    enum EvaluateNextBitResult { case ok, stretch, end }
+    func evaluateNextBit(canStretch: Bool) -> EvaluateNextBitResult {
         
         return .ok
-    }
-    
-    
-    func bitClockStart() {
-        
-        lastBitClockStartX = currentX
-    }
-    
-    
-    func bitClockEnd() {
-        
-        print("")
-        print("\(name) \(currentX) - I2CController -- bit clock end")
-        
-        sampleBit()
-        numTransmittedBits += 1
-        
-        print("")
-        print("\(name) \(currentX) - I2CController -- numTransmittedBits: \(numTransmittedBits)")
-        
-        lastBitClockEndX = currentX
     }
     
     
     func sampleBit() {
         
         lastReadBit = bus.lineSDA.currentLevel.bit
+        numTransmittedBits += 1
         
         print("")
         print("\(name) \(currentX) - I2CController -- bit sampled: \(lastReadBit!)")
+        
+        print("")
+        print("\(name) \(currentX) - I2CController -- numTransmittedBits: \(numTransmittedBits)")
     }
     
     
@@ -417,7 +391,7 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     }
     
     
-    func endTransmission() {
+    func endTransmission() {    // master only
         
         if stretching_ongoing == 1 {
             exitStretching()
@@ -482,7 +456,7 @@ class I2CController: SimulationEntity, I2CBusConnectable {
             stretchingTimeout()
         }
         
-        if betweenStartAndStop && holdingClock && holdingClockTerminationPhase && waited(after: lastStretchingTerminationPhaseStartX, xBitSetupDuration) {
+        if betweenStartAndStop && holdingClock && holdingClockTerminationPhase && waitedStretchingTermination() {
             exitStretching()
         }
         
@@ -681,10 +655,10 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     
     func assertClock() {
         
-        if bus.lineSCL.isHigh && waitedBitClockDuration() && waitedAfterStart() {
+        if bus.lineSCL.isHigh && waitedClockHighDuration() && waitedAfterStart() {
             pullingSCL = true
         }
-        if bus.lineSCL.isLow && waitedBitSetupDuration() {
+        if bus.lineSCL.isLow && waitedClockLowDuration() {
             pullingSCL = false
         }
     }
@@ -737,15 +711,21 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     }
     
     
-    func waitedBitSetupDuration() -> Bool {
+    func waitedClockHighDuration() -> Bool {
         
-        return waited(after: lastBitSetupStartX, xBitSetupDuration)
+        return waited(after: lastClockRiseX, xClockHighDuration)
     }
     
     
-    func waitedBitClockDuration() -> Bool {
+    func waitedClockLowDuration() -> Bool {
         
-        return waited(after: lastBitClockStartX, xBitClockDuration)
+        return waited(after: lastClockFallX, xClockLowDuration)
+    }
+    
+    
+    func waitedStretchingTermination() -> Bool {
+        
+        return waited(after: lastStretchingTerminationPhaseStartX, xClockLowDuration)
     }
     
     

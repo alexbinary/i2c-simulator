@@ -51,7 +51,7 @@ import SwiftUI
 class I2CMasterController: I2CController {
     
     
-    override func evaluateNextBit() -> EvaluateNextBitResult {
+    override func evaluateNextBit(canStretch: Bool) -> EvaluateNextBitResult {
         
         if numTransmittedBytes == num_bytes {
             
@@ -60,7 +60,7 @@ class I2CMasterController: I2CController {
         
         if (numTransmittedBits == 3 || numTransmittedBits == 7) {
             
-            return .stretch
+            return canStretch ? .stretch : .end
         }
         
         if numTransmittedBits % 2 == 0 {

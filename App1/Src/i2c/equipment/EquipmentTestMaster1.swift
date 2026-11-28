@@ -3,7 +3,7 @@ import SwiftUI
 
 
 
-class EquipmentTestMaster1: I2CBusConnectable {
+class EquipmentTestMaster1: SimulationEntity, I2CBusConnectable {
     
     
     lazy var i2cController = I2CMasterController(name: "MAS")

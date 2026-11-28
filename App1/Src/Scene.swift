@@ -18,18 +18,13 @@ class RenderScene {
     
     func run() {
 
-        bus.reset()
-        
-        let devices: [I2CBusConnectable] = [
+        let entities: [SimulationEntity] = [
             EquipmentTestMaster1(),
 //            EquipmentRegisterBank(i2cAddress: 0x2a),
 //            EquipmentRegisterBank(i2cAddress: 0x61),
 //            EquipmentBusMonitor(),
             PerturbatorEquipment(name: "PER"),
         ]
-        for device in devices {
-            device.connect(to: bus)
-        }
         
         let startX: CGFloat = 0
         let endX: CGFloat = 2000
@@ -37,24 +32,31 @@ class RenderScene {
         
         var currentX = startX
         
+        bus.reset()
+        
+        for entity in entities {
+            entity.reset(x: currentX)
+        }
+        
         bus.captureLineLevels(at: currentX)
         
+        let devices: [I2CBusConnectable] = entities.compactMap { $0 as? I2CBusConnectable }
         for device in devices {
-            device.reset(x: currentX)
+            device.connect(to: bus)
         }
         
         while currentX < endX {
         
-            for device in devices {
-                device.update(x: currentX)
+            for entity in entities {
+                entity.update(x: currentX)
             }
             currentX += simStepX
             bus.captureLineLevels(at: currentX)
         }
         
         markers = []
-        for device in devices {
-            markers += device.markers
+        for entity in entities {
+            markers += entity.markers
         }
     }
 }

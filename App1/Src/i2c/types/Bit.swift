@@ -3,7 +3,7 @@ import SwiftUI
 
 
 
-enum Bit {
+enum Bit: CustomStringConvertible {
     
     case zero, one
 
@@ -23,6 +23,13 @@ enum Bit {
         switch self {
         case .zero: return .low
         case .one: return .high
+        }
+    }
+    
+    public var description: String {
+        switch self {
+        case .one: "1"
+        case .zero: "0"
         }
     }
 }

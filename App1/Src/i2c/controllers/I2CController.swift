@@ -411,7 +411,7 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     func assertBit() {
         
         print("")
-        print("\(name) \(currentX) - I2CController -- asserting bit: \(currentBitToTransmit)")
+        print("\(name) \(currentX) - I2CController -- asserting bit: \(currentBitToTransmit?.description ?? "-")")
         
         pullingSDA = currentBitToTransmit == .zero
     }

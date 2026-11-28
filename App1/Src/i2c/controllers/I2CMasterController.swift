@@ -1,632 +1,73 @@
-//
-//import SwiftUI
-//
-//
-//
-//extension I2CMasterController{
-//    
-//    protocol Delegate {
-//        func onTransmissionEnded(result: TransmissionResult)
-//    }
-//}
-//
-//extension I2CMasterController.Delegate {
-//    func onTransmissionEnded(result: TransmissionResult) {}
-//}
-//
-//
-//class I2CMasterController: I2CController {
-//    
-//    enum TransmissionStatus {
-//        case starting
-//        case transmittingAddressByte
-//        case transmittingAddressAck
-//        case transmittingDataByte
-//        case transmittingDataAck
-//        
-//        case completedWithoutError
-//        case completedWithDataNackedBySlave
-//        case completedWithAddressNacked
-//        
-//        enum ByteOrAck { case byte, ack }
-//        var transmittingByteOrAck: ByteOrAck? { (self == .transmittingAddressByte || self == .transmittingDataByte) ? .byte : (self == .transmittingAddressAck || self == .transmittingDataAck) ? .ack : nil  }
-//        
-//        enum AddressOrData { case address, data }
-//        var transmittingAddressOrData: AddressOrData? { self == .transmittingAddressByte ? .address : self == .transmittingDataByte ? .data : nil }
-//        var currentAckTarget: AddressOrData? { self == .transmittingAddressAck ? .address : self == .transmittingDataAck ? .data : nil }
-//    }
-//    
-//    enum TransmissionBitState {
-//        case holdingBeforeNextBit
-//        case readyForNextBit
-//        case bitSetup
-//        case bitClock
-//    }
-//    
-//    enum TransmissionControlState {
-//        case preparingStart_gettingSCLLow
-//        case preparingStart_gettingSDAHigh
-//        case preparingStart_gettingSCLHigh
-//        case start_pullingSDA
-//        case bitSetup_gettingSCLLow
-//        case bitSetup_assertingSDA
-//        case bitClock_gettingSCLHigh
-//        case bitClock_sendingBit
-//        case preparingStop_gettingSCLLow
-//        case preparingStop_gettingSDALow
-//        case preparingStop_gettingSCLHigh
-//        case stop_releasingSDA
-//    }
-//    
-//    var currentTransmissionStatus: TransmissionStatus?
-//    var currentTransmissionBitState: TransmissionBitState?
-//    var currentTransmissionControlState: TransmissionControlState?
-//    
-//    var lastKnownLineLevels: (SCL: I2CBusLineLevel, SDA: I2CBusLineLevel) = (SCL: .high, SDA: .high)
-//    var busBusy = false
-//
-//    var lastLineChangeX: CGFloat?
-//    var lastIdleReachedX: CGFloat?
-//    var lastBitClockHighStartX: CGFloat?
-//    var lastBitClockLowStartX: CGFloat?
-//    var lastStopX: CGFloat?
-//    
-//    let xWaitAfterStop: CGFloat = 100
-//    let xWaitBeforeStart: CGFloat = 30
-//    let xBitClockHighDuration: CGFloat = 30
-//    let xBitClockLowDuration: CGFloat = 30
-//    let xWaitAfterLineChange: CGFloat = 10
-//    
-//    var scheduledTransmissions: [(x: CGFloat, transmission: I2CTransmission)] = []
-//    var activeTransmission: I2CTransmission?
-//    
-//    var holdingBus = false
-//    
-//    var lastTransmittedBit: Bit?
-//    var lastTransmittedAck: Ack?
-//    
-//    var lastTransmittedByte: Byte?
-//    var transmittedDataBytes: [Byte] = []
-//    
-//    var currentTransmittedByteReadBits: [Bit] = []
-//    var currentTransmittedByteIndex: Int = 0
-//    var currentTransmittedByteBitIndex: Int { currentTransmittedByteReadBits.count }
-//    
-//    var currentTransmissionAddress: Byte?
-//    var currentTransmissionMode: ReadWrite?
-//    
-//    var delegate: Delegate?
-//    
-//    
-//    init(delegate: Delegate? = nil) {
-//        
-//        self.delegate = delegate
-//    }
-//    
-//    
-//    func scheduleTransmission(at x: CGFloat, _ transmission: I2CTransmission) {
-//        
-//        self.scheduledTransmissions.append((x: x, transmission: transmission))
-//    }
-//    
-//    
-//    override func reset(x: CGFloat) {
-//    
-//        lastKnownLineLevels = bus.currentLineLevels
-//        
-//        clearActiveTransmission()
-//        
-//        releaseSCL()
-//        releaseSDA()
-//    }
-//    
-//    
-//    override func update(x: CGFloat) {
-//        
-//        if bus.currentLineLevels != lastKnownLineLevels {
-//            
-//            if detectedStartCondition(analysingTransitionFrom: lastKnownLineLevels, to: bus.currentLineLevels) {
-//                busBusy = true
-//            }
-//            if detectedStopCondition(analysingTransitionFrom: lastKnownLineLevels, to: bus.currentLineLevels) {
-//                busBusy = false
-//                
-//                lastStopX = x
-//                lastIdleReachedX = x
-//                
-//                transmissionStopped()
-//            }
-//            if bus.currentLineLevels == (SCL: .high, SDA: .high) {
-//                lastIdleReachedX = x
-//            }
-//            
-//            lastKnownLineLevels = bus.currentLineLevels
-//            lastLineChangeX = x
-//        }
-//
-//        if activeTransmission == nil {
-//            if let entry = scheduledTransmissions.sorted(by: { a, b in a.x < b.x }).first, entry.x <= x {
-//                scheduledTransmissions.removeAll(where: { $0.transmission.id == entry.transmission.id })
-//                activeTransmission = entry.transmission
-//                startActiveTransmission(x: x)
-//            }
-//        }
-//        
-//        updateHoldingState(x: x)
-//        
-//        while true {
-//            let previousState = currentTransmissionBitState
-//            
-//            if currentTransmissionBitState != nil {
-//                switch currentTransmissionBitState! {
-//                    
-//                case .holdingBeforeNextBit:
-//                    break
-//                    
-//                case .readyForNextBit:
-//                    if bus.lineSCL.isLow {
-//                        bitSetupPhaseStarted()
-//                    }
-//                    
-//                case .bitSetup:
-//                    if bus.lineSCL.isHigh {
-//                        bitClockHighPhaseStarted()
-//                    }
-//                    
-//                case .bitClock:
-//                    if bus.lineSCL.isHigh {
-//                        bitClockHighPhaseActive()
-//                    } else {
-//                        bitClockHighPhaseEnded()
-//                    }
-//                }
-//            }
-//            
-//            if currentTransmissionBitState != previousState {
-//                continue
-//            } else {
-//                break
-//            }
-//        }
-//        
-//        if activeTransmission != nil {
-//            updateTransmissionControlState(x: x)
-//        }
-//        
-//        updateBusControls(x: x)
-//    }
-//    
-//    
-//    func updateHoldingState(x: CGFloat) {
-//        
-//        if currentTransmissionBitState == .holdingBeforeNextBit {
-//        
-//            currentTransmissionBitState = .readyForNextBit
-//        }
-//    }
-//    
-//    
-//    func updateTransmissionControlState(x: CGFloat) {
-//        
-//        while true {
-//            
-//            let previousState = currentTransmissionControlState
-//            
-//            switch currentTransmissionControlState! {
-//                
-//            case .preparingStart_gettingSCLLow,
-//                 .preparingStart_gettingSDAHigh,
-//                 .preparingStart_gettingSCLHigh:
-//                updateControlStateForStart()
-//                
-//            case .start_pullingSDA:
-//                if bus.currentLineLevels == (SCL: .high, SDA: .low) {
-//                    initiateAddress()
-//                } else {
-//                    updateControlStateForStart()
-//                }
-//                
-//            case .bitSetup_gettingSCLLow:
-//                if bus.lineSCL.isLow {
-//                    currentTransmissionControlState = .bitSetup_assertingSDA
-//                    lastBitClockLowStartX = x
-//                }
-//                
-//            case .bitSetup_assertingSDA:
-//                if nextBitToWrite == nil || bus.lineSDA.currentLevel.bit == nextBitToWrite {
-//                    currentTransmissionControlState = .bitClock_gettingSCLHigh
-//                }
-//                
-//            case .bitClock_gettingSCLHigh:
-//                if bus.lineSCL.isHigh {
-//                    currentTransmissionControlState = .bitClock_sendingBit
-//                    lastBitClockHighStartX = x
-//                }
-//                
-//            case .bitClock_sendingBit:
-//                if bus.lineSCL.isHigh {
-////                    bitClockHighPhaseActive()
-//                } else {
-////                    bitClockHighPhaseEnded()
-//                    lastBitClockLowStartX = x
-//                }
-//                
-//            case .preparingStop_gettingSCLLow,
-//                 .preparingStop_gettingSDALow,
-//                 .preparingStop_gettingSCLHigh:
-//                updateControlStateForStop()
-//                
-//            case .stop_releasingSDA:
-//                break
-//            }
-//            
-//            if currentTransmissionControlState != previousState {
-//                continue
-//            } else {
-//                break
-//            }
-//        }
-//    }
-//    
-//    
-//    func waited(_ duration: CGFloat, relativeTo ref: CGFloat?, x: CGFloat) -> Bool {
-//        
-//        if let ref = ref {
-//            return (x - ref) >= duration
-//        } else {
-//            return true
-//        }
-//    }
-//    
-//    
-//    func updateBusControls(x: CGFloat) {
-//        
-//        if waited(xWaitAfterLineChange, relativeTo: lastLineChangeX, x: x) {
-//            
-//            switch currentTransmissionControlState {
-//                
-//            case .preparingStart_gettingSCLLow:
-//                pullSCL()
-//                
-//            case .preparingStart_gettingSCLHigh:
-//                releaseSCL()
-//            
-//            case .preparingStart_gettingSDAHigh:
-//                releaseSDA()
-//            
-//            case .start_pullingSDA:
-//                if !busBusy,
-//                   waited(xWaitAfterStop, relativeTo: lastStopX, x: x),
-//                   waited(xWaitBeforeStart, relativeTo: lastIdleReachedX, x: x) {
-//                    pullSDA()
-//                }
-//                
-//            case .bitSetup_gettingSCLLow:
-//                pullSCL()
-//                
-//            case .bitSetup_assertingSDA:
-//                assertWriteBit()
-//                
-//            case .bitClock_gettingSCLHigh:
-//                assertWriteBit()
-//                if waited(xBitClockLowDuration, relativeTo: lastBitClockLowStartX, x: x) {
-//                    releaseSCL()
-//                }
-//                
-//            case .bitClock_sendingBit:
-//                assertWriteBit()
-//                if waited(xBitClockHighDuration, relativeTo: lastBitClockHighStartX, x: x) {
-//                    pullSCL()
-//                }
-//                
-//            case .preparingStop_gettingSCLLow:
-//                pullSCL()
-//                
-//            case .preparingStop_gettingSCLHigh:
-//                releaseSCL()
-//            
-//            case .preparingStop_gettingSDALow:
-//                pullSDA()
-//            
-//            case .stop_releasingSDA:
-//                releaseSDA()
-//                
-//            case .none:
-//                releaseSCL()
-//                releaseSDA()
-//            }
-//        }
-//    }
-//    
-//    
-//    func assertWriteBit() {
-//        
-//        if nextBitToWrite == .zero {
-//            pullSDA()
-//        } else {
-//            releaseSDA()
-//        }
-//    }
-//
-//
-//    func clearActiveTransmission() {
-//        
-//        activeTransmission = nil
-//        
-//        currentTransmissionControlState = nil
-//        currentTransmissionStatus = nil
-//        
-//        lastTransmittedBit = nil
-//        lastTransmittedAck = nil
-//        
-//        lastTransmittedByte = nil
-//        transmittedDataBytes = []
-//        currentTransmittedByteReadBits = []
-//    }
-//    
-//    
-//    func startActiveTransmission(x: CGFloat) {
-//        
-//        currentTransmissionStatus = .starting
-//        holdingBus = false
-//        
-//        initiateStart()
-//    }
-//    
-//    
-//    var nextControlStateForStart: TransmissionControlState {
-//        
-//        switch bus.currentLineLevels {
-//        case (SCL: .high, SDA: .high): return .start_pullingSDA
-//        case (SCL: .high, SDA: .low): return .preparingStart_gettingSCLLow
-//        case (SCL: .low, SDA: .high): return .preparingStart_gettingSCLHigh
-//        case (SCL: .low, SDA: .low): return .preparingStart_gettingSDAHigh
-//        }
-//    }
-//    
-//    func updateControlStateForStart() {
-//        
-//        currentTransmissionControlState = nextControlStateForStart
-//    }
-//    
-//    func initiateStart() {
-//        
-//        updateControlStateForStart()
-//    }
-//    
-//    
-//    func initiateAddress() {
-//        
-//        currentTransmissionStatus = .transmittingAddressByte
-//        initiateNextBit()
-//    }
-//    
-//    
-//    func initiateNextDataByte() {
-//        
-//        currentTransmissionStatus = .transmittingDataByte
-//        initiateNextBit()
-//    }
-//    
-//    
-//    var nextControlStateForBit: TransmissionControlState {
-//        
-//        if bus.lineSCL.isHigh {
-//            return .bitSetup_gettingSCLLow
-//        } else {
-//            return .bitSetup_assertingSDA
-//        }
-//    }
-//    
-//    func initiateNextBit() {
-//        
-//        currentTransmissionControlState = nextControlStateForBit
-//    }
-//    
-//    
-//    var nextControlStateForStop: TransmissionControlState {
-//        
-//        switch bus.currentLineLevels {
-//        case (SCL: .high, SDA: .low): return .stop_releasingSDA
-//        case (SCL: .high, SDA: .high): return .preparingStop_gettingSCLLow
-//        case (SCL: .low, SDA: .high): return .preparingStop_gettingSDALow
-//        case (SCL: .low, SDA: .low): return .preparingStop_gettingSCLHigh
-//        }
-//    }
-//    
-//    func updateControlStateForStop() {
-//        
-//        currentTransmissionControlState = nextControlStateForStop
-//    }
-//    
-//    func initiateStop() {
-//        
-//        updateControlStateForStop()
-//    }
-//    
-//    
-//    func bitSetupPhaseStarted() {
-//    }
-//    
-//    
-//    func bitClockHighPhaseStarted() {
-//    }
-//    
-//    
-//    func bitClockHighPhaseActive() {
-//        
-//        lastTransmittedBit = bus.lineSDA.currentLevel.bit
-//    }
-//    
-//    
-//    func bitClockHighPhaseEnded() {
-//        
-//        switch currentTransmissionStatus!.transmittingByteOrAck {
-//        
-//        case .ack:
-//            lastTransmittedAck = Ack(from: lastTransmittedBit!)
-//            transmittedAck()
-//            
-//        case .byte:
-//            currentTransmittedByteReadBits.append(lastTransmittedBit!)
-//            if currentTransmittedByteReadBits.count == 8 {
-//                
-//                lastTransmittedByte = Byte(from: currentTransmittedByteReadBits)
-//                currentTransmittedByteReadBits = []
-//                transmittedDataByte()
-//            }
-//            initiateNextBit()
-//            
-//        case .none:
-//            break
-//        }
-//    }
-//    
-//    
-//    func transmittedAck() {
-//        
-//        let ackSentBySelf = currentTransmissionStatus!.currentAckTarget! == .data && activeTransmission!.mode == .readFromSlave
-//        let ackValue = ackSentBySelf ? currentAck! : lastTransmittedAck!
-//        
-//        switch ackValue {
-//        case .ack:
-//            let stillHaveBytesToSend = transmittedDataBytes.count < activeTransmission!.numBytes
-//            switch stillHaveBytesToSend {
-//            case true:
-//                switch currentTransmissionStatus!.currentAckTarget! {
-//                case .address: currentTransmittedByteIndex = 0
-//                case .data: currentTransmittedByteIndex += 1
-//                }
-//                initiateNextDataByte()
-//                
-//            case false:
-//                currentTransmissionStatus = .completedWithoutError
-//                initiateStop()
-//            }
-//            
-//        case .nack:
-//            switch currentTransmissionStatus!.currentAckTarget! {
-//            case .address:
-//                currentTransmissionStatus = .completedWithAddressNacked
-//            case .data:
-//                switch activeTransmission!.mode {
-//                case .writeToSlave: currentTransmissionStatus = .completedWithDataNackedBySlave
-//                case .readFromSlave: currentTransmissionStatus = .completedWithoutError
-//                }
-//            }
-//            initiateStop()
-//        }
-//    }
-//    
-//    
-//    func transmittedDataByte() {
-//        
-//        switch currentTransmissionStatus!.transmittingAddressOrData! {
-//        case .address:
-//            currentTransmissionStatus = .transmittingAddressAck
-//        case .data:
-//            transmittedDataBytes.append(lastTransmittedByte!)
-//            currentTransmissionStatus = .transmittingDataAck
-//        }
-//    }
-//    
-//    
-//    func transmissionStopped() {
-//        
-//        let result = transmissionResult()
-//        clearActiveTransmission()
-//        if let result = result {
-//            delegate?.onTransmissionEnded(result: result)
-//        }
-//    }
-//    
-//    
-//    func transmissionResult() -> TransmissionResult? {
-//        
-//        if let status = currentTransmissionStatus {
-//            switch status {
-//                
-//            case .completedWithoutError:
-//                return makeTransmissionResult(withType: .success)
-//                
-//            case .completedWithAddressNacked:
-//                return makeTransmissionResult(withType: .transmissionRefused)
-//                
-//            case .completedWithDataNackedBySlave:
-//                return makeTransmissionResult(withType: .dataNack)
-//                
-//            case .starting,
-//                    .transmittingAddressByte,
-//                    .transmittingAddressAck,
-//                    .transmittingDataByte,
-//                    .transmittingDataAck:
-//                return makeTransmissionResult(withType: .aborted)
-//            }
-//        }
-//        
-//        return nil
-//    }
-//    
-//    
-//    func makeTransmissionResult(withType type: TransmissionResult.`Type`) -> TransmissionResult {
-//        
-//        return TransmissionResult(
-//            type: type,
-//            address: activeTransmission!.address,
-//            mode: activeTransmission!.mode,
-//            transmittedBytes: transmittedDataBytes
-//        )
-//    }
-//     
-//    
-//    var nextBitToWrite: Bit? {
-//
-//        switch currentTransmissionStatus! {
-//        
-//        case .starting,
-//             .completedWithoutError,
-//             .completedWithDataNackedBySlave,
-//             .completedWithAddressNacked,
-//             .transmittingAddressAck:
-//            return nil
-//            
-//        case .transmittingAddressByte:
-//            return currentAddressBitToWrite
-//        
-//        case .transmittingDataByte:
-//            switch activeTransmission!.mode {
-//            case .writeToSlave: return currentDataBitToWrite
-//            case .readFromSlave: return nil
-//            }
-//        
-//        case .transmittingDataAck:
-//            switch activeTransmission!.mode {
-//            case .writeToSlave: return nil
-//            case .readFromSlave: return currentAck!.bit
-//            }
-//        }
-//    }
-//    
-//    
-//    var currentAck: Ack? {
-//        
-//        if currentTransmissionStatus == .transmittingDataAck, activeTransmission!.isReadFromSlave {
-//            return Ack(ackIf: (currentTransmittedByteIndex+1) < activeTransmission!.numBytes)
-//        }
-//        return nil
-//    }
-//
-//
-//    var currentAddressBitToWrite: Bit {
-//
-//        let byte = activeTransmission!.addressRW
-//        return byte.bit(atIndex: currentTransmittedByteBitIndex)
-//    }
-//
-//
-//    var currentDataBitToWrite: Bit {
-//
-//        let byte = activeTransmission!.bytes[currentTransmittedByteIndex]
-//        return byte.bit(atIndex: currentTransmittedByteBitIndex)
-//    }
-//}
+
+import SwiftUI
+
+
+
+/// I2C Master Controller
+///
+/// Before starting a transmission, the following registers must be configured:
+/// - `address` holds the address of the slave
+/// - `rw` holds `0`for write, `1` for read
+/// - `num_bytes` holds the number of bytes to transmit
+///
+/// The transmission starts when the `started` bit is set to `1`.
+/// The controller sets the `started` bit back to `0` when the transmission is complete.
+///
+/// If the bus is busy when the `started` bit is set to `1`, the controller waits until it becomes free.
+/// If that doesnt happen within the time configured in `start_timeout`, the transmission is aborted.
+///
+/// Data bytes to be sent to the slave are read from `txFifo`.
+/// If `txFifo` becomes empty before `num_bytes` bytes have been sent,
+/// transmission stops after the last data ack, unless `stretching_enabled` is `1`.
+/// In that case the controller holds the bus and waits until new data is available in the fifo.
+/// As soon as the fifo is not empty, stretching stops and transmission resumes.
+///
+/// Data bytes received from the slave are pushed into`rxFifo`.
+/// If `rxFifo` becomes full before `num_bytes` bytes have been read,
+/// the last data byte is nacked and transmission stops, unless `stretching_enabled` is `1`.
+/// In that case the controller holds the bus before the data ack and waits for the fifo to have at least one byte free.
+/// As soon as the fifo is not full, the controller acks the data byte and transmission resumes.
+///
+/// Stretching can be detected by polling the `stretching_ongoing` flag:
+/// - `1` means stretching is ongoing
+/// - `0` means no stretching is active
+///
+/// An ongoing stretching operation can be interrupted by setting `stretching_enabled` to `0`.
+/// Stretching is also interrupted automatically if the time since the stretching started exceeds the duration set in the `stretching_timeout` register.
+/// When stretching is interrupted, the transmission resumes as if `stretching_enabled` was `0`.
+///
+/// When all bytes and acks have been transmitted, the controller sends a STOP, unless `hold_bus` is set to `1`.
+/// In that case the controller sets `started` to `0` and holds the bus until a new transmission is started or `hold` is set to `0`.
+/// If no transmission is started before `hold_timeout` since the hold started, hold stops and the controller sends a STOP.
+///
+/// End of transmission can be detected by polling the`started` bit and waiting for it to become `0`.
+/// The `result` register contains the status of the completed transmission:
+/// - `success` means no error, all bytes transmitted and properly acked
+/// - `addressNack` means no slave acked the address byte
+/// - `dataNack` means the slave nacked the last data byte (write mode only)
+/// - `timeout` means the transmission was unable to start in the alloted time
+/// Additionnally, `num_bytes` holds the number of bytes actually transmitted.
+///
+class I2CMasterController: I2CController {
+    
+    
+    override func evaluateNextBit(canStretch: Bool) -> EvaluateNextBitResult {
+        
+        if numTransmittedBytes == num_bytes {
+            
+            return .end
+        }
+        
+        if (numTransmittedBits == 3 || numTransmittedBits == 7) {
+            
+            return canStretch ? .stretch : .end
+        }
+        
+        if numTransmittedBits % 2 == 0 {
+            currentBitToTransmit = .one
+        } else {
+            currentBitToTransmit = .zero
+        }
+        return .ok
+    }
+}

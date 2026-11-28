@@ -71,9 +71,30 @@ struct ContentView: View {
             )
 
             if let location = mouseHoverLocation {
-                Text("x\(Int(worldMouse.x))")
-                    .offset(x: location.x, y: location.y - canvasSize.height)
-                    .offset(x: 12, y: -12)
+                
+                VStack(alignment: .leading) {
+                    Text("x\(Int(worldMouse.x))")
+                        .background(.black)
+                }
+                .offset(x: location.x, y: location.y - canvasSize.height)
+                .offset(x: 12, y: -12)
+                
+                let tips = scene.textTips(forWorldMouseX: worldMouse.x)
+                if !tips.isEmpty {
+                    VStack(alignment: .leading) {
+                        ForEach(tips) { tip in
+                            HStack {
+                                tip.color.frame(width: 6, height: 16)
+                                Text(tip.text)
+                                    .background(.black)
+                            }
+                            .offset(x: tip.x)
+                        }
+                    }
+                    
+                    .offset(y: location.y - canvasSize.height)
+                    .offset(y: -48)
+                }
             }
         }
         .frame(minWidth: 2000, minHeight: 800)

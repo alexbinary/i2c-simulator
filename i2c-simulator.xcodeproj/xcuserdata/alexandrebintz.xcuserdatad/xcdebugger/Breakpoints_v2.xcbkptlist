@@ -703,25 +703,9 @@
             filePath = "App1/Src/i2c/controllers/I2CController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "693"
-            endingLineNumber = "693"
+            startingLineNumber = "677"
+            endingLineNumber = "677"
             landmarkName = "waited(after:_:)"
-            landmarkType = "7">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            uuid = "0CFB9D2B-C40A-46EA-BB52-F64D7A90E69A"
-            shouldBeEnabled = "No"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "App1/Src/i2c/equipment/EquipmentTestMaster1.swift"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "66"
-            endingLineNumber = "66"
-            landmarkName = "update(x:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -735,8 +719,8 @@
             filePath = "App1/Src/i2c/equipment/EquipmentTestMaster1.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "54"
-            endingLineNumber = "54"
+            startingLineNumber = "66"
+            endingLineNumber = "66"
             landmarkName = "update(x:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -799,8 +783,8 @@
             filePath = "App1/Src/i2c/equipment/EquipmentTestMaster1.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "89"
-            endingLineNumber = "89"
+            startingLineNumber = "119"
+            endingLineNumber = "119"
             landmarkName = "update(x:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -843,8 +827,8 @@
             filePath = "App1/Src/i2c/controllers/I2CController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "269"
-            endingLineNumber = "269"
+            startingLineNumber = "283"
+            endingLineNumber = "283"
             landmarkName = "readLineLevels()"
             landmarkType = "7">
          </BreakpointContent>
@@ -923,8 +907,8 @@
             filePath = "App1/Src/i2c/controllers/I2CController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "255"
-            endingLineNumber = "255"
+            startingLineNumber = "269"
+            endingLineNumber = "269"
             landmarkName = "readLineLevels()"
             landmarkType = "7">
          </BreakpointContent>
@@ -987,8 +971,8 @@
             filePath = "App1/Src/i2c/controllers/I2CController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "253"
-            endingLineNumber = "253"
+            startingLineNumber = "267"
+            endingLineNumber = "267"
             landmarkName = "readLineLevels()"
             landmarkType = "7">
          </BreakpointContent>

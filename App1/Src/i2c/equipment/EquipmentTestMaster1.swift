@@ -8,7 +8,8 @@ class EquipmentTestMaster1: SimulationEntity, I2CBusConnectable {
     
     lazy var i2cController = I2CMasterController(name: "MAS")
     
-    var markers: [SimulationMarker] = []
+    var ownMarkers: [SimulationMarker] = []
+    var markers: [SimulationMarker] { ownMarkers + i2cController.markers }
     
     
     var slave1_testData1 = 0
@@ -29,20 +30,31 @@ class EquipmentTestMaster1: SimulationEntity, I2CBusConnectable {
     var lastAddressedRegister: Int? = nil
     
     
-    func addMarker(_ x: CGFloat, _ color: Color) {
+    func addMarker(_ x: CGFloat, _ color: Color, _ label: String) {
         
-        markers.append(SimulationMarker(x: x, color: color))
+        ownMarkers.append(SimulationMarker(x: x, color: color, label: label))
+    }
+    
+    
+    func debugPoint(_ x: CGFloat, _ color: Color, _ text: String) {
+        
+        print("")
+        print("\(x) -> \(text)")
+        addMarker(x, color, "EQM \(text)")
     }
 
     
     func reset(x: CGFloat) {
         
-        markers = []
+        ownMarkers = []
         i2cController.reset(x: x)
     }
     
     
     func update(x: CGFloat) {
+        
+        i2cController.address = slave2_address
+        i2cController.rw = .writeToSlave
         
         var p: CGFloat = 0
         
@@ -50,25 +62,43 @@ class EquipmentTestMaster1: SimulationEntity, I2CBusConnectable {
         
         p += 1
         if x == p {
-            prepare_request_slave2_testData1()
+            request_slave2_testData1()
             i2cController.started = 1
             
-            print("")
-            print("\(x) -> 1/ starting - stretching:\(i2cController.stretching_enabled), hold:\(i2cController.hold_bus)")
-            addMarker(x, .blue)
+            debugPoint(x, .blue, "starting - stretching:\(i2cController.stretching_enabled), hold:\(i2cController.hold_bus)")
         }
         
-        // test start user abort
+        // test normal transaction
         
         p += 120
         if x == p {
-            prepare_request_slave2_testData1()
+            request_slave2_testData1()
+            i2cController.num_bytes = 1
+            i2cController.txFifo.clear()
+            i2cController.txFifo.push(Byte(slave2_testData1_registerAddress))
+            i2cController.stretching_enabled = 0
+            i2cController.hold_bus = 0
             i2cController.started = 1
             
-            print("")
-            print("\(x) -> 2/ starting - stretching:\(i2cController.stretching_enabled), hold:\(i2cController.hold_bus)")
-            addMarker(x, .blue)
+            debugPoint(x, .blue, "starting - stretching:\(i2cController.stretching_enabled), hold:\(i2cController.hold_bus)")
         }
+        
+        // test stretching and hold - timeout
+        
+        p += 400
+        if x == p {
+            request_slave2_testData1()
+            i2cController.num_bytes = 1
+            i2cController.txFifo.clear()
+            i2cController.stretching_enabled = 1
+            i2cController.hold_bus = 1
+            i2cController.started = 1
+            
+            debugPoint(x, .blue, "starting - stretching:\(i2cController.stretching_enabled), hold:\(i2cController.hold_bus)")
+        }
+        
+        
+        // test start user abort
         
 //        p += 5
 //        if x == p {
@@ -224,20 +254,21 @@ class EquipmentTestMaster1: SimulationEntity, I2CBusConnectable {
     }
     
     
-    func prepare_request_slave2_testData1() {
+    func request_slave2_testData1() {
         
         i2cController.address = slave2_address
         i2cController.rw = .writeToSlave
         i2cController.txFifo.clear()
         i2cController.num_bytes = 1
-        i2cController.stretching_enabled = 1
+        i2cController.stretching_enabled = 0
         i2cController.hold_bus = 1
+        i2cController.started = 1
         
         lastAddressedRegister = slave2_testData1_registerAddress
     }
     
     
-    func prepare_read_slave2_testData1() {
+    func read_slave2_testData1() {
         
         i2cController.address = slave2_address
         i2cController.rw = .readFromSlave
@@ -245,6 +276,7 @@ class EquipmentTestMaster1: SimulationEntity, I2CBusConnectable {
         i2cController.num_bytes = slave2_testData1_len
         i2cController.stretching_enabled = 0
         i2cController.hold_bus = 0
+        i2cController.started = 1
     }
     
     

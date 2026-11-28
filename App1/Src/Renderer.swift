@@ -40,7 +40,6 @@ class Renderer {
         }
     }
     
-    
     private var context: GraphicsContext
     private let canvasSize: CGSize
     private let viewportTranslation: CGFloat

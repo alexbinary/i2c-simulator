@@ -14,4 +14,5 @@ struct SimulationMarker {
     
     let x: CGFloat
     let color: Color
+    let label: String
 }

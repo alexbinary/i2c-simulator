@@ -245,6 +245,20 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     }
     
     
+    func addMarker(_ x: CGFloat, _ color: Color, _ label: String = "default") {
+        
+        markers.append(SimulationMarker(x: x, color: color, label: label))
+    }
+    
+    
+    func debugPointAtCurrentX(_ color: Color, _ text: String) {
+        
+        print("")
+        print("\(currentX) - \(text)")
+        addMarker(currentX, color, "\(name) \(text)")
+    }
+    
+    
     /* Line levels events */
     
     
@@ -274,8 +288,7 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     
     func startCondition() {
         
-        print("")
-        print("\(name) \(currentX) - I2CController -- detected (RE)START")
+        debugPointAtCurrentX(.yellow, "detected (RE)START")
         
         generatingStart = false
         betweenStartAndStop = true
@@ -289,8 +302,7 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     
     func stopCondition() {
         
-        print("")
-        print("\(name) \(currentX) - I2CController -- detected STOP")
+        debugPointAtCurrentX(.yellow, "detected STOP")
         
         generatingStop = false
         generatingClock = false
@@ -303,8 +315,7 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     
     func clockRise() {
         
-        print("")
-        print("\(name) \(currentX) - I2CController -- detected CLOCK RISE")
+//        debugPointAtCurrentX(.yellow, "detected CLOCK RISE")
         
         if betweenStartAndStop {
             
@@ -316,8 +327,7 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     
     func clockFall() {
         
-        print("")
-        print("\(name) \(currentX) - I2CController -- detected CLOCK FALL")
+//        debugPointAtCurrentX(.yellow, "detected CLOCK FALL")
         
         if betweenStartAndStop {
             
@@ -329,34 +339,24 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     
     func trySetupNextBit(allowStretching: Bool) {
         
-        print("")
-        print("\(name) \(currentX) - I2CController -- starting setup for bit \(numTransmittedBits)")
+        debugPointAtCurrentX(.green, "setup bit \(numTransmittedBits)")
+        debugPointAtCurrentX(.green, "(\(stretching_enabled == 0 ? "stretching disabled" : !allowStretching ? "cannot stretch now" : "can stretch if needed"))")
         
         let canStretch = stretching_enabled == 1 && allowStretching
-        
-        print("")
-        print("\(name) \(currentX) - I2CController -- (\(stretching_enabled == 0 ? "stretching disabled" : !allowStretching ? "cannot stretch now" : "can stretch if needed"))")
-        
         switch evaluateNextBit(canStretch: canStretch) {
         case .ok:
             
-            print("")
-            print("\(name) \(currentX) - I2CController -- bit setup success")
-            
+            debugPointAtCurrentX(.green, "bit setup success")
             assertBit()
             
         case .stretch:  // expected only when canStretch is true
             
-            print("")
-            print("\(name) \(currentX) - I2CController -- bit setup requested stretch")
-            
+            debugPointAtCurrentX(.green, "stretch requested")
             enterStretching()
         
         case .end:  // expected only from master
             
-            print("")
-            print("\(name) \(currentX) - I2CController -- bit setup requested end")
-            
+            debugPointAtCurrentX(.green, "end requested")
             endTransmission()
         }
     }
@@ -374,18 +374,14 @@ class I2CController: SimulationEntity, I2CBusConnectable {
         lastReadBit = bus.lineSDA.currentLevel.bit
         numTransmittedBits += 1
         
-        print("")
-        print("\(name) \(currentX) - I2CController -- bit sampled: \(lastReadBit!)")
-        
-        print("")
-        print("\(name) \(currentX) - I2CController -- numTransmittedBits: \(numTransmittedBits)")
+        debugPointAtCurrentX(.green, "bit sampled: \(lastReadBit!)")
+        debugPointAtCurrentX(.green, "transmitted \(numTransmittedBits) bits, \(numTransmittedBytes) bytes")
     }
     
     
     func assertBit() {
         
-        print("")
-        print("\(name) \(currentX) - I2CController -- asserting bit: \(currentBitToTransmit?.description ?? "-")")
+        debugPointAtCurrentX(.green, "asserting bit: \(currentBitToTransmit?.description ?? "-")")
         
         pullingSDA = currentBitToTransmit == .zero
     }
@@ -472,8 +468,7 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     
     func startRequested() {
         
-        print("")
-        print("\(name) \(currentX) - I2CController -- start requested by user")
+        debugPointAtCurrentX(.yellow, "start requested by user")
         
         holdingBus = false
         generatingStart = true
@@ -483,8 +478,7 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     
     func startTimeout() {
         
-        print("")
-        print("\(name) \(currentX) - I2CController -- start timeout")
+        debugPointAtCurrentX(.yellow, "start timeout")
         
         generatingStart = false
         releaseBus()
@@ -496,8 +490,7 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     
     func startAborted() {
         
-        print("")
-        print("\(name) \(currentX) - I2CController -- start aborted by user")
+        debugPointAtCurrentX(.yellow, "start aborted by user")
         
         generatingStart = false
         releaseBus()
@@ -509,8 +502,7 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     
     func enterStretching() {
         
-        print("")
-        print("\(name) \(currentX) - I2CController -- stretching starting")
+        debugPointAtCurrentX(.yellow, "starting stretching")
         
         holdingClock = true
         lastStretchingStartX = currentX
@@ -520,8 +512,7 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     
     func enterStretchingTerminationPhase() {
         
-        print("")
-        print("\(name) \(currentX) - I2CController -- stretching entering termination phase")
+        debugPointAtCurrentX(.yellow, "stretching termination")
         
         lastStretchingTerminationPhaseStartX = currentX
         holdingClockTerminationPhase = true
@@ -532,8 +523,7 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     
     func exitStretching() {
         
-        print("")
-        print("\(name) \(currentX) - I2CController -- stretching ending")
+        debugPointAtCurrentX(.yellow, "stretching end")
         
         holdingClock = false
         holdingClockTerminationPhase = false
@@ -543,8 +533,7 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     
     func dataAvailable() {
         
-        print("")
-        print("\(name) \(currentX) - I2CController -- data available")
+        debugPointAtCurrentX(.yellow, "data available")
         
         _ = txFifo.pop()
         
@@ -554,8 +543,7 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     
     func stretchingDisabled() {
         
-        print("")
-        print("\(name) \(currentX) - I2CController -- stretching disabled by user")
+        debugPointAtCurrentX(.yellow, "stretching disabled by user")
         
         enterStretchingTerminationPhase()
     }
@@ -563,8 +551,7 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     
     func stretchingTimeout() {
         
-        print("")
-        print("\(name) \(currentX) - I2CController -- stretching timeout")
+        debugPointAtCurrentX(.yellow, "stretching timeout")
         
         enterStretchingTerminationPhase()
     }
@@ -572,8 +559,7 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     
     func enterHold() {
         
-        print("")
-        print("\(name) \(currentX) - I2CController -- hold starting")
+        debugPointAtCurrentX(.yellow, "starting hold")
         
         holdingBus = true
         lastHoldStartedX = currentX
@@ -582,8 +568,7 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     
     func holdDisabled() {
         
-        print("")
-        print("\(name) \(currentX) - I2CController -- hold disabled by user")
+        debugPointAtCurrentX(.yellow, "hold disabled by user")
         
         holdingBus = false
         generatingStop = true
@@ -592,8 +577,7 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     
     func holdTimeout() {
         
-        print("")
-        print("\(name) \(currentX) - I2CController -- hold timeout")
+        debugPointAtCurrentX(.yellow, "hold timeout")
         
         holdingBus = false
         generatingStop = true

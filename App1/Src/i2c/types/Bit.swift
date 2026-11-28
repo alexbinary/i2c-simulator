@@ -3,7 +3,7 @@ import SwiftUI
 
 
 
-enum Bit: CustomStringConvertible {
+enum Bit {
     
     case zero, one
 
@@ -19,17 +19,32 @@ enum Bit: CustomStringConvertible {
         self = ack.bit
     }
     
-    var lineLevel: I2CBusLineLevel {
+    static func ackIf(_ value: Bool) -> Bit {
+        return Ack(ackIf: value).bit
+    }
+    
+    var value: UInt8 {
         switch self {
-        case .zero: return .low
-        case .one: return .high
+        case .zero: return 0
+        case .one: return 1
         }
     }
     
-    public var description: String {
+    var ack: Ack {
         switch self {
-        case .one: "1"
-        case .zero: "0"
+        case .zero: return .ack
+        case .one: return .nack
         }
     }
+    
+    var isAck: Bool {
+        self.ack == .ack
+    }
+    
+    var isNack: Bool {
+        self.ack == .nack
+    }
+    
+    static var ack: Bit { Ack.ack.bit }
+    static var nack: Bit { Ack.nack.bit }
 }

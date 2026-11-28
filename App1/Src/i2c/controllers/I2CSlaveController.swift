@@ -56,21 +56,66 @@ class I2CSlaveController: I2CController {
     
     override func evaluateNextBit(canStretch: Bool) -> EvaluateNextBitResult {
         
-        if (numTransmittedBits == 12 || numTransmittedBits == 13) && stretching_enabled == 1 {
-            
-            if canStretch {
-                return .stretch
-            } else {
-                currentBitToTransmit = .zero
-                return .ok
-            }
+        if transmittingAddressByte {
+            currentBitToWrite = nil
+            return .ok
         }
         
-        if numTransmittedBits % 2 == 0 {
-            currentBitToTransmit = .one
-        } else {
-            currentBitToTransmit = .zero
+        if transmittingAddressAck {
+            
+            let addressMatch = true // TODO
+            
+            currentBitToWrite = Ack(ackIf: addressMatch).bit
+            return .ok
         }
-        return .ok
+        
+        if transmittingDataByte && rw == .writeToSlave {
+            currentBitToWrite = nil
+            return .ok
+        }
+        
+        if transmittingDataByte && rw == .readFromSlave {
+            
+            if currentBitInByte == 0 {
+                
+                if lastAck == .nack {
+                    currentBitToWrite = nil
+                    return .ok
+                }
+                
+                if txFifo.isEmpty && canStretch {
+                    return .stretch
+                }
+                
+                currentByteToWrite = txFifo.isEmpty ? 0xFF : txFifo.pop()
+            }
+            
+            currentBitToWrite = currentByteToWrite!.bit(atTransmissionIndex: currentBitInByte)
+            return .ok
+        }
+        
+        if transmittingDataAck && rw == .writeToSlave {
+            
+            if rxFifo.isFull && canStretch {
+                return .stretch
+            }
+            
+            if rxFifo.isFull {
+                currentBitToWrite = .nack
+                return .ok
+            }
+            
+            rxFifo.push(currentTransmittingByte!)
+            
+            currentBitToWrite = .ack
+            return .ok
+        }
+        
+        if transmittingDataAck && rw == .readFromSlave {
+            currentBitToWrite = nil
+            return .ok
+        }
+        
+        fatalError("invalid code path")
     }
 }

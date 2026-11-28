@@ -12,7 +12,7 @@ extension Byte {
             .reduce(0, { byte, bit in (byte << 1) + bit })
     }
     
-    func bit(atIndex bitIndex: Int) -> Bit {
+    func bit(atTransmissionIndex bitIndex: Int) -> Bit {
         return Bit((self >> (7-bitIndex)) & 1)
     }
 }

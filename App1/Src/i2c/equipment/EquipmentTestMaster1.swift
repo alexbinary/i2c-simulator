@@ -68,13 +68,31 @@ class EquipmentTestMaster1: SimulationEntity, I2CBusConnectable {
             debugPoint(x, .blue, "starting - stretching:\(i2cController.stretching_enabled), hold:\(i2cController.hold_bus)")
         }
         
-        // test normal transaction
+        // test start user abort
         
         p += 120
         if x == p {
             request_slave2_testData1()
-            i2cController.num_bytes = 1
+            i2cController.started = 1
+            
+            debugPoint(x, .blue, "starting - stretching:\(i2cController.stretching_enabled), hold:\(i2cController.hold_bus)")
+        }
+        
+        p += 5
+        if x == p {
+            i2cController.started = 0
+
+            debugPoint(x, .blue, "aborting start")
+        }
+        
+        // test normal transaction
+        
+        p += 5
+        if x == p {
+            request_slave2_testData1()
+            i2cController.num_bytes = 2
             i2cController.txFifo.clear()
+            i2cController.txFifo.push(Byte(slave2_testData1_registerAddress))
             i2cController.txFifo.push(Byte(slave2_testData1_registerAddress))
             i2cController.stretching_enabled = 0
             i2cController.hold_bus = 0
@@ -83,31 +101,22 @@ class EquipmentTestMaster1: SimulationEntity, I2CBusConnectable {
             debugPoint(x, .blue, "starting - stretching:\(i2cController.stretching_enabled), hold:\(i2cController.hold_bus)")
         }
         
-        // test stretching and hold - timeout
-        
-        p += 400
-        if x == p {
-            request_slave2_testData1()
-            i2cController.num_bytes = 1
-            i2cController.txFifo.clear()
-            i2cController.stretching_enabled = 1
-            i2cController.hold_bus = 1
-            i2cController.started = 1
-            
-            debugPoint(x, .blue, "starting - stretching:\(i2cController.stretching_enabled), hold:\(i2cController.hold_bus)")
-        }
-        
-        
-        // test start user abort
-        
-//        p += 5
+//        // test stretching and hold - timeout
+//        
+//        p += 400
 //        if x == p {
-//            i2cController.started = 0
+//            request_slave2_testData1()
+//            i2cController.num_bytes = 1
+//            i2cController.txFifo.clear()
+//            i2cController.stretching_enabled = 1
+//            i2cController.hold_bus = 1
+//            i2cController.started = 1
 //            
-//            print("")
-//            print("\(x) -> 3/ aborting start")
-//            addMarker(x, .blue)
+//            debugPoint(x, .blue, "starting - stretching:\(i2cController.stretching_enabled), hold:\(i2cController.hold_bus)")
 //        }
+        
+        
+        
 //        
 //        // test stretching and hold - timeout
 //        

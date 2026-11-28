@@ -13,4 +13,11 @@ enum ReadWrite {
         case .one: self = .readFromSlave
         }
     }
+    
+    var bit: Bit {
+        switch self {
+        case .writeToSlave: return .zero
+        case .readFromSlave: return .one
+        }
+    }
 }

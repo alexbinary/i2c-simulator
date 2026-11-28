@@ -98,30 +98,50 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     var holdingClockTerminationPhase = false
     var holdingBus = false
     
-    var currentBitToTransmit: Bit?
-    var lastReadBit: Bit?
-    
     
     /* Internal transmission-related state */
     
     var betweenStartAndStop = false
     
     var numTransmittedBits = 0
-    var numTransmittedBytes: Int { numTransmittedBits / 9 }
+    var numTransmittedBytes: Int { (numTransmittedBits / 9) + (((numTransmittedBits % 9) == 8) ? 1 : 0) }
+    var numTransmittedDataBytes: Int { max(numTransmittedBytes - 1, 0) }
+    
+    var currentBitInByte: Int { numTransmittedBits % 9 }
+    var currentDataByte: Int { numTransmittedDataBytes }
+    
+    var transmittingAddress: Bool { numTransmittedBits < 9 }
+    var transmittingData: Bool { numTransmittedBits >= 9 }
+    var transmittingByte: Bool { numTransmittedBits % 9 < 8 }
+    var transmittingAck: Bool { numTransmittedBits % 9 == 8 }
+    
+    var transmittingAddressByte: Bool { transmittingAddress && transmittingByte }
+    var transmittingAddressAck: Bool { transmittingAddress && transmittingAck }
+    var transmittingDataByte: Bool { transmittingData && transmittingByte }
+    var transmittingDataAck: Bool { transmittingData && transmittingAck }
+    
+    var lastReadBit: Bit?
+    var lastAck: Ack?
+    
+    var currentTransmittingByte: Byte?
+    
+    var currentByteToWrite: Byte?
+    var currentBitToWrite: Bit?
     
     
     /* Reset */
     
     
-    func resetAllGenericState() {
+    func reset(x: CGFloat) {
+        
+        currentX = x
+        
+        txFifo.clear()
+        rxFifo.clear()
         
         lastStartRequestX = nil
         lastStretchingStartX = nil
         lastStretchingTerminationPhaseStartX = nil
-    }
-    
-    
-    func resetAllBusRelatedState() {
         
         lastKnownLineLevels = nil
         
@@ -145,15 +165,16 @@ class I2CController: SimulationEntity, I2CBusConnectable {
         holdingClockTerminationPhase = false
         holdingBus = false
         
-        currentBitToTransmit = nil
-        lastReadBit = nil
-    }
-    
-    
-    func resetAllTransmissionRelatedState() {
-        
         betweenStartAndStop = false
         numTransmittedBits = 0
+        
+        lastReadBit = nil
+        lastAck = nil
+        
+        currentTransmittingByte = nil
+        
+        currentByteToWrite = nil
+        currentBitToWrite = nil
     }
     
     
@@ -217,20 +238,7 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     }
     
     
-    /* Simulation */
-    
-    
-    func reset(x: CGFloat) {
-        
-        currentX = x
-        
-        resetAllGenericState()
-        resetAllBusRelatedState()
-        resetAllTransmissionRelatedState()
-        
-        txFifo.clear()
-        rxFifo.clear()
-    }
+    /* Update */
     
     
     func update(x: CGFloat) {
@@ -242,20 +250,6 @@ class I2CController: SimulationEntity, I2CBusConnectable {
         updateInternalControlSignals()
         updateBusControls()
         applyBusControls()
-    }
-    
-    
-    func addMarker(_ x: CGFloat, _ color: Color, _ label: String = "default") {
-        
-        markers.append(SimulationMarker(x: x, color: color, label: label))
-    }
-    
-    
-    func debugPointAtCurrentX(_ color: Color, _ text: String) {
-        
-        print("")
-        print("\(currentX) - \(text)")
-        addMarker(currentX, color, "\(name) \(text)")
     }
     
     
@@ -293,6 +287,7 @@ class I2CController: SimulationEntity, I2CBusConnectable {
         generatingStart = false
         betweenStartAndStop = true
         numTransmittedBits = 0
+        currentTransmittingByte = 0
         result = .aborted
         generatingClock = started == 1
         started = 1
@@ -307,7 +302,7 @@ class I2CController: SimulationEntity, I2CBusConnectable {
         generatingStop = false
         generatingClock = false
         betweenStartAndStop = false
-        num_bytes = numTransmittedBytes
+        num_bytes = numTransmittedDataBytes
         started = 0
         lastStopDetectedX = currentX
     }
@@ -320,6 +315,7 @@ class I2CController: SimulationEntity, I2CBusConnectable {
         if betweenStartAndStop {
             
             sampleBit()
+        
             lastClockRiseX = currentX
         }
     }
@@ -372,18 +368,58 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     func sampleBit() {
         
         lastReadBit = bus.lineSDA.currentLevel.bit
-        numTransmittedBits += 1
-        
         debugPointAtCurrentX(.green, "bit sampled: \(lastReadBit!)")
-        debugPointAtCurrentX(.green, "transmitted \(numTransmittedBits) bits, \(numTransmittedBytes) bytes")
+        
+        if transmittingAck {
+            
+            lastAck = lastReadBit!.ack
+            debugPointAtCurrentX(.green, "last ack: \(lastAck == .ack ? "ACK" : lastAck == .nack ? "NACK" : "-")")
+            
+            if transmittingAddressAck {
+                debugPointAtCurrentX(.green, "address acked: \(lastAck == .ack)")
+            }
+        }
+        
+        if transmittingByte {
+            
+            if currentBitInByte == 0 {
+                currentTransmittingByte = 0
+            }
+            
+            currentTransmittingByte! += (lastReadBit!.value << (7-currentBitInByte))
+            debugPointAtCurrentX(.green, "current byte: \(currentTransmittingByte!)")
+            
+            if currentBitInByte == 7 {
+                
+                if transmittingAddress {
+                    
+                    address = currentTransmittingByte! >> 1
+                    rw = ReadWrite(from: currentTransmittingByte!.bit(atTransmissionIndex: 7))
+                    
+                    debugPointAtCurrentX(.green, "transmitted address: \(address)+\(rw == .writeToSlave ? "W" : "R")")
+                    
+                } else {
+                    
+                    debugPointAtCurrentX(.green, "transmitted data byte: \(currentTransmittingByte!)")
+                    transmittedDataByte(currentTransmittingByte!)
+                }
+            }
+        }
+        
+        numTransmittedBits += 1
+    }
+    
+    
+    func transmittedDataByte(_ byte: Byte) {
+        
     }
     
     
     func assertBit() {
         
-        debugPointAtCurrentX(.green, "asserting bit: \(currentBitToTransmit?.description ?? "-")")
+        debugPointAtCurrentX(.green, "asserting bit: \(currentBitToWrite == .one ? "1" : currentBitToWrite == .zero ? "0" : "-")")
         
-        pullingSDA = currentBitToTransmit == .zero
+        pullingSDA = currentBitToWrite == .zero
     }
     
     
@@ -395,7 +431,7 @@ class I2CController: SimulationEntity, I2CBusConnectable {
         generatingClock = false
         if hold_bus == 1 {
             enterHold()
-            num_bytes = numTransmittedBytes
+            num_bytes = numTransmittedDataBytes
             started = 0
         } else {
             generatingStop = true
@@ -534,8 +570,6 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     func dataAvailable() {
         
         debugPointAtCurrentX(.yellow, "data available")
-        
-        _ = txFifo.pop()
         
         enterStretchingTerminationPhase()
     }
@@ -722,5 +756,22 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     func waitedHoldTimeout() -> Bool {
         
         return waited(after: lastHoldStartedX, CGFloat(hold_timeout))
+    }
+    
+    
+    /* Simulation */
+    
+    
+    func addMarker(_ x: CGFloat, _ color: Color, _ label: String = "default") {
+        
+        markers.append(SimulationMarker(x: x, color: color, label: label))
+    }
+    
+    
+    func debugPointAtCurrentX(_ color: Color, _ text: String) {
+        
+        print("")
+        print("\(currentX) - \(text)")
+        addMarker(currentX, color, "\(name) \(text)")
     }
 }

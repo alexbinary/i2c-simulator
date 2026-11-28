@@ -94,7 +94,7 @@ class EquipmentTestMaster1: SimulationEntity, I2CBusConnectable {
             i2cController.txFifo.clear()
             i2cController.txFifo.push(Byte(slave2_testData1_registerAddress))
             i2cController.txFifo.push(Byte(slave2_testData1_registerAddress))
-            i2cController.stretching_enabled = 0
+            i2cController.stretching_enabled = 1
             i2cController.hold_bus = 0
             i2cController.started = 1
             

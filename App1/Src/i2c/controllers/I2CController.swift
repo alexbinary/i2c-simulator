@@ -21,15 +21,15 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     
     /* Public registers */
     
-    var txFifo = Fifo(size: 256, pushWhenFullBehavior: .forcePush)
+    var txFifo = Fifo(size: 1, pushWhenFullBehavior: .forcePush)
     var rxFifo = Fifo(size: 256, pushWhenFullBehavior: .forcePush)
     
     var address: Byte = 0x00
     var rw: ReadWrite = .writeToSlave
     var num_bytes: Int = 0
     
-    enum Result { case success, addressNack, dataNack, timeout, aborted }
-    var result: Result = .success
+    enum Result { case undef, success, addressNack, dataNack, timeout, aborted }
+    var result: Result = .undef
     
     var started = 0
     var start_timeout: CGFloat = 100
@@ -41,7 +41,7 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     var hold_bus = 0
     var hold_timeout = 200
     
-    var slave_addresses: [Byte] = []
+    var slave_addresses = [Byte](repeating: 0x00, count: 128)
     var slave_last_address_index: Int = 0
     
     var slave_spy_mode = 0
@@ -288,7 +288,7 @@ class I2CController: SimulationEntity, I2CBusConnectable {
         betweenStartAndStop = true
         numTransmittedBits = 0
         currentTransmittingByte = 0
-        result = .aborted
+        result = .undef
         generatingClock = started == 1
         started = 1
         lastStartDetectedX = currentX
@@ -302,8 +302,18 @@ class I2CController: SimulationEntity, I2CBusConnectable {
         generatingStop = false
         generatingClock = false
         betweenStartAndStop = false
+        
+        if result == .undef {
+            if (numTransmittedBits >= 9 && (numTransmittedBits % 9) == 1 && (rw == .writeToSlave || lastAck == .nack)) {
+                result = .success
+            } else {
+                result = .aborted
+            }
+        }
+        
         num_bytes = numTransmittedDataBytes
         started = 0
+        
         lastStopDetectedX = currentX
     }
     
@@ -353,12 +363,19 @@ class I2CController: SimulationEntity, I2CBusConnectable {
         case .end:  // expected only from master
             
             debugPointAtCurrentX(.green, "end requested")
+            result = .success
+            endTransmission()
+        
+        case .abort:  // expected only from master
+            
+            debugPointAtCurrentX(.green, "abort requested")
+            result = .aborted
             endTransmission()
         }
     }
     
     
-    enum EvaluateNextBitResult { case ok, stretch, end }
+    enum EvaluateNextBitResult { case ok, end, stretch, abort }
     func evaluateNextBit(canStretch: Bool) -> EvaluateNextBitResult {
         
         return .ok
@@ -377,6 +394,18 @@ class I2CController: SimulationEntity, I2CBusConnectable {
             
             if transmittingAddressAck {
                 debugPointAtCurrentX(.green, "address acked: \(lastAck == .ack)")
+                
+                if lastAck != .ack {
+                    result = .addressNack
+                }
+            }
+            
+            if transmittingDataAck {
+                debugPointAtCurrentX(.green, "data acked: \(lastAck == .ack)")
+                
+                if lastAck != .ack {
+                    result = .dataNack
+                }
             }
         }
         
@@ -771,7 +800,7 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     func debugPointAtCurrentX(_ color: Color, _ text: String) {
         
         print("")
-        print("\(currentX) - \(text)")
+        print("\(currentX) - \(name) \(text)")
         addMarker(currentX, color, "\(name) \(text)")
     }
 }

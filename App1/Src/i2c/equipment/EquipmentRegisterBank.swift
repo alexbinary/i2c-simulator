@@ -6,9 +6,9 @@ import SwiftUI
 class EquipmentRegisterBank: SimulationEntity, I2CBusConnectable {
     
     let i2cAddress: Byte
-    lazy var i2cController = I2CSlaveController(name: "REG")
+    lazy var i2cController = I2CSlaveController(name: "REG\(i2cAddress)")
     
-    var markers: [SimulationMarker] = []
+    var markers: [SimulationMarker] { i2cController.markers }
     
     var registers = [Byte](repeating: 0x00, count: 256)
     var registerBaseAddress: Int = 0
@@ -30,7 +30,7 @@ class EquipmentRegisterBank: SimulationEntity, I2CBusConnectable {
         registers[4] = 1
         
         i2cController.reset(x: x)
-        i2cController.slave_addresses = [i2cAddress]
+        i2cController.slave_addresses[0] = i2cAddress
         i2cController.slave_last_address_index = 0
         i2cController.stretching_enabled = 1
         i2cController.slave_spy_mode = 0

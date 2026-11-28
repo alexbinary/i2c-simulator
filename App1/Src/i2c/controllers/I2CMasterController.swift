@@ -76,7 +76,7 @@ class I2CMasterController: I2CController {
                 }
                 
                 if txFifo.isEmpty {
-                    return canStretch ? .stretch : .end
+                    return canStretch ? .stretch : .abort
                 }
                 
                 currentByteToWrite = txFifo.pop()
@@ -92,12 +92,8 @@ class I2CMasterController: I2CController {
                 return .end
             }
             
-            if rxFifo.isFull && canStretch {
-                return .stretch
-            }
-            
             if rxFifo.isFull {
-                return .end
+                return canStretch ? .stretch : .abort
             }
             
             currentBitToWrite = nil

@@ -63,7 +63,17 @@ class I2CSlaveController: I2CController {
         
         if transmittingAddressAck {
             
-            let addressMatch = true // TODO
+            let addressMatch: Bool = {
+                for i in 0...slave_last_address_index {
+                    if slave_addresses[i] == address {
+                        
+                        debugPointAtCurrentX(.green, "matched address: \(address)")
+                        return true
+                    }
+                }
+                debugPointAtCurrentX(.green, "no match for address: \(address)")
+                return false
+            }()
             
             currentBitToWrite = Ack(ackIf: addressMatch).bit
             return .ok

@@ -539,7 +539,6 @@ class I2CController: SimulationEntity, I2CBusConnectable {
         print("\(name) \(currentX) - I2CController -- stretching starting")
         
         holdingClock = true
-        generatingClock = false
         lastStretchingStartX = currentX
         stretching_ongoing = 1
     }
@@ -564,7 +563,6 @@ class I2CController: SimulationEntity, I2CBusConnectable {
         
         holdingClock = false
         holdingClockTerminationPhase = false
-        generatingClock = true
         stretching_ongoing = 0
     }
     
@@ -604,7 +602,6 @@ class I2CController: SimulationEntity, I2CBusConnectable {
         print("\(name) \(currentX) - I2CController -- hold starting")
         
         holdingBus = true
-        generatingClock = false
         lastHoldStartedX = currentX
     }
     
@@ -638,12 +635,12 @@ class I2CController: SimulationEntity, I2CBusConnectable {
             assertStart()
         }
         
-        if generatingClock {
-            assertClock()
-        }
-        
         if generatingStop {
             assertStop()
+        }
+        
+        if generatingClock {
+            assertClock()
         }
         
         if holdingClock {

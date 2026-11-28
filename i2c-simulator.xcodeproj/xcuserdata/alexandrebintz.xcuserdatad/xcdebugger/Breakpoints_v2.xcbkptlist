@@ -703,8 +703,8 @@
             filePath = "App1/Src/i2c/controllers/I2CController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "722"
-            endingLineNumber = "722"
+            startingLineNumber = "719"
+            endingLineNumber = "719"
             landmarkName = "waited(after:_:)"
             landmarkType = "7">
          </BreakpointContent>

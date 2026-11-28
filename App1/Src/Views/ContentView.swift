@@ -6,24 +6,37 @@ import SwiftUI
 struct ContentView: View {
     
     
-    @State private var scene = RenderScene()
-    @State private var canvasSize: CGSize = .zero
+    @FocusState var isFocused: Bool?
     
-    @State private var viewportTranslation: CGFloat = 0
-    @State private var viewportScale: CGFloat = 1
+    @State var scene = RenderScene()
+    @State var canvasSize: CGSize = .zero
     
-    @State private var viewportTranslationOnLastMouseDown: CGFloat? = nil
+    @State var viewportTranslation: CGFloat = 0
+    @State var viewportScale: CGFloat = 1
     
-    @State private var screenMouse: CGPoint = .zero
-    @State private var screenMouseOnLastDown: CGPoint = .zero
+    @State var viewportTranslationOnLastMouseDown: CGFloat? = nil
     
-    @State private var mouseHoverLocation: CGPoint? = nil
+    @State var screenMouse: CGPoint = .zero
+    @State var screenMouseOnLastDown: CGPoint = .zero
+    
+    @State var mouseHoverLocation: CGPoint? = nil
     
     
-    private let zoomScrollCoeff: CGFloat = 0.001
-    private let zoomPinchCoeff: CGFloat = 0.5
+    let zoomScrollCoeff: CGFloat = 0.001
+    let zoomPinchCoeff: CGFloat = 0.5
 
-    private var worldMouse: CGPoint { CGPoint(x: (screenMouse.x - viewportTranslation)/viewportScale, y: canvasSize.height - screenMouse.y) }
+    var worldMouse: CGPoint { CGPoint(x: screenToWorld(screenMouse.x), y: canvasSize.height - screenMouse.y) }
+    
+    
+    func worldToScreen(_ x: CGFloat) -> CGFloat {
+        
+        return viewportTranslation + (x)*viewportScale
+    }
+    
+    func screenToWorld(_ x: CGFloat) -> CGFloat {
+        
+        return (x - viewportTranslation)/viewportScale
+    }
 
 
     var body: some View {
@@ -49,6 +62,20 @@ struct ContentView: View {
                     self.canvasSize = newSize
                 }
             })
+            .focusable()
+            .focused($isFocused, equals: true)
+            .onKeyPress { press in
+                if press.key == .rightArrow {
+                    scene.activateNextMarkers()
+                }
+                if press.key == .leftArrow {
+                    scene.activatePreviousMarkers()
+                }
+                if press.key == .escape {
+                    scene.clearMarkers()
+                }
+                return .handled
+            }
             
             MouseEventsArea(
                 onMouseMove: { point in
@@ -78,23 +105,23 @@ struct ContentView: View {
                 }
                 .offset(x: location.x, y: location.y - canvasSize.height)
                 .offset(x: 12, y: -12)
-                
-                let tips = scene.textTips(forWorldMouseX: worldMouse.x)
-                if !tips.isEmpty {
-                    VStack(alignment: .leading) {
-                        ForEach(tips) { tip in
-                            HStack {
-                                tip.color.frame(width: 6, height: 16)
-                                Text(tip.text)
-                                    .background(.black)
-                            }
-                            .offset(x: tip.x)
+            }
+            
+            let tips = scene.activeTextTips
+            if !tips.isEmpty {
+                VStack(alignment: .leading) {
+                    ForEach(tips) { tip in
+                        HStack {
+                            tip.color.frame(width: 6, height: 16)
+                            Text(tip.text)
+                                .background(.black)
                         }
+                        .offset(x: worldToScreen(tip.x))
                     }
-                    
-                    .offset(y: location.y - canvasSize.height)
-                    .offset(y: -48)
                 }
+                
+                .offset(y: (mouseHoverLocation?.y ?? canvasSize.height*3/4) - canvasSize.height)
+                .offset(y: -48)
             }
         }
         .frame(minWidth: 2000, minHeight: 800)
@@ -106,12 +133,17 @@ struct ContentView: View {
                 mouseHoverLocation = nil
             }
         }
+        .onAppear(perform: {
+            isFocused = true
+        })
     }
     
     
     func moveMouse(toNewScreenPosition sp: CGPoint, dragging: Bool = false) {
         
         screenMouse = sp
+        
+        scene.updateMouse(worldMouse: worldMouse.x)
         
         if dragging {
             

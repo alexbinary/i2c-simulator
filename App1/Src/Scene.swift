@@ -12,22 +12,60 @@ struct TextTip: Identifiable {
 }
 
 
+@Observable
 class RenderScene {
     
     let bus = I2CBus()
     
     var markers: [SimulationMarker] = []
+    var activeMarkers: [SimulationMarker] = []
     
+    var worldMouse: CGFloat?
     
-    func textTips(forWorldMouseX x: CGFloat) -> [TextTip] {
+    func activateMarkersCloseTo(_ ref: CGFloat) {
         
         let distanceMax: CGFloat = 10
         
-        return markers
-            .filter { abs($0.x - x) < distanceMax }
-            .compactMap { TextTip(x: $0.x, text: "x\(Int($0.x)) - \($0.label)", color: $0.color) }
+        activeMarkers = markers.filter { abs($0.x - ref) < distanceMax }
     }
-
+    
+    var activeTextTips: [TextTip] {
+        
+        return activeMarkers.compactMap { TextTip(x: $0.x, text: "x\(Int($0.x)) - \($0.label)", color: $0.color) }
+    }
+    
+    func updateMouse(worldMouse: CGFloat) {
+        
+        self.worldMouse = worldMouse
+        
+        activateMarkersCloseTo(worldMouse)
+    }
+    
+    func activateNextMarkers() {
+        
+        let ref = activeMarkers.sorted { $0.x < $1.x }.last?.x ?? worldMouse ?? 0
+        
+        if let first = markers.sorted(by: { $0.x < $1.x }).first(where: { $0.x > ref }) {
+            
+            activateMarkersCloseTo(first.x)
+        }
+    }
+    
+    func activatePreviousMarkers() {
+        
+        let ref = activeMarkers.sorted { $0.x < $1.x }.first?.x ?? worldMouse ?? 0
+        
+        if let first = markers.sorted(by: { $0.x < $1.x }).last(where: { $0.x < ref }) {
+            
+            activateMarkersCloseTo(first.x)
+        }
+    }
+    
+    func clearMarkers() {
+        
+        activeMarkers = []
+    }
+    
 
     init() {
         

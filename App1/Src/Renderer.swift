@@ -40,13 +40,13 @@ class Renderer {
         }
     }
     
-    private var context: GraphicsContext
-    private let canvasSize: CGSize
-    private let viewportTranslation: CGFloat
-    private let viewportScale: CGFloat
-    private let screenMouseX: CGFloat?
+    var context: GraphicsContext
+    let canvasSize: CGSize
+    let viewportTranslation: CGFloat
+    let viewportScale: CGFloat
+    let screenMouseX: CGFloat?
     
-    private let margin: CGFloat = 24
+    let margin: CGFloat = 24
     
     
     init(
@@ -124,7 +124,7 @@ class Renderer {
             context.stroke(line.path, with: .color(line.color), lineWidth: line.lineWidth)
         }
         
-        for marker in scene.markers {
+        for marker in scene.activeMarkers {
             var path = Path()
             path.move(to: CGPoint(x: worldToScreen(marker.x), y: 0))
             path.addLine(to: CGPoint(x: worldToScreen(marker.x), y: canvasSize.height))

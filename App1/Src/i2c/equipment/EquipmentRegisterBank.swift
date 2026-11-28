@@ -32,7 +32,7 @@ class EquipmentRegisterBank: SimulationEntity, I2CBusConnectable {
         i2cController.reset(x: x)
         i2cController.slave_addresses[0] = i2cAddress
         i2cController.slave_last_address_index = 0
-        i2cController.stretching_enabled = 1
+        i2cController.stretching_enabled = 0
         i2cController.slave_spy_mode = 0
     }
     

@@ -90,8 +90,9 @@ class EquipmentTestMaster1: SimulationEntity, I2CBusConnectable {
         p += 5
         if x == p {
             request_slave2_testData1()
-            i2cController.num_bytes = 2
+            i2cController.num_bytes = 3
             i2cController.txFifo.clear()
+            i2cController.txFifo.push(Byte(slave2_testData1_registerAddress))
             i2cController.txFifo.push(Byte(slave2_testData1_registerAddress))
             i2cController.txFifo.push(Byte(slave2_testData1_registerAddress))
             i2cController.stretching_enabled = 1

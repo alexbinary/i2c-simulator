@@ -77,14 +77,14 @@ class RenderScene {
 
         let entities: [SimulationEntity] = [
             EquipmentTestMaster1(),
-//            EquipmentRegisterBank(i2cAddress: 0x2a),
-            EquipmentRegisterBank(i2cAddress: 0x61),
+            EquipmentRegisterBank(i2cAddress: 0x2a),
+//            EquipmentRegisterBank(i2cAddress: 0x61),
 //            EquipmentBusMonitor(),
             PerturbatorEquipment(name: "PER"),
         ]
         
         let startX: CGFloat = 0
-        let endX: CGFloat = 2000
+        let endX: CGFloat = 20000
         let simStepX: CGFloat = 1
         
         var currentX = startX

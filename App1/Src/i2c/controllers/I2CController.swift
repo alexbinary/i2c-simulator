@@ -21,8 +21,8 @@ class I2CController: SimulationEntity, I2CBusConnectable {
     
     /* Public registers */
     
-    var txFifo = Fifo(size: 1, pushWhenFullBehavior: .forcePush)
-    var rxFifo = Fifo(size: 256, pushWhenFullBehavior: .forcePush)
+    var txFifo = Fifo(size: 256, pushWhenFullBehavior: .forcePush)
+    var rxFifo = Fifo(size: 1, pushWhenFullBehavior: .forcePush)
     
     var address: Byte = 0x00
     var rw: ReadWrite = .writeToSlave
@@ -363,13 +363,13 @@ class I2CController: SimulationEntity, I2CBusConnectable {
         case .end:  // expected only from master
             
             debugPointAtCurrentX(.green, "end requested")
-            result = .success
+            updateResultIfUndef(with: .success)
             endTransmission()
         
         case .abort:  // expected only from master
             
             debugPointAtCurrentX(.green, "abort requested")
-            result = .aborted
+            updateResultIfUndef(with: .aborted)
             endTransmission()
         }
     }
@@ -464,6 +464,13 @@ class I2CController: SimulationEntity, I2CBusConnectable {
             started = 0
         } else {
             generatingStop = true
+        }
+    }
+    
+    
+    func updateResultIfUndef(with newValue: Result) {
+        if result == .undef {
+            result = newValue
         }
     }
     
@@ -666,6 +673,10 @@ class I2CController: SimulationEntity, I2CBusConnectable {
         
         if holdingClock {
             pullingSCL = true
+        }
+        
+        if !holdingClock && !generatingClock {
+            pullingSCL = false
         }
     }
     

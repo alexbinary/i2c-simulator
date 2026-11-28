@@ -125,5 +125,25 @@
             </PersistentString>
          </PersistentStrings>
       </ContextState>
+      <ContextState
+         contextName = "I2CController.updateInternalControlSignals():I2CController.swift">
+         <PersistentStrings>
+            <PersistentString
+               value = "holdingClockTerminationPhase">
+            </PersistentString>
+            <PersistentString
+               value = "currentX">
+            </PersistentString>
+            <PersistentString
+               value = "betweenStartAndStop">
+            </PersistentString>
+            <PersistentString
+               value = "lastStretchingStartX">
+            </PersistentString>
+            <PersistentString
+               value = "holdingClock">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
    </ContextStates>
 </VariablesViewState>
